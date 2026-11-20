@@ -10,7 +10,7 @@ script.yaml / script.txt
         ├─► Captions    auto-timed from the voiceover → burned in + .srt for YouTube
         ├─► Audio mix   background music auto-ducked under the voice, loudness normalised to −14 LUFS
         └─► Output      MP4 (1080p) · thumbnail.jpg · captions.srt · description with chapters · manifest.json
-                        → GitHub Release download link and/or direct YouTube upload
+                        → private Actions artifact download and/or direct YouTube upload
 ```
 
 Every tool comes pre-installed in one Docker image: **ffmpeg, Blender, Remotion (Node + Chromium), Python TTS and fonts**. The same image runs on GitHub Actions, in GitHub Codespaces, or on your own machine.
@@ -21,7 +21,7 @@ Every tool comes pre-installed in one Docker image: **ffmpeg, Blender, Remotion 
 
 | Option | What you get | Best for |
 |---|---|---|
-| **GitHub Actions** (recommended) | 4 CPU / 16 GB runner, up to 6 h per job. **Unlimited minutes on public repos**, 2,000 min/month on private repos (free plan). | Hands-off rendering: click *Run workflow*, download the MP4 |
+| **GitHub Actions** (recommended) | 4 CPU / 16 GB runner, up to 6 h per job. **Unlimited minutes on public repos**, 2,000 min/month on private repos (free plan). | Hands-off rendering: click *Run workflow*, download the MP4 artifact |
 | **GitHub Codespaces** | A cloud VS Code with every tool installed (`.devcontainer/`). Free monthly quota. | Editing scripts, previewing Remotion templates |
 | **Your computer** | `docker build -t ytauto .` and run it | Unlimited, fastest iteration |
 
@@ -41,7 +41,8 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
    | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#7-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.
-4. When it finishes, open **Releases**. The MP4, thumbnail, captions and description are attached there. Each run's *Artifacts* section has them too.
+4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Only people with access to the repo can download artifacts, and they're kept for 14 days.
+   *(Optional: tick **Also publish as a GitHub Release** for a direct link. On a public repo that download is public.)*
 
 Pushing a change to any `projects/<name>/script.yaml` on `main` also renders that project automatically.
 
@@ -208,6 +209,6 @@ remotion/          Animated scene templates (React + Remotion)
 blender/render.py  Procedural Blender templates + .blend renderer
 projects/          One folder per video (script.yaml + assets/)
 Dockerfile         ffmpeg + Blender + Node/Chromium + Python TTS environment
-.github/workflows/ render.yml (render + release + upload) · ci.yml (smoke test)
+.github/workflows/ render.yml (render + artifact + optional upload) · ci.yml (smoke test)
 .devcontainer/     GitHub Codespaces config
 ```

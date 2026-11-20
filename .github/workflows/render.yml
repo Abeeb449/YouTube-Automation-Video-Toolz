@@ -14,9 +14,9 @@ on:
         type: boolean
         default: false
       release:
-        description: "Publish the MP4 as a GitHub Release (direct download link)"
+        description: "ALSO publish as a GitHub Release (PUBLIC download if the repo is public)"
         type: boolean
-        default: true
+        default: false
       upload_youtube:
         description: "Upload to YouTube (needs YT_* secrets)"
         type: boolean
@@ -129,7 +129,7 @@ jobs:
           compression-level: 0
 
       - name: Publish GitHub Release
-        if: github.event_name == 'push' || inputs.release
+        if: inputs.release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
