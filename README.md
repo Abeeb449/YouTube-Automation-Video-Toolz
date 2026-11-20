@@ -10,7 +10,7 @@ script.yaml / script.txt
         ├─► Captions    auto-timed from the voiceover → burned in + .srt for YouTube
         ├─► Audio mix   background music auto-ducked under the voice, loudness normalised to −14 LUFS
         └─► Output      MP4 (1080p) · thumbnail.jpg · captions.srt · description with chapters · manifest.json
-                        → private Actions artifact download and/or direct YouTube upload
+                        → Actions artifact download and/or direct YouTube upload
 ```
 
 Every tool comes pre-installed in one Docker image: **ffmpeg, Blender, Remotion (Node + Chromium), Python TTS and fonts**. The same image runs on GitHub Actions, in GitHub Codespaces, or on your own machine.
@@ -41,7 +41,7 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
    | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#7-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.
-4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Only people with access to the repo can download artifacts, and they're kept for 14 days.
+4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 14 days. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.
    *(Optional: tick **Also publish as a GitHub Release** for a direct link. On a public repo that download is public.)*
 
 Pushing a change to any `projects/<name>/script.yaml` on `main` also renders that project automatically.
