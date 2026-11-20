@@ -1,0 +1,56 @@
+# ytauto render environment: ffmpeg + Blender + Remotion (Node/Chromium) + Python TTS.
+# Used by GitHub Actions, GitHub Codespaces and locally:
+#   docker build -t ytauto .
+#   docker run --rm -v "$PWD:/work" ytauto python -m ytauto render projects/example
+FROM node:22-bookworm-slim
+
+ARG INSTALL_BLENDER=true
+ARG BLENDER_VERSION=4.2.3
+ARG PIPER_VOICE=en_US-lessac-medium
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:/opt/blender:$PATH \
+    YTAUTO_PIPER_DIR=/opt/piper \
+    YTAUTO_REMOTION_DIR=/opt/ytauto/remotion
+
+# System packages: ffmpeg (with libass for captions), Python, fonts, espeak-ng fallback voice,
+# Chromium runtime libs for Remotion, and X/GL libs Blender needs even when headless.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ffmpeg python3 python3-venv python3-pip espeak-ng \
+      fonts-dejavu-core fonts-inter fonts-noto-core fonts-noto-color-emoji fontconfig \
+      ca-certificates curl xz-utils git \
+      libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 libxrandr2 libxkbcommon0 libxfixes3 \
+      libxcomposite1 libxdamage1 libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
+      libxi6 libxxf86vm1 libxrender1 libgl1 libegl1 libsm6 libice6 libx11-6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Blender (official build — includes OpenImageDenoise for clean CPU renders).
+RUN if [ "$INSTALL_BLENDER" = "true" ]; then \
+      MAJOR=$(echo "$BLENDER_VERSION" | cut -d. -f1,2) && \
+      curl -fsSL "https://download.blender.org/release/Blender${MAJOR}/blender-${BLENDER_VERSION}-linux-x64.tar.xz" \
+        | tar -xJ -C /opt && mv /opt/blender-${BLENDER_VERSION}-linux-x64 /opt/blender && \
+      blender --version | head -1; \
+    fi
+
+# Python dependencies.
+COPY requirements.txt /opt/ytauto/requirements.txt
+RUN python3 -m venv $VIRTUAL_ENV && pip install --no-cache-dir -r /opt/ytauto/requirements.txt
+
+# Remotion templates + headless Chromium.
+COPY remotion/package.json /opt/ytauto/remotion/package.json
+RUN cd /opt/ytauto/remotion && npm install --no-audit --no-fund && npx remotion browser ensure \
+    && mkdir -p node_modules/.cache && chmod -R a+rwX node_modules/.cache && chmod a+rwx . \
+    && chmod -R a+rX /opt/ytauto/remotion
+COPY remotion/ /opt/ytauto/remotion/
+
+# Pre-download an offline Piper voice so renders work without any TTS network access.
+COPY ytauto/ /opt/ytauto/ytauto/
+RUN mkdir -p /opt/piper && if [ -n "$PIPER_VOICE" ]; then cd /opt/ytauto && \
+      python3 -c "from ytauto.tts import ensure_piper_voice; ensure_piper_voice('${PIPER_VOICE}')"; fi \
+    && chmod -R a+rX /opt/piper
+
+COPY . /opt/ytauto
+WORKDIR /work
+ENV HOME=/tmp
+CMD ["python", "-m", "ytauto", "doctor"]

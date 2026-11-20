@@ -1,0 +1,63 @@
+# Generated from text. Tweak visuals per scene, then render.
+title: The Simple Productivity System
+description: ''
+tags: []
+settings:
+  voice:
+    engine: edge
+    name: en-US-AndrewNeural
+thumbnail:
+  text: The Simple Productivity System
+youtube:
+  privacy: private
+scenes:
+- chapter: Intro
+  duration: 3
+  visual:
+    remotion: TitleCard
+    props:
+      title: The Simple Productivity System
+- text: Have you ever wondered why some people seem to get so much more done in a day? The secret is not working
+    longer hours. It is building a system that works for you.
+  visual: pexels:busy office desk
+- chapter: 'Step one: capture everything'
+  duration: 2.5
+  visual:
+    remotion: TitleCard
+    props:
+      title: 'Step one: capture everything'
+- text: Your brain is for having ideas, not holding them. Write every task, idea and promise into one trusted inbox.
+    A notebook works. So does a notes app. The tool matters far less than the habit of using it every single time
+    something comes up.
+  visual:
+    remotion: KineticText
+    props:
+      text: Your brain is for having ideas, not holding them. Write every task, idea and promise into one trusted
+        inbox. A notebook works. So does a notes app. The tool matters far less than the habit of using it every
+        single time something comes up.
+- chapter: 'Step two: decide what matters'
+  duration: 2.5
+  visual:
+    remotion: TitleCard
+    props:
+      title: 'Step two: decide what matters'
+- text: Each evening, pick the three most important tasks for tomorrow. Not ten. Three. When you wake up, you already
+    know where your energy should go, and you avoid wasting the best hours of your morning deciding.
+  visual:
+    remotion: KineticText
+    props:
+      text: Each evening, pick the three most important tasks for tomorrow. Not ten. Three. When you wake up, you
+        already know where your energy should go, and you avoid wasting the best hours of your morning deciding.
+- chapter: Wrapping up
+  duration: 2.5
+  visual:
+    remotion: TitleCard
+    props:
+      title: Wrapping up
+- text: Capture everything, then choose three priorities a day. That is the whole system. Try it for one week and
+    tell me in the comments how it went.
+  visual:
+    remotion: KineticText
+    props:
+      text: Capture everything, then choose three priorities a day. That is the whole system. Try it for one week
+        and tell me in the comments how it went.

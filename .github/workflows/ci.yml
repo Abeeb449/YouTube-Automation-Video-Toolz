@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore: ["projects/**"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ffmpeg + espeak-ng
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
+      - run: pip install -r requirements.txt
+      - name: Typecheck Remotion templates
+        run: cd remotion && npm install --no-audit --no-fund && npx tsc -p .
+      - name: Smoke render (offline voice, ffmpeg-only visuals)
+        run: |
+          python -m ytauto new /tmp/smoke --title "Smoke Test"
+          cat > /tmp/smoke/script.yaml <<'YAML'
+          title: Smoke Test
+          settings: {voice: {engine: espeak}, width: 640, height: 360}
+          scenes:
+            - {chapter: One, text: "Hello there. This is a smoke test.", visual: {color: "#123456", text: "Hello"}}
+            - {chapter: Two, text: "Second scene with a solid colour.", visual: "#654321"}
+            - {chapter: Three, duration: 2, visual: {color: "#000000", text: "Bye"}}
+          YAML
+          python -m ytauto render /tmp/smoke
+          ls -la /tmp/smoke/build

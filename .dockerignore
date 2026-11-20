@@ -1,0 +1,5 @@
+.git
+**/node_modules
+projects/*/build
+projects/*/.cache
+**/__pycache__

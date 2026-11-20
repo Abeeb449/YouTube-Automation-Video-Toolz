@@ -1,0 +1,153 @@
+name: Render video
+
+# Run manually from the Actions tab ("Run workflow"), or automatically when a
+# projects/<name>/script.yaml is pushed.
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Project folder to render"
+        default: projects/example
+        required: true
+      preview:
+        description: "Fast 480p preview instead of full quality"
+        type: boolean
+        default: false
+      release:
+        description: "Publish the MP4 as a GitHub Release (direct download link)"
+        type: boolean
+        default: true
+      upload_youtube:
+        description: "Upload to YouTube (needs YT_* secrets)"
+        type: boolean
+        default: false
+      privacy:
+        description: "YouTube privacy"
+        type: choice
+        options: [private, unlisted, public]
+        default: private
+  push:
+    branches: [main]
+    paths: ["projects/**/script.yaml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-${{ github.ref }}-${{ inputs.project || 'push' }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.pick.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: pick
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            list="[\"${{ inputs.project }}\"]"
+          else
+            list=$(git diff --name-only HEAD~1 HEAD -- 'projects/**/script.yaml' \
+                   | xargs -r -n1 dirname | sort -u | jq -R . | jq -sc .)
+          fi
+          echo "projects=${list:-[]}" >> "$GITHUB_OUTPUT"
+          echo "Projects to render: ${list:-[]}"
+
+  render:
+    needs: plan
+    if: needs.plan.outputs.projects != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.plan.outputs.projects) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build render image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ytauto:latest
+          cache-from: type=gha,scope=ytauto
+          cache-to: type=gha,scope=ytauto,mode=max
+
+      - name: Restore render cache (voiceover, stock, rendered clips)
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.project }}/.cache
+          key: ytauto-${{ matrix.project }}-${{ github.run_id }}
+          restore-keys: ytauto-${{ matrix.project }}-
+
+      - name: Render
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          mkdir -p "${{ matrix.project }}/.cache"
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+            -e PEXELS_API_KEY -e PIXABAY_API_KEY -e ELEVENLABS_API_KEY \
+            ytauto:latest python -m ytauto render "${{ matrix.project }}" ${{ inputs.preview && '--preview' || '' }}
+          rm -rf "${{ matrix.project }}/.cache/work"
+          ls -la "${{ matrix.project }}/build"
+
+      - name: Name outputs
+        id: meta
+        shell: bash
+        run: |
+          name=$(basename "${{ matrix.project }}")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=video-$name-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 🎬 ${name}"
+            echo '```json'
+            cat "${{ matrix.project }}/build/manifest.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.name }}-video
+          path: ${{ matrix.project }}/build/
+          retention-days: 14
+          compression-level: 0
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' || inputs.release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "🎬 ${{ steps.meta.outputs.name }} #${{ github.run_number }}"
+          body_path: ${{ matrix.project }}/build/description.txt
+          files: |
+            ${{ matrix.project }}/build/*.mp4
+            ${{ matrix.project }}/build/thumbnail.jpg
+            ${{ matrix.project }}/build/captions.srt
+            ${{ matrix.project }}/build/manifest.json
+
+      - name: Upload to YouTube
+        if: inputs.upload_youtube
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+            -e YT_CLIENT_ID -e YT_CLIENT_SECRET -e YT_REFRESH_TOKEN \
+            ytauto:latest python -m ytauto upload "${{ matrix.project }}" --privacy "${{ inputs.privacy }}"

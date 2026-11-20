@@ -1,0 +1,327 @@
+"""Render a project end-to-end: voiceover → clips → concat → mix → captions → final MP4."""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
+
+from .config import Project
+from .tts import Cue, SceneAudio, build_scene_audio
+from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
+from .visuals import ClipRenderer
+
+
+@dataclass
+class ScenePlan:
+    scene_index: int
+    start: float
+    duration: float
+    audio: SceneAudio
+    clip_frames: list[int]
+
+
+def _workers(settings: dict) -> int:
+    w = int(settings.get("workers") or 0)
+    return w if w > 0 else max(1, (os.cpu_count() or 2) // 2)
+
+
+def _srt_time(t: float) -> str:
+    ms = int(round(t * 1000))
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _ass_time(t: float) -> str:
+    cs = int(round(t * 100))
+    h, cs = divmod(cs, 360_000)
+    m, cs = divmod(cs, 6000)
+    s, cs = divmod(cs, 100)
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def write_captions(cues: list[Cue], build: Path, settings: dict) -> tuple[Path, Path]:
+    srt = build / "captions.srt"
+    srt.write_text("".join(f"{i}\n{_srt_time(c.start)} --> {_srt_time(c.end)}\n{c.text}\n\n"
+                           for i, c in enumerate(cues, 1)), encoding="utf-8")
+    sub = settings["subtitles"]
+    W, H = settings["width"], settings["height"]
+    scale = H / 1080
+    box = bool(sub.get("box"))
+    style = ",".join(str(x) for x in [
+        "Default", sub["font"], int(sub["font_size"] * scale), sub["primary_color"], "&H000000FF",
+        sub["outline_color"], "&H80000000", -1, 0, 0, 0, 100, 100, 0, 0, 3 if box else 1,
+        sub["outline"], 0 if box else 1, 2, 60, 60, int(sub["margin_v"] * scale), 1])
+    ass = build / "captions.ass"
+    ass.write_text(
+        "[Script Info]\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
+        f"PlayResX: {W}\nPlayResY: {H}\n\n[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
+        "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, "
+        "MarginR, MarginV, Encoding\n"
+        f"Style: {style}\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        + "".join(f"Dialogue: 0,{_ass_time(c.start)},{_ass_time(c.end)},Default,,0,0,0,,{c.text.replace(chr(10), chr(92) + 'N')}\n"
+                  for c in cues),
+        encoding="utf-8")
+    return srt, ass
+
+
+def chapters(project: Project, plans: list[ScenePlan]) -> list[tuple[float, str]]:
+    marks = [(p.start, project.scenes[p.scene_index].chapter) for p in plans if project.scenes[p.scene_index].chapter]
+    # YouTube needs the first chapter at 0:00 — the first chapter absorbs any leading scenes.
+    if marks:
+        marks[0] = (0.0, marks[0][1])
+    return marks
+
+
+def render_project(project: Project, preview: bool = False, keep_cache: bool = True) -> Path:
+    t0 = time.time()
+    st = project.settings
+    fps = int(st["fps"])
+    build = project.build_dir
+    build.mkdir(parents=True, exist_ok=True)
+    cache = project.cache_dir
+    log(f"Project: {project.title} — {len(project.scenes)} scenes, {st['width']}x{st['height']}@{fps}"
+        + (" (PREVIEW)" if preview else ""))
+
+    # 1) Voiceover --------------------------------------------------------------------------
+    log("Step 1/5: generating voiceover")
+    voice_cache = cache / "tts"
+
+    def do_audio(scene):
+        voice = {**st["voice"], **(scene.voice or {})}
+        return build_scene_audio(scene.text, voice, voice_cache, st, scene.duration)
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        audios = list(ex.map(do_audio, project.scenes))
+
+    plans: list[ScenePlan] = []
+    t = 0.0
+    for scene, audio in zip(project.scenes, audios):
+        dur = audio.duration + (float(st["padding"]) if scene.text else 0.0)
+        if scene.duration:
+            dur = max(dur, scene.duration)
+        total_frames = max(len(scene.visuals), round(dur * fps))
+        n = len(scene.visuals)
+        base, extra = divmod(total_frames, n)
+        frames = [base + (1 if i < extra else 0) for i in range(n)]
+        dur = total_frames / fps  # snap to whole frames so audio and video never drift
+        plans.append(ScenePlan(scene.index, t, dur, audio, frames))
+        t += dur
+    total = t
+    log(f"   narration ready — video length will be {fmt_ts(total)} ({total:.1f}s)")
+
+    # 2) Visual clips -----------------------------------------------------------------------
+    log("Step 2/5: rendering visuals")
+    renderer = ClipRenderer(project)
+    jobs = []
+    seq = 0
+    for plan in plans:
+        scene = project.scenes[plan.scene_index]
+        for vi, (spec, fr) in enumerate(zip(scene.visuals, plan.clip_frames)):
+            # Remotion KineticText with no explicit text uses the narration.
+            if isinstance(spec, dict) and spec.get("remotion") == "KineticText":
+                spec = {**spec, "props": {"text": scene.text, **(spec.get("props") or {})}}
+            jobs.append((seq, spec, fr / fps, vi == 0, vi == len(scene.visuals) - 1))
+            seq += 1
+
+    done = [0]
+
+    def do_clip(job):
+        s, spec, d, fi, fo = job
+        try:
+            path = renderer.render(spec, d, s, fi, fo)
+        except YtautoError as exc:
+            raise YtautoError(f"Visual #{s + 1} ({spec!r}): {exc}") from exc
+        done[0] += 1
+        if done[0] % 10 == 0 or done[0] == len(jobs):
+            log(f"   clips {done[0]}/{len(jobs)}")
+        return path
+
+    with ThreadPoolExecutor(max_workers=_workers(st)) as ex:
+        clips = list(ex.map(do_clip, jobs))
+
+    # 3) Join video + narration ------------------------------------------------------------
+    log("Step 3/5: joining clips and narration")
+    work = cache / "work"
+    work.mkdir(parents=True, exist_ok=True)
+    vlist = work / "video_list.txt"
+    vlist.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
+    video = work / "video.mp4"
+    run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", vlist, "-c", "copy", video])
+
+    padded = []
+    for plan in plans:
+        pth = work / f"vo_{plan.scene_index:04d}.wav"
+        run(["ffmpeg", "-y", "-v", "error", "-i", plan.audio.path, "-af", f"apad=whole_dur={plan.duration:.4f}",
+             "-t", f"{plan.duration:.4f}", "-ar", "48000", "-ac", "1", pth])
+        padded.append(pth)
+    alist = work / "audio_list.txt"
+    alist.write_text("".join(f"file '{p.resolve()}'\n" for p in padded))
+    narration = work / "narration.wav"
+    run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", alist, "-c", "copy", narration])
+
+    # 4) Audio mix: narration + sfx + ducked music + loudness normalisation -----------------
+    log("Step 4/5: mixing audio")
+    inputs = ["-i", narration]
+    filters = ["[0:a]aresample=48000,aformat=channel_layouts=stereo[vo]"]
+    mix = ["[vo]"]
+    idx = 1
+    for plan in plans:
+        sfx = project.scenes[plan.scene_index].sfx
+        if sfx:
+            path = project.resolve(sfx)
+            if not path.exists():
+                warn(f"sfx not found: {path}")
+                continue
+            inputs += ["-i", path]
+            ms = int(plan.start * 1000)
+            filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms}[s{idx}]")
+            mix.append(f"[s{idx}]")
+            idx += 1
+    music = st.get("music")
+    if music:
+        mfile = project.resolve(music["file"] if isinstance(music, dict) else music)
+        mcfg = music if isinstance(music, dict) else {}
+        if mfile.exists():
+            inputs += ["-stream_loop", "-1", "-i", mfile]
+            vol = float(mcfg.get("volume", 0.12))
+            filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},"
+                           f"atrim=0:{total:.3f},afade=t=in:d=1.5,afade=t=out:st={max(0, total - 3):.3f}:d=3[mus]")
+            if mcfg.get("duck", True):
+                filters[0] = "[0:a]aresample=48000,aformat=channel_layouts=stereo,asplit=2[vo][vokey]"
+                filters.append("[mus][vokey]sidechaincompress=threshold=0.03:ratio=6:attack=50:release=400[musd]")
+                mix.append("[musd]")
+            else:
+                mix.append("[mus]")
+            idx += 1
+        else:
+            warn(f"music file not found: {mfile} — rendering without music")
+    lufs = st.get("loudness", -14)
+    filters.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0,"
+                   f"loudnorm=I={lufs}:TP=-1.5:LRA=11,aresample=48000[aout]")
+    mixed = work / "mix.m4a"
+    run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
+         "-t", f"{total:.3f}", "-c:a", "aac", "-b:a", "192k", mixed])
+
+    # 5) Captions, watermark, chapters, final mux -----------------------------------------
+    log("Step 5/5: captions + final encode")
+    all_cues = [Cue(round(p.start + c.start, 3), round(p.start + c.end, 3), c.text) for p in plans for c in p.audio.cues]
+    srt, ass = write_captions(all_cues, build, st)
+
+    marks = chapters(project, plans)
+    meta = work / "chapters.txt"
+    meta_lines = [";FFMETADATA1", f"title={project.title}"]
+    for i, (start, name) in enumerate(marks):
+        end = marks[i + 1][0] if i + 1 < len(marks) else total
+        meta_lines += ["[CHAPTER]", "TIMEBASE=1/1000", f"START={int(start * 1000)}", f"END={int(end * 1000)}", f"title={name}"]
+    meta.write_text("\n".join(meta_lines) + "\n", encoding="utf-8")
+
+    sub = st["subtitles"]
+    burn = sub.get("enabled", True) and sub.get("burn", True) and all_cues
+    wm = st.get("watermark")
+    wm_path = project.resolve(wm["file"] if isinstance(wm, dict) else wm) if wm else None
+    if wm_path and not wm_path.exists():
+        warn(f"watermark not found: {wm_path}")
+        wm_path = None
+
+    final = build / f"{_slug(project.title)}.mp4"
+    cmd = ["ffmpeg", "-y", "-v", "error", "-stats", "-i", video, "-i", mixed, "-i", meta]
+    vchain = "[0:v]"
+    fparts = []
+    if wm_path:
+        cfg = wm if isinstance(wm, dict) else {}
+        cmd += ["-i", wm_path]
+        w = int(st["width"] * float(cfg.get("scale", 0.08)))
+        m = int(st["width"] * 0.025)
+        pos = {"top-right": f"W-w-{m}:{m}", "top-left": f"{m}:{m}", "bottom-right": f"W-w-{m}:H-h-{m}",
+               "bottom-left": f"{m}:H-h-{m}"}.get(cfg.get("position", "top-right"), f"W-w-{m}:{m}")
+        fparts.append(f"[3:v]scale={w}:-1,format=rgba,colorchannelmixer=aa={float(cfg.get('opacity', 0.8))}[wm]")
+        fparts.append(f"{vchain}[wm]overlay={pos}[v1]")
+        vchain = "[v1]"
+    if burn:
+        fparts.append(f"{vchain}subtitles=captions.ass[v2]")
+        vchain = "[v2]"
+    if fparts:
+        cmd += ["-filter_complex", ";".join(fparts), "-map", vchain,
+                "-c:v", "libx264", "-preset", st["preset"], "-crf", str(st["crf"]), "-pix_fmt", "yuv420p",
+                "-g", str(fps * 2)]
+    else:
+        cmd += ["-map", "0:v", "-c:v", "copy"]
+    cmd += ["-map", "1:a", "-c:a", "copy", "-map_metadata", "2", "-map_chapters", "2",
+            "-movflags", "+faststart", "-shortest", str(final.resolve())]
+    run(cmd, cwd=build)
+
+    # Description with chapters + metadata for upload ------------------------------------
+    desc = project.description.strip()
+    short = [n for i, (s, n) in enumerate(marks) if (marks[i + 1][0] if i + 1 < len(marks) else total) - s < 10]
+    if short:
+        warn(f"YouTube ignores chapters when any is under 10s: {', '.join(short)}")
+    if len(marks) >= 3:
+        desc += "\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)
+    (build / "description.txt").write_text(desc + "\n", encoding="utf-8")
+    thumb = make_thumbnail(project, clips, build)
+    manifest = {
+        "title": project.title, "description": desc, "tags": project.tags,
+        "video": final.name, "captions": srt.name, "thumbnail": thumb.name if thumb else None,
+        "duration_seconds": round(total, 2), "chapters": [{"start": s, "title": n} for s, n in marks],
+        "youtube": project.youtube,
+    }
+    (build / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    if not keep_cache:
+        shutil.rmtree(work, ignore_errors=True)
+    size = final.stat().st_size / 1e6
+    log(f"Done in {time.time() - t0:.0f}s → {final} ({fmt_ts(total)}, {size:.1f} MB)")
+    return final
+
+
+def _slug(s: str) -> str:
+    out = "".join(c.lower() if c.isalnum() else "-" for c in s).strip("-")
+    while "--" in out:
+        out = out.replace("--", "-")
+    return out[:80] or "video"
+
+
+def make_thumbnail(project: Project, clips: list[Path], build: Path) -> Path | None:
+    """1280x720 JPG: a background (image or a frame from the video) plus big bold text."""
+    cfg = project.thumbnail or {}
+    if cfg is False:
+        return None
+    out = build / "thumbnail.jpg"
+    text = cfg.get("text", project.title)
+    if cfg.get("image"):
+        src = ["-i", project.resolve(cfg["image"])]
+    else:
+        clip_i = min(int(cfg.get("from_clip", 0)), len(clips) - 1)
+        src = ["-ss", str(cfg.get("at", 1.0)), "-i", clips[clip_i]]
+    font = find_font(bold=True)
+    txt = project.cache_dir / "text" / f"thumb_{stable_hash(text)}.txt"
+    txt.parent.mkdir(parents=True, exist_ok=True)
+    # Simple word wrap at ~18 chars per line for punchy thumbnails.
+    lines, cur = [], ""
+    for w in str(text).split():
+        if cur and len(cur) + 1 + len(w) > 18:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    lines.append(cur)
+    txt.write_text("\n".join(lines[:4]), encoding="utf-8")
+    size = int(cfg.get("font_size", 110 if len(lines) <= 2 else 86))
+    color = cfg.get("color", "white")
+    fontopt = f"fontfile='{font}':" if font else ""
+    vf = ("scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,eq=brightness=-0.12:saturation=1.3,"
+          f"drawtext={fontopt}textfile='{txt}':fontsize={size}:fontcolor={color}:line_spacing=10:"
+          f"borderw=8:bordercolor=black:x=60:y=(h-text_h)/2")
+    try:
+        run(["ffmpeg", "-y", "-v", "error", *src, "-frames:v", "1", "-vf", vf, "-q:v", "2", out])
+        return out
+    except YtautoError as exc:
+        warn(f"thumbnail failed: {exc}")
+        return None

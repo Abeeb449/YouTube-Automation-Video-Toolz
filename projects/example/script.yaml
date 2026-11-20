@@ -1,0 +1,62 @@
+# Example project — render with:  python -m ytauto render projects/example
+# Works with no API keys. Add PEXELS_API_KEY to get real stock footage for the "pexels:" scenes.
+title: "5 Habits That Will Change Your Life"
+description: |
+  Small daily habits compound into big results. In this video we break down five
+  simple habits you can start today.
+tags: [habits, productivity, self improvement]
+
+settings:
+  width: 1920
+  height: 1080
+  fps: 30
+  voice:
+    engine: edge                  # free Microsoft neural voices (needs internet)
+    name: en-US-AndrewNeural
+    rate: "+0%"
+    fallback: espeak              # used automatically if edge is unreachable
+  subtitles:
+    burn: true
+    font_size: 58
+  theme:                          # colours used by every Remotion template
+    bg1: "#0f172a"
+    bg2: "#312e81"
+    accent: "#facc15"
+  # music: {file: assets/music.mp3, volume: 0.12, duck: true}   # add your own royalty-free track
+  # watermark: {file: assets/logo.png, position: top-right, opacity: 0.8}
+
+thumbnail:
+  text: "5 HABITS THAT CHANGE EVERYTHING"
+  from_clip: 1                    # use a frame from clip #2 as the background
+
+youtube:
+  privacy: private
+  category_id: 27
+
+scenes:
+  - duration: 3.5
+    visual: {blender: intro, props: {text: "HABITS", subtext: "that change your life"}}
+
+  - chapter: Intro
+    text: "What if a few tiny habits could completely change the next year of your life? Today we will look at five of them, and every single one takes less than ten minutes a day."
+    visual: {remotion: TitleCard, props: {kicker: "Episode 1", title: "5 Life-Changing Habits", subtitle: "Ten minutes a day"}}
+
+  - chapter: "Habit 1: Wake up early"
+    text: "Habit number one. Wake up at the same time every day. A consistent wake time trains your body clock, and that means better sleep and more energy."
+    visual:
+      - pexels:sunrise morning
+      - {remotion: KineticText, props: {highlight: [consistent, energy]}}
+
+  - chapter: "Habit 2: Move your body"
+    text: "Habit number two. Move your body. Even a ten minute walk raises your mood and sharpens your focus for hours."
+    visual: {remotion: BigNumber, props: {value: 10, suffix: " min", label: "of walking is enough to lift your mood"}}
+
+  - chapter: "Habits 3 to 5"
+    text: "The last three habits are simple. Read a few pages every day. Write down three things you are grateful for. And plan tomorrow before you go to bed."
+    visual: {remotion: BulletList, props: {title: "Three more habits", items: ["Read a few pages daily", "Write three gratitudes", "Plan tomorrow tonight"]}}
+
+  - chapter: Outro
+    text: "Small habits, repeated daily, create extraordinary results. If this helped you, subscribe for more."
+    visual:
+      - {remotion: Quote, props: {quote: "We are what we repeatedly do.", author: "Will Durant"}}
+      - {color: "#0f172a", text: "Thanks for watching", subtext: "Subscribe for more"}
