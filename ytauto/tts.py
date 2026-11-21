@@ -17,7 +17,7 @@ import os
 import re
 import urllib.request
 import wave
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .utils import YtautoError, ffprobe_duration, log, run, stable_hash, warn, which
@@ -39,6 +39,7 @@ class SceneAudio:
     path: Path
     duration: float          # narration length (without trailing padding)
     cues: list[Cue]          # caption cues relative to the scene start
+    words: list[Cue] = field(default_factory=list)  # per-word timings relative to the scene start
 
 
 # --------------------------------------------------------------------------- text
@@ -112,16 +113,28 @@ def _edge(text: str, voice: dict, out: Path) -> None:
     proxy = os.environ.get("YTAUTO_EDGE_PROXY")
     if proxy:
         kwargs["proxy"] = proxy
-    comm = edge_tts.Communicate(text, voice.get("name") or "en-US-AndrewNeural", **kwargs)
+    try:  # word timings let graphics land exactly on spoken words
+        comm = edge_tts.Communicate(text, voice.get("name") or "en-US-AndrewNeural", boundary="WordBoundary", **kwargs)
+    except TypeError:  # older edge-tts
+        comm = edge_tts.Communicate(text, voice.get("name") or "en-US-AndrewNeural", **kwargs)
+    words: list[dict] = []
 
     async def go():
-        await asyncio.wait_for(comm.save(str(tmp)), timeout=90)
+        with open(tmp, "wb") as f:
+            async for chunk in comm.stream():
+                if chunk["type"] == "audio":
+                    f.write(chunk["data"])
+                elif chunk["type"] == "WordBoundary":
+                    st = chunk["offset"] / 1e7
+                    words.append({"start": round(st, 3), "end": round(st + chunk["duration"] / 1e7, 3), "text": chunk["text"]})
 
-    asyncio.run(go())
+    asyncio.run(asyncio.wait_for(go(), timeout=90))
     if not tmp.exists() or tmp.stat().st_size == 0:
         raise YtautoError("edge-tts returned no audio")
     _to_wav(tmp, out)
     tmp.unlink(missing_ok=True)
+    if words:
+        out.with_suffix(".words.json").write_text(json.dumps(words))
 
 
 def piper_model_dir() -> Path:
@@ -248,15 +261,16 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     sub = settings["subtitles"]
     gap = float(settings["sentence_gap"])
     sentences = split_sentences(text)
-    key = stable_hash("scene-audio-v3", voice, sentences, gap, fixed_duration, sub["max_chars"])
+    key = stable_hash("scene-audio-v4", voice, sentences, gap, fixed_duration, sub["max_chars"])
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
     if out.exists() and meta.exists():
         m = json.loads(meta.read_text())
-        return SceneAudio(out, m["duration"], [Cue(**c) for c in m["cues"]])
+        return SceneAudio(out, m["duration"], [Cue(**c) for c in m["cues"]], [Cue(**w) for w in m.get("words", [])])
 
     pieces: list[Path] = []
     cues: list[Cue] = []
+    words: list[Cue] = []
     t = 0.0
     gap_file = cache / f"gap_{int(gap * 1000)}.wav"
     if gap > 0 and not gap_file.exists():
@@ -268,13 +282,24 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         if not wav.exists():
             synthesize(sent, voice, wav)
         d = ffprobe_duration(wav)
+        sw = sentence_words(sent, d, wav.with_suffix(".words.json"))
+        words.extend(Cue(round(t + w.start, 3), round(t + w.end, 3), w.text) for w in sw)
         chunks = caption_chunks(sent, int(sub["max_chars"]))
         total_chars = sum(len(c) for c in chunks) or 1
         ct = t
-        for c in chunks:
-            cd = d * len(c) / total_chars
-            cues.append(Cue(round(ct, 3), round(ct + cd, 3), wrap_two_lines(c, int(sub["max_chars"]))))
-            ct += cd
+        exact = len(sw) == len(sent.split())  # engine word timings line up with our tokens
+        wi = 0
+        for ci, c in enumerate(chunks):
+            n = len(c.split())
+            if exact:
+                c0 = t + sw[wi].start if ci else t
+                c1 = t + (sw[wi + n].start if wi + n < len(sw) else d)
+                cues.append(Cue(round(c0, 3), round(c1, 3), wrap_two_lines(c, int(sub["max_chars"]))))
+                wi += n
+            else:
+                cd = d * len(c) / total_chars
+                cues.append(Cue(round(ct, 3), round(ct + cd, 3), wrap_two_lines(c, int(sub["max_chars"]))))
+                ct += cd
         pieces.append(wav)
         t += d
         if gap > 0 and i < len(sentences) - 1:
@@ -296,8 +321,31 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         lst.unlink(missing_ok=True)
         t = ffprobe_duration(out)
 
-    meta.write_text(json.dumps({"duration": t, "cues": [c.__dict__ for c in cues]}))
-    return SceneAudio(out, t, cues)
+    meta.write_text(json.dumps({"duration": t, "cues": [c.__dict__ for c in cues], "words": [w.__dict__ for w in words]}))
+    return SceneAudio(out, t, cues, words)
+
+
+def sentence_words(sentence: str, duration: float, words_file: Path) -> list[Cue]:
+    """Word timings for one voiced sentence: exact from Edge TTS, otherwise estimated by length."""
+    if words_file.exists():
+        try:
+            data = json.loads(words_file.read_text())
+            # Edge reports words without punctuation; map back onto our tokens when counts match.
+            toks = sentence.split()
+            if len(data) == len(toks):
+                return [Cue(w["start"], w["end"], tok) for w, tok in zip(data, toks)]
+            return [Cue(w["start"], w["end"], w["text"]) for w in data]
+        except (ValueError, KeyError):
+            pass
+    toks = sentence.split()
+    weights = [len(re.sub(r"\W", "", w)) + 2 for w in toks]
+    total = sum(weights) or 1
+    out, acc = [], 0.0
+    for tok, wgt in zip(toks, weights):
+        d = duration * wgt / total
+        out.append(Cue(round(acc, 3), round(acc + d * 0.9, 3), tok))
+        acc += d
+    return out
 
 
 def list_voices(engine: str, locale: str | None = None) -> list[str]:

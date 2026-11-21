@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import Project
+from .cues import find_word_time, resolve_cues
+from .sound import BUILTIN, build_track
 from .tts import Cue, SceneAudio, build_scene_audio
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
@@ -123,11 +125,17 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     seq = 0
     for plan in plans:
         scene = project.scenes[plan.scene_index]
+        offset_frames = 0
         for vi, (spec, fr) in enumerate(zip(scene.visuals, plan.clip_frames)):
             # Remotion KineticText with no explicit text uses the narration.
             if isinstance(spec, dict) and spec.get("remotion") == "KineticText":
                 spec = {**spec, "props": {"text": scene.text, **(spec.get("props") or {})}}
+            # Word cues (at: "Hiroshima") → seconds within this clip.
+            if isinstance(spec, dict) and spec.get("props"):
+                spec = {**spec, "props": resolve_cues(spec["props"], plan.audio.words, offset_frames / fps, fr / fps,
+                                                      where=f"scene {plan.scene_index + 1}")}
             jobs.append((seq, spec, fr / fps, vi == 0, vi == len(scene.visuals) - 1))
+            offset_frames += fr
             seq += 1
 
     done = [0]
@@ -172,18 +180,20 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     filters = ["[0:a]aresample=48000,aformat=channel_layouts=stereo[vo]"]
     mix = ["[vo]"]
     idx = 1
-    for plan in plans:
-        sfx = project.scenes[plan.scene_index].sfx
-        if sfx:
-            path = project.resolve(sfx)
-            if not path.exists():
-                warn(f"sfx not found: {path}")
-                continue
-            inputs += ["-i", path]
-            ms = int(plan.start * 1000)
-            filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms}[s{idx}]")
-            mix.append(f"[s{idx}]")
-            idx += 1
+    synth_events, file_events = collect_sfx(project, plans)
+    snd = st.get("sound") or {}
+    if synth_events or float(snd.get("drone", 0) or 0) > 0:
+        track = build_track(total, synth_events, float(snd.get("drone", 0) or 0), work / "sound_design.wav")
+        inputs += ["-i", track]
+        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={float(snd.get('volume', 1.0))}[sd]")
+        mix.append("[sd]")
+        idx += 1
+    for at, path, vol in file_events:
+        inputs += ["-i", path]
+        ms = int(max(0, at) * 1000)
+        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},adelay={ms}|{ms}[s{idx}]")
+        mix.append(f"[s{idx}]")
+        idx += 1
     music = st.get("music")
     if music:
         mfile = project.resolve(music["file"] if isinstance(music, dict) else music)
@@ -266,6 +276,10 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         desc += "\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)
     (build / "description.txt").write_text(desc + "\n", encoding="utf-8")
     thumb = make_thumbnail(project, clips, build)
+    try:
+        contact_sheet(final, plans, build / "contact_sheet.jpg")
+    except YtautoError as exc:
+        warn(f"contact sheet failed: {exc}")
     manifest = {
         "title": project.title, "description": desc, "tags": project.tags,
         "video": final.name, "captions": srt.name, "thumbnail": thumb.name if thumb else None,
@@ -279,6 +293,73 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     size = final.stat().st_size / 1e6
     log(f"Done in {time.time() - t0:.0f}s → {final} ({fmt_ts(total)}, {size:.1f} MB)")
     return final
+
+
+def collect_sfx(project: Project, plans: list[ScenePlan]):
+    """Scene `sfx` → (synth events, file events). Also adds automatic whooshes on cuts."""
+    snd = project.settings.get("sound") or {}
+    synth: list[tuple[float, str, float, float | None]] = []
+    files: list[tuple[float, Path, float]] = []
+    if snd.get("whoosh_on_cut"):
+        wv = float(snd.get("whoosh_volume", 0.22))
+        for plan in plans[1:]:
+            synth.append((plan.start, "whoosh", wv, None))
+    for plan in plans:
+        raw = project.scenes[plan.scene_index].sfx
+        if not raw:
+            continue
+        items = raw if isinstance(raw, list) else [raw]
+        for it in items:
+            if isinstance(it, str):
+                it = {"sound": it} if it in BUILTIN else {"file": it}
+            at = it.get("at", 0)
+            if isinstance(at, str):
+                wt = find_word_time(at, plan.audio.words)
+                if wt is None:
+                    warn(f"scene {plan.scene_index + 1}: sfx cue {at!r} not found in narration")
+                    wt = 0.0
+                at = wt
+            t = plan.start + float(at)
+            vol = float(it.get("volume", 0.7))
+            if it.get("sound"):
+                if it["sound"] not in BUILTIN:
+                    warn(f"unknown built-in sound {it['sound']!r} (have: {', '.join(sorted(BUILTIN))})")
+                    continue
+                synth.append((t, it["sound"], vol, it.get("dur")))
+            elif it.get("file"):
+                path = project.resolve(it["file"])
+                if path.exists():
+                    files.append((t, path, vol))
+                else:
+                    warn(f"sfx not found: {path}")
+    return synth, files
+
+
+def contact_sheet(video: Path, plans: list[ScenePlan], out: Path, cols: int = 4) -> Path | None:
+    """One frame from the middle of each scene, tiled — a quick QC overview of the whole video."""
+    times = [p.start + p.duration * 0.6 for p in plans][:48]
+    if not times:
+        return None
+    tmp = out.parent / ".sheet"
+    tmp.mkdir(exist_ok=True)
+    frames = []
+    for i, t in enumerate(times):
+        f = tmp / f"{i:03d}.jpg"
+        try:
+            run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.2f}", "-i", video, "-frames:v", "1",
+                 "-vf", f"scale=480:-2,drawtext=text='{i + 1}':x=10:y=10:fontsize=22:fontcolor=yellow:box=1:boxcolor=black@0.6", f])
+            frames.append(f)
+        except YtautoError:
+            pass
+    if not frames:
+        return None
+    rows = -(-len(frames) // cols)
+    run(["ffmpeg", "-y", "-v", "error", "-framerate", "1", "-i", tmp / "%03d.jpg",
+         "-vf", f"tile={cols}x{rows}:padding=4:color=black", "-frames:v", "1", "-q:v", "3", out])
+    for f in frames:
+        f.unlink()
+    tmp.rmdir()
+    return out
 
 
 def _slug(s: str) -> str:

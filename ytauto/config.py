@@ -42,6 +42,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     },
     "music": None,               # {file: assets/music.mp3, volume: 0.12, duck: true}
     "watermark": None,           # {file: assets/logo.png, position: top-right, opacity: 0.8, scale: 0.08}
+    "sound": {                   # synthesized sound design (ytauto/sound.py) — no downloads
+        "drone": 0,              # ambient tension bed level, e.g. 0.06; 0 = off
+        "whoosh_on_cut": False,  # soft whoosh on every scene change
+        "whoosh_volume": 0.22,
+        "volume": 1.0,
+    },
     "theme": {},                 # default Remotion theme for every remotion scene
     "default_visual": {"color": "#0f172a"},
 }
@@ -55,7 +61,7 @@ class Scene:
     duration: float | None = None      # fixed duration (for scenes without narration or to force length)
     chapter: str | None = None
     voice: dict | None = None          # per-scene voice override
-    sfx: str | None = None             # sound effect file mixed at scene start
+    sfx: Any = None                    # "boom" | "assets/x.mp3" | [{sound|file, at, volume, dur}]
     raw: dict = field(default_factory=dict)
 
 
@@ -83,6 +89,20 @@ class Project:
         return path if path.is_absolute() else (self.root / path)
 
 
+# Style presets: `preset: documentary` at the top of script.yaml. Your own settings override them.
+PRESETS: dict[str, dict] = {
+    "documentary": {
+        # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
+        "transition": "none",          # templates fade their own content over a shared backdrop
+        "padding": 0.5,
+        "voice": {"engine": "edge", "name": "en-US-ChristopherNeural", "rate": "-4%"},
+        "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
+        "sound": {"drone": 0.05, "whoosh_on_cut": True, "whoosh_volume": 0.18},
+    },
+    "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 64, "max_chars": 22, "margin_v": 520}},
+}
+
+
 def _deep_merge(base: dict, override: dict) -> dict:
     out = copy.deepcopy(base)
     for k, v in (override or {}).items():
@@ -100,7 +120,12 @@ def load_project(path: str | Path, overrides: dict | None = None) -> Project:
         raise YtautoError(f"No script.yaml found at {script}")
     data = yaml.safe_load(script.read_text(encoding="utf-8")) or {}
 
-    settings = _deep_merge(DEFAULT_SETTINGS, data.get("settings") or {})
+    base = DEFAULT_SETTINGS
+    for name in ([data["preset"]] if isinstance(data.get("preset"), str) else data.get("preset") or []):
+        if name not in PRESETS:
+            raise YtautoError(f"Unknown preset {name!r}. Available: {', '.join(PRESETS)}")
+        base = _deep_merge(base, PRESETS[name])
+    settings = _deep_merge(base, data.get("settings") or {})
     if overrides:
         settings = _deep_merge(settings, overrides)
 

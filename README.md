@@ -144,6 +144,28 @@ scenes:
 
 Preview and edit templates live with `cd remotion && npm run studio`. To add your own, create a component and register it in `remotion/src/Root.tsx`.
 
+### What-if documentary kit (`preset: documentary`)
+
+This is a second template set for **infographic "what-if" documentaries**: navy data screens, dark maps, a vector globe, HUD clocks and impact radii, in the style of `reference/What If Russia…mp4`. Start from `projects/whatif-yellowstone/script.yaml`. The full guide is a Claude Code skill in `.claude/skills/whatif-documentary/`, covering the workflow, style guide and every template's props.
+
+| Template | For |
+|---|---|
+| `Horizon` | Cinematic dusk establishing shots; events such as flash, fireball, shockwave and mushroom cloud, with a scale ruler |
+| `Globe` | Spin and zoom from space to a place, with a marker and a big date title |
+| `MapScene` | Dark maps with highlighted countries, animated arrows, pulsing targets and city labels |
+| `Counter` | A big number counting up, with an optional timeline and events |
+| `StatCards` | Figures with bars, plus a slammed stamp ("EXPIRED") |
+| `DotGrid` | "1,500 warheads" as dots |
+| `BarCompare`, `SplitCompare`, `Equation`, `Clock`, `Statement`, `Radius`, `SourceList` | Comparisons, step-by-step maths, a doomsday clock, a thesis line, blast rings, sources |
+
+Every template also takes `heading`, `callout` (a bottom key-phrase box), `source` (a tiny citation), `hud` (a live clock or countdown) and `stats`.
+
+**Graphics on the spoken word:** any `at:` can be a word instead of seconds, e.g. `at: "Hiroshima"`, `at: "bomb#2"` or `at: "launch+0.5"`. Edge voices return exact word timings; other voices estimate them.
+
+**Sound design with no downloads:** the preset adds a low drone and whooshes on cuts. Per scene you can add `sfx: [{sound: boom, at: "detonation"}]` (built-in sounds: boom, hit, thud, riser, swell, whoosh, tick, ticks, typing, glitch, beep, alarm) or your own files.
+
+**QC:** every render writes `build/contact_sheet.jpg` with one frame per scene. Check it before publishing.
+
 **Blender templates** live in `blender/render.py` and are built from Python code, so no binary files are needed. Props: `text`, `subtext`, `color`, `accent`, `bg`, `font`, `resolution_percentage` (default 50 for speed; use 100 for full quality). Your own `.blend` file renders its animation for the scene's duration.
 
 ## 5. Voices
@@ -169,6 +191,7 @@ If the main engine fails, for example because the network is down, ytauto automa
 - `captions.srt`: upload to YouTube for accessibility and SEO (done automatically when uploading)
 - `description.txt`: your description plus a `0:00 Intro …` chapter list
 - `manifest.json`: everything the uploader needs
+- `contact_sheet.jpg`: one frame per scene, for a quick visual check
 
 Caching: `projects/<name>/.cache/` keeps voice clips, stock downloads and rendered clips. Re-rendering after a small edit takes seconds. On GitHub Actions this cache is persisted between runs. Use `--clean` to start fresh.
 
@@ -205,7 +228,8 @@ Notes: the API's default quota allows about 6 uploads per day. Custom thumbnails
 
 ```
 ytauto/            Python pipeline (CLI, TTS, visuals, stock, assembly, YouTube upload)
-remotion/          Animated scene templates (React + Remotion)
+remotion/          Animated scene templates (React + Remotion); remotion/src/docu = documentary kit
+.claude/skills/    Claude Code skill: how to make what-if documentaries with this repo
 blender/render.py  Procedural Blender templates + .blend renderer
 projects/          One folder per video (script.yaml + assets/)
 Dockerfile         ffmpeg + Blender + Node/Chromium + Python TTS environment

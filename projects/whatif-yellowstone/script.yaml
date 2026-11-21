@@ -1,0 +1,177 @@
+# "What-if" infographic documentary — the style of reference/What If Russia Used a Nuke….mp4
+# Render:  python -m ytauto render projects/whatif-yellowstone --preview
+# Guide:   .claude/skills/whatif-documentary/SKILL.md
+preset: documentary
+title: "What If Yellowstone Erupted Tomorrow?"
+description: |
+  A second-by-second simulation of a Yellowstone super-eruption, built from USGS data.
+  Illustrative scenario — the real annual probability is tiny.
+tags: [yellowstone, supervolcano, what if, simulation, geology]
+
+settings:
+  voice: {name: en-US-ChristopherNeural, rate: "-4%"}
+  # music: {file: assets/dark-ambient.mp3, volume: 0.10}   # optional royalty-free bed
+
+thumbnail: {text: "WHAT IF YELLOWSTONE ERUPTED?"}
+youtube: {privacy: private, category_id: 28}
+
+scenes:
+  - chapter: Cold open
+    text: "Wyoming. A quiet morning in the oldest national park in America. Nothing here looks unusual."
+    visual:
+      remotion: Horizon
+      props:
+        mood: dusk
+        title: Yellowstone
+        titleAt: "Wyoming"
+        subtitle: "Wyoming · day one · 06:12"
+        events: [{type: sun, x: 0.62, size: 0.8}]
+        hud: {label: Local time, clock: 22320, format: time}
+        stats: [{label: Visitors today, value: "11,400"}, {label: Seismic alert, value: Normal}]
+        statsAt: "unusual"
+        callout: "Nothing looks unusual"
+        calloutAt: "Nothing"
+
+  - text: "But under this park sits one of the largest volcanic systems on Earth."
+    visual:
+      remotion: Globe
+      props:
+        from: [-40, 20]
+        to: [-110.59, 44.43]
+        zoomFrom: 0.8
+        zoomTo: 2.4
+        marker: {label: Yellowstone, note: "44.4°N 110.6°W", at: "park"}
+        title: "Yellowstone Caldera"
+        subtitle: "One of Earth's largest volcanic systems"
+
+  - text: "This is a simulation. But nothing in it is made up."
+    visual:
+      remotion: SourceList
+      props:
+        tag: Simulation
+        tagNote: But nothing in it is made up
+        rows:
+          - {title: Real eruption deposits, source: "USGS · Yellowstone Volcano Observatory", at: "nothing"}
+          - {title: Real ash-fall models, source: "Mastin et al. 2014 · Ash3d"}
+          - {title: Peer-reviewed eruption records, source: "Lava Creek · Huckleberry Ridge"}
+
+  - chapter: The history
+    text: "Yellowstone has had three super-eruptions. The last one happened about six hundred and thirty thousand years ago."
+    visual:
+      remotion: Counter
+      props:
+        from: 0
+        to: 631000
+        label: Years since the last super-eruption
+        countAt: "last"
+        timeline:
+          start: 2100
+          end: 0
+          tickEvery: -300
+          events:
+            - {year: 2080, label: "Huckleberry Ridge", at: "three"}
+            - {year: 1300, label: "Mesa Falls"}
+            - {year: 631, label: "Lava Creek", at: "six"}
+        source: "Thousands of years ago · USGS"
+
+  - text: "To understand the scale, compare it with Mount Saint Helens in 1980. Huckleberry Ridge threw out more than two thousand times as much rock and ash."
+    visual:
+      remotion: BarCompare
+      props:
+        heading: The scale
+        headingColor: teal
+        subheading: Erupted volume · cubic kilometres
+        unit: "km³"
+        bars:
+          - {label: "Mount St. Helens · 1980", value: 1, at: "Helens"}
+          - {label: "Huckleberry Ridge · 2.1 million years ago", value: 2450, at: "Huckleberry"}
+        source: "USGS volcano hazards program"
+
+  - chapter: The eruption
+    text: "Day one. The ground near the caldera rises. Earthquake swarms light up every seismometer in the park."
+    visual:
+      remotion: MapScene
+      props:
+        bbox: [[-125, 30], [-95, 50]]
+        countryLabels: [{name: "United States", lon: -104, lat: 38}]
+        title: "Day one"
+        subtitle: "Earthquake swarm"
+        pulses: [{lon: -110.59, lat: 44.43, at: "rises", label: "Caldera"}]
+        cities:
+          - {name: Billings, lon: -108.5, lat: 45.78}
+          - {name: Salt Lake City, lon: -111.89, lat: 40.76}
+          - {name: Denver, lon: -104.99, lat: 39.74}
+        hud: {label: Seismic events, value: "3,200+", color: "#e5372f"}
+        callout: Every seismometer lights up
+        calloutAt: "seismometer"
+    sfx: [{sound: alarm, at: "swarms", volume: 0.25, dur: 2.0}]
+
+  - text: "Then, the eruption."
+    duration: 6
+    visual:
+      remotion: Horizon
+      props:
+        mood: dusk
+        events: [{type: flash, at: 1.2}, {type: fireball, at: 1.2}, {type: mushroom, at: 2.2, size: 1.3}]
+        ruler: ["0 KM", "10 KM", "20 KM", "30 KM"]
+        hud: {label: Since eruption, clock: -1.2, prefix: "T+"}
+    sfx: [{sound: riser, at: 0.0, volume: 0.5, dur: 1.2}, {sound: boom, at: 1.2, volume: 0.9}]
+
+  - text: "Pyroclastic flows race outward from the vents. Further away, the ash begins to fall."
+    visual:
+      remotion: Radius
+      props:
+        heading: Ground zero
+        subheading: Illustrative · based on USGS ash models
+        centerLabel: Yellowstone
+        rings:
+          - {km: 100, label: Pyroclastic flows, detail: "total destruction", at: "Pyroclastic"}
+          - {km: 500, label: "Ash > 10 cm", detail: "roofs collapse", at: "ash"}
+          - {km: 1500, label: "Ash · several mm", detail: "crops, power, water", at: "fall"}
+        source: "Mastin et al. 2014 · USGS"
+
+  - chapter: The aftermath
+    text: "Military analysts and climate scientists agree on one thing. The real danger is not the blast. It is the sky."
+    visual:
+      remotion: Statement
+      props:
+        kicker2: Scientists agree on one thing
+        line1: Not the blast.
+        line2: The sky.
+        footnote: Ash and sulfur could cool the planet for years
+
+  - text: "Sulfur in the stratosphere could cool global temperatures by several degrees for years, cutting harvests around the world."
+    visual:
+      remotion: StatCards
+      props:
+        heading: Volcanic winter
+        subheading: Illustrative estimates
+        cards:
+          - {label: Global cooling, value: "−3 to −5 °C", bar: 0.6, at: "cool"}
+          - {label: Duration, value: "3–10 years", bar: 0.4, at: "years"}
+          - {label: Harvest losses, value: "Severe", bar: 0.85, at: "harvests"}
+        stamp: {text: Food crisis, at: "world"}
+
+  - text: "The good news? The chance of this happening in any given year is about one in seven hundred thousand."
+    visual:
+      remotion: DotGrid
+      props:
+        value: "1 in 730,000"
+        label: Annual chance of a super-eruption
+        note: USGS estimate
+        count: 1500
+        highlight: 1
+        color: "#62b6cb"
+        fillAt: "chance"
+        source: "Yellowstone Volcano Observatory"
+
+  - chapter: Outro
+    text: "So, how worried should you be? Subscribe, and we'll map the next what-if together."
+    visual:
+      remotion: Globe
+      props:
+        from: [-110.59, 44.43]
+        to: [-60, 15]
+        zoomFrom: 2.0
+        zoomTo: 0.9
+        title: "Stay curious"
