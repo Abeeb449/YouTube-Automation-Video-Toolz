@@ -22,7 +22,7 @@ import numpy as np
 
 SR = 24000  # the bed is low-bandwidth; resampled to 48 kHz in the mix
 
-MOODS = ("wonder", "mystery", "danger", "tension", "calm", "none")
+MOODS = ("wonder", "mystery", "danger", "tension", "calm", "epic", "none")
 
 # Chord progressions as MIDI notes (bass first). 4 chords, looped.
 PROGRESSIONS = {
@@ -129,6 +129,7 @@ def build_score(total: float, segments: list[tuple[float, float, str]], out: Pat
     n = int((total + 1) * SR)
     y = np.zeros(n, dtype=np.float32)
     chunk = SR * 10
+    segments = [(a, b, "tension" if m == "epic" else m) for a, b, m in segments]  # the synth has no epic layer
     moods = sorted({m for _, _, m in segments if m != "none"})
     for i0 in range(0, n, chunk):
         t = np.arange(i0, min(n, i0 + chunk)) / SR

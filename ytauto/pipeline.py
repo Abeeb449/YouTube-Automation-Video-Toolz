@@ -198,8 +198,19 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     music = st.get("music")
     if isinstance(music, str):
         music = {"file": music}
-    if music and (music.get("file") or music.get("generate")):
+    music_credits: list[str] = []
+    if music and (music.get("file") or music.get("generate") or music.get("source") or music.get("library")):
         mfile, generated = None, False
+        source = music.get("source") or ("library" if music.get("library") else None)
+        if source in ("incompetech", "openverse", "library") and not music.get("file"):
+            segs = mood_segments(project, plans, music.get("mood", "wonder"))
+            try:
+                mfile, used = real_music_bed(project, segs, total, music, source)
+                music_credits = [t.credit() for t in used if t.license != "own"]
+            except Exception as exc:  # noqa: BLE001 — offline, site down… never fail the render over music
+                warn(f"music {source}: {exc} — using the generated score instead")
+                mfile = None
+                music = {**music, "generate": True}
         if music.get("file"):
             mfile = project.resolve(music["file"])
             if not mfile.exists():
@@ -296,6 +307,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     short = [n for i, (s, n) in enumerate(marks) if (marks[i + 1][0] if i + 1 < len(marks) else total) - s < 10]
     if short:
         warn(f"YouTube ignores chapters when any is under 10s: {', '.join(short)}")
+    if music_credits:
+        desc += "\n\nMusic:\n" + "\n".join(music_credits)
     if len(marks) >= 3:
         desc += "\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)
     (build / "description.txt").write_text(desc + "\n", encoding="utf-8")
@@ -317,6 +330,59 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     size = final.stat().st_size / 1e6
     log(f"Done in {time.time() - t0:.0f}s → {final} ({fmt_ts(total)}, {size:.1f} MB)")
     return final
+
+
+def stable_seed(text: str) -> int:
+    return int(stable_hash(text), 16) % 100000
+
+
+def real_music_bed(project: Project, segs, total: float, music: dict, source: str):
+    """Assemble real tracks (Openverse or a local library folder) following the scene moods."""
+    from .music_library import assemble, incompetech_tracks, library_tracks, openverse_tracks
+
+    cache = project.cache_dir
+    seed = int(music.get("seed", 0))
+    queries = music.get("queries") or {}
+    found: dict[str, list] = {}
+
+    def pick(mood: str, occurrence: int):
+        if mood not in found:
+            if source == "library":
+                folder = project.resolve(music.get("library", "assets/music"))
+                found[mood] = library_tracks(folder, mood) if folder.exists() else []
+                if not found[mood]:
+                    warn(f"music library: no tracks for mood '{mood}' in {folder}")
+            elif source == "incompetech":
+                used_titles = {t.title for lst in found.values() for t in lst}
+                found[mood] = incompetech_tracks(mood, cache, want=1 + int(total // 420), seed=seed + stable_seed(project.title), avoid=used_titles)
+            else:
+                found[mood] = openverse_tracks(mood, cache, want=2, seed=seed, extra_query=queries.get(mood))
+        lst = found[mood]
+        # one track per mood; long videos rotate to a second track every few returns of that mood
+        return lst[(occurrence // 3 + seed) % len(lst)] if lst else None
+
+    # Real songs need room to breathe: fold mood sections shorter than 15 s into the previous section.
+    merged: list[tuple[float, float, str]] = []
+    for a, b, m in segs:
+        if merged and (b - a < 15 or merged[-1][2] == m):
+            merged[-1] = (merged[-1][0], b, merged[-1][2])
+        else:
+            merged.append((a, b, m))
+    if len(merged) > 1 and merged[0][1] - merged[0][0] < 15:
+        merged[1] = (0.0, merged[1][1], merged[1][2])
+        merged.pop(0)
+    segs = merged
+    key = stable_hash("bed-v2", source, segs, round(total, 2), seed, queries, music.get("library"))
+    out = cache / "music" / f"bed_{key}.wav"
+    meta = out.with_suffix(".json")
+    if out.exists() and meta.exists():
+        from .music_library import Track
+        return out, [Track(**t) for t in json.loads(meta.read_text())]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    log(f"   building music bed from {source} (" + ", ".join(sorted({m for _, _, m in segs})) + ")")
+    out, used = assemble(total, segs, pick, out)
+    meta.write_text(json.dumps([t.__dict__ for t in used]))
+    return out, used
 
 
 def mood_segments(project: Project, plans: list[ScenePlan], default: str) -> list[tuple[float, float, str]]:

@@ -142,6 +142,8 @@ def cmd_render(a) -> int:
         overrides = {"width": 960, "height": 540, "preset": "ultrafast", "crf": 26}
     if a.voice_engine:
         overrides.setdefault("voice", {})["engine"] = a.voice_engine
+    if a.music:
+        overrides["music"] = {"none": None, "generate": {"generate": True, "source": None}}.get(a.music, {"source": a.music})
     project = load_project(a.project, overrides)
     if a.clean:
         shutil.rmtree(project.cache_dir, ignore_errors=True)
@@ -266,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--preview", action="store_true", help="fast low-res render (480p) for checking timing")
     p.add_argument("--clean", action="store_true", help="drop caches and re-render everything")
     p.add_argument("--voice-engine", help="override the TTS engine (kokoro, edge, chatterbox, piper, elevenlabs, espeak)")
+    p.add_argument("--music", choices=["incompetech", "openverse", "library", "generate", "none"], help="override the background music source")
     p.set_defaults(fn=cmd_render)
 
     p = sp.add_parser("voices", help="list available voices")

@@ -101,7 +101,7 @@ PRESETS: dict[str, dict] = {
         "padding": 0.5,
         "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.94, "fallback": "edge"},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
-        "music": {"generate": True, "mood": "mystery", "volume": 0.8, "duck": 0.45},
+        "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.8, "duck": 0.45},
         "sound": {"drone": 0.0, "whoosh_on_cut": True, "whoosh_volume": 0.15},
     },
     "ocean": {
@@ -111,7 +111,7 @@ PRESETS: dict[str, dict] = {
         "padding": 0.45,
         "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.92, "fallback": "edge"},
         "subtitles": {"burn": False},
-        "music": {"generate": True, "mood": "wonder", "volume": 0.8, "duck": 0.45},
+        "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.8, "duck": 0.45},
         "sound": {"drone": 0.0, "whoosh_on_cut": True, "whoosh_volume": 0.15},
     },
     "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 64, "max_chars": 22, "margin_v": 520}},
