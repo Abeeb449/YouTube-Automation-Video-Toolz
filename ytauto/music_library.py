@@ -179,15 +179,19 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
 INCOMPETECH_INDEX = "https://incompetech.com/music/royalty-free/pieces.json"
 INCOMPETECH_MP3 = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/"
 # mood → (feel tags to match, how many must match)
+# mood → (feel tags to match, how many must match, feel tags that MUST be present (any of))
 INCOMPETECH_RULES = {
-    "wonder": ({"mystical", "uplifting", "calming", "bright"}, 2),
-    "mystery": ({"mysterious", "eerie", "mystical", "dark"}, 2),
-    "danger": ({"dark", "unnerving", "eerie", "suspenseful", "intense"}, 2),
-    "tension": ({"suspenseful", "intense", "unnerving"}, 2),
-    "calm": ({"calming", "relaxed", "somber", "mystical"}, 2),
-    "epic": ({"epic", "intense", "dark"}, 2),
+    "wonder": ({"mystical", "uplifting", "calming", "somber", "mysterious"}, 2, {"mystical"}),
+    "mystery": ({"mysterious", "eerie", "mystical", "dark", "somber"}, 2, {"mysterious"}),
+    "danger": ({"dark", "unnerving", "eerie", "suspenseful", "intense"}, 2, {"dark"}),
+    "tension": ({"suspenseful", "intense", "unnerving", "eerie"}, 2, {"suspenseful"}),
+    "calm": ({"calming", "relaxed", "somber", "mystical"}, 2, {"mystical", "somber"}),
+    "epic": ({"epic", "intense", "dark"}, 2, {"epic"}),
 }
-INCOMPETECH_AVOID = {"grooving", "bouncy", "humorous", "ren faire", "medieval", "aggressive"}
+# Documentary beds shouldn't sound cheerful, folksy or comedic.
+INCOMPETECH_AVOID = {"grooving", "bouncy", "humorous", "ren faire", "medieval", "aggressive", "bright", "driving", "action"}
+TITLE_AVOID = ("funeral", "porch", "sunny", "happy", "christmas", "party", "wedding", "comedy", "circus", "carnival",
+               "dance", "disco", "jazz", "blues", "rock", "polka", "waltz", "march", "lullaby", "kids", "cartoon")
 
 
 def _feels(p: dict) -> set[str]:
@@ -208,8 +212,10 @@ def incompetech_tracks(mood: str, cache: Path, want: int = 2, seed: int = 0, avo
     if not idx.exists() or idx.stat().st_size < 1000:
         download(INCOMPETECH_INDEX, idx)
     pieces = json.loads(idx.read_text())
-    want_feels, k = INCOMPETECH_RULES.get(mood, INCOMPETECH_RULES["wonder"])
-    cands = [p for p in pieces if len(_feels(p) & want_feels) >= k and not _feels(p) & INCOMPETECH_AVOID
+    want_feels, k, must = INCOMPETECH_RULES.get(mood, INCOMPETECH_RULES["wonder"])
+    avoid_feels = INCOMPETECH_AVOID - ({"intense", "action", "driving"} & want_feels)
+    cands = [p for p in pieces if len(_feels(p) & want_feels) >= k and _feels(p) & must and not _feels(p) & avoid_feels
+             and not any(w in (p.get("title") or "").lower() for w in TITLE_AVOID)
              and 90 <= _secs(p) <= 600 and "vocal" not in (p.get("instruments") or "").lower()
              and p.get("filename", "").lower().endswith(".mp3") and p.get("title") not in (avoid or set())]
     if not cands:

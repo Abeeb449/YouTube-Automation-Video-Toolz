@@ -373,7 +373,7 @@ def real_music_bed(project: Project, segs, total: float, music: dict, source: st
         merged[1] = (0.0, merged[1][1], merged[1][2])
         merged.pop(0)
     segs = merged
-    key = stable_hash("bed-v2", source, segs, round(total, 2), seed, queries, music.get("library"))
+    key = stable_hash("bed-v3", source, segs, round(total, 2), seed, queries, music.get("library"))
     out = cache / "music" / f"bed_{key}.wav"
     meta = out.with_suffix(".json")
     if out.exists() and meta.exists():

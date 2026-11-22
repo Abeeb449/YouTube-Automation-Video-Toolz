@@ -126,6 +126,20 @@ def parse_directives(text: str) -> list[tuple]:
     return items
 
 
+def merge_passages(items: list[tuple], max_chars: int = 320) -> list[tuple]:
+    """Join consecutive sentences that share the same voice direction into one passage.
+    Neural engines sound more natural across sentence boundaries, and each call has a fixed cost,
+    so fewer, longer calls are both better-sounding and much faster. Pauses still split passages."""
+    out: list[tuple] = []
+    for it in items:
+        if (it[0] == "say" and out and out[-1][0] == "say" and out[-1][2] == it[2]
+                and len(out[-1][1]) + 1 + len(it[1]) <= max_chars):
+            out[-1] = ("say", f"{out[-1][1]} {it[1]}", out[-1][2])
+        else:
+            out.append(it)
+    return out
+
+
 _whisper_model = None
 _whisper_lock = threading.Lock()
 _whisper_failed = False
@@ -565,6 +579,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     sub = settings["subtitles"]
     gap = float(settings["sentence_gap"])
     items = parse_directives(text)
+    if voice.get("engine") in ("qwen", "chatterbox", "elevenlabs"):
+        items = merge_passages(items)
     key = stable_hash("scene-audio-v5", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"))
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"

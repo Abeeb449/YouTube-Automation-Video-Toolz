@@ -93,9 +93,9 @@ scenes:
       props:
         depth: 0.85
         actors:
-          - {creature: leopardSeal, x: 0.3, y: 0.4, scale: 0.6, silhouette: "#0a1218", opacity: 0.8, at: "handful"}
-          - {creature: leopardSeal, x: 0.7, y: 0.62, scale: 0.6, silhouette: "#0a1218", opacity: 0.8, flip: true, at: "handful+0.3"}
-          - {creature: leopardSeal, x: 0.5, y: 0.8, scale: 0.55, silhouette: "#0a1218", opacity: 0.8, at: "individuals"}
+          - {creature: leopardSeal, x: 0.3, y: 0.4, scale: 0.6, silhouette: "#3a4a55", opacity: 0.9, at: "strangest"}
+          - {creature: leopardSeal, x: 0.7, y: 0.6, scale: 0.6, silhouette: "#3a4a55", opacity: 0.9, flip: true, at: "Scientists"}
+          - {creature: leopardSeal, x: 0.45, y: 0.8, scale: 0.55, silhouette: "#3a4a55", opacity: 0.9, at: "handful"}
         title: "Just a handful?"
         titleAt: "handful"
 
@@ -518,7 +518,8 @@ scenes:
         to: 86
         suffix: "%"
         label: "Colony decline since 2007"
-        countAt: "eighty"
+        countAt: "shrunk"
+        countDur: 2
         source: "Cape Shirreff fur seal monitoring · Krause et al."
     sfx: [{sound: thud, at: "eighty", volume: 0.4}]
 
@@ -711,7 +712,7 @@ scenes:
       props:
         split: {y: 0.38, land: rocks, landWidth: 0.4, sky: storm}
         actors:
-          - {creature: seaLion, x: 0.42, y: 0.43, scale: 0.28, detail: {pup: true}, target: {at: "weakest"}}
+          - {creature: seaLion, x: 0.45, y: 0.47, scale: 0.38, detail: {pup: true}, target: {at: "weakest"}}
           - {creature: leopardSeal, x: 0.72, y: 0.66, scale: 0.85}
         facts:
           - {text: "At the edge", at: "edge"}
