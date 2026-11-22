@@ -9,6 +9,7 @@
 import React from 'react';
 import {AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {BaseProps} from '../theme';
+import {OceanBackdrop} from '../ocean/OceanBackdrop';
 
 export const C = {
   bg0: '#06121d',
@@ -32,7 +33,7 @@ export const F = {
   serif: '"DejaVu Serif", Georgia, "Times New Roman", serif',
 };
 
-export type Backdrop = 'navy' | 'dark' | 'horizon' | 'ember' | 'black' | 'none';
+export type Backdrop = 'navy' | 'dark' | 'horizon' | 'ember' | 'black' | 'ocean' | 'abyss' | 'none';
 
 export type HudSpec = {
   label?: string;
@@ -115,6 +116,8 @@ export const BackdropLayer: React.FC<{kind?: Backdrop}> = ({kind = 'navy'}) => {
   if (kind === 'ember')
     return <AbsoluteFill style={{background: `radial-gradient(ellipse at 50% ${45 - drift * 3}%, #3a1f17 0%, #22120e 50%, #0c0706 100%)`}} />;
   if (kind === 'horizon') return <HorizonSky mood="dusk" />;
+  if (kind === 'ocean') return <OceanBackdrop depth={0.55} />;
+  if (kind === 'abyss') return <OceanBackdrop depth={0.9} rays={false} />;
   return (
     <AbsoluteFill
       style={{background: `radial-gradient(ellipse at ${48 + drift * 6}% ${40 + drift * 4}%, ${C.bg2} 0%, ${C.bg1} 48%, ${C.bg0} 100%)`}}

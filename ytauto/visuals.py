@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import threading
 from pathlib import Path
 from typing import Any
@@ -247,7 +248,7 @@ class ClipRenderer:
         if not (rdir / "node_modules").exists():
             raise YtautoError(f"Remotion not installed. Run: cd {rdir} && npm install")
         comp = spec["remotion"]
-        props = {**(spec.get("props") or {})}
+        props = self._stage_assets(spec.get("props") or {}, rdir)
         theme = {**(self.p.settings.get("theme") or {}), **(props.get("theme") or {})}
         props.update({"durationInSeconds": duration, "width": self.W, "height": self.H, "fps": self.fps, "theme": theme})
         props_file = out.with_suffix(".props.json")
@@ -266,6 +267,28 @@ class ClipRenderer:
         self._normalize(raw, duration, out, False, False)
         raw.unlink(missing_ok=True)
         props_file.unlink(missing_ok=True)
+
+    def _stage_assets(self, obj, rdir: Path):
+        """Copy local files referenced by `image:` props into remotion/public so templates can load them."""
+        if isinstance(obj, list):
+            return [self._stage_assets(v, rdir) for v in obj]
+        if not isinstance(obj, dict):
+            return obj
+        out = {}
+        for k, v in obj.items():
+            if k == "image" and isinstance(v, str) and not v.startswith(("http://", "https://")):
+                src = self.p.resolve(v)
+                if not src.exists():
+                    raise YtautoError(f"Image not found: {src}")
+                pub = rdir / "public" / "ytauto"
+                pub.mkdir(parents=True, exist_ok=True)
+                name = f"{stable_hash(file_fingerprint(src))}{src.suffix.lower()}"
+                if not (pub / name).exists():
+                    shutil.copyfile(src, pub / name)
+                out[k] = f"ytauto/{name}"
+            else:
+                out[k] = self._stage_assets(v, rdir)
+        return out
 
     def _blender(self, spec, duration, out, fade_in, fade_out):
         exe = os.environ.get("YTAUTO_BLENDER") or which("blender")

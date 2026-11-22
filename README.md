@@ -5,7 +5,7 @@ Turn a **script** into a finished, narrated, captioned YouTube video. It handles
 ```
 script.yaml / script.txt
         │
-        ├─► Voiceover   Edge neural voices (free) · Piper (free, offline) · ElevenLabs · eSpeak
+        ├─► Voiceover   Kokoro (free, offline, commercial OK) · Edge · Chatterbox · Piper · ElevenLabs · eSpeak
         ├─► Visuals     your images/videos · Pexels/Pixabay stock · Remotion animations · Blender 3D · colour cards
         ├─► Captions    auto-timed from the voiceover → burned in + .srt for YouTube
         ├─► Audio mix   background music auto-ducked under the voice, loudness normalised to −14 LUFS
@@ -166,20 +166,31 @@ Every template also takes `heading`, `callout` (a bottom key-phrase box), `sourc
 
 **QC:** every render writes `build/contact_sheet.jpg` with one frame per scene. Check it before publishing.
 
+### Ocean / animal documentary kit (`preset: ocean`)
+
+This kit makes "danger & wonder" deep-sea animal documentaries in the style of `reference/Why You'd Never Want To Meet A Sperm Whale.mp4`. Start from `projects/ocean-giant-squid/script.yaml`. The guide is in `.claude/skills/ocean-documentary/`.
+
+- **`OceanScene`**: a procedural underwater world (light shafts at the surface, black abyss, drifting marine snow, animated descents) with animated flat-vector **creatures**: `spermWhale`, `giantSquid`, `orca`, `shark`, `anglerfish`, `jellyfish`, `diver`, `fishSchool`, `octopus`. For any other animal, use your own transparent PNG via `image: assets/x.png`. Overlays include big reveal words, fact chips, ✓/✕ chips, scale bars, a depth meter, a stopwatch, target lock-on brackets, echolocation waves, spotlight rings and camera push-ins.
+- **`Meter`** (e.g. 0 → 236 dB), **`Sonar`** (green echolocation view), and all the documentary infographic templates with `backdrop: abyss` or `backdrop: ocean`.
+
 **Blender templates** live in `blender/render.py` and are built from Python code, so no binary files are needed. Props: `text`, `subtext`, `color`, `accent`, `bg`, `font`, `resolution_percentage` (default 50 for speed; use 100 for full quality). Your own `.blend` file renders its animation for the scene's duration.
 
 ## 5. Voices
 
-| Engine | Cost | Quality | Example `name` |
+| Engine | Cost / licence | Quality | Example `name` |
 |---|---|---|---|
-| `edge` (default) | free, needs internet | ★★★★ natural neural | `en-US-AndrewNeural`, `en-US-AvaNeural`, `en-GB-RyanNeural` |
-| `piper` | free, fully offline | ★★★ | `en_US-lessac-medium`, `en_US-ryan-high`, `en_GB-alan-medium` |
-| `elevenlabs` | paid (free tier) | ★★★★★ | your ElevenLabs voice id |
+| `kokoro` **(recommended)** | free, offline, **Apache 2.0, OK for monetised channels** | ★★★★ natural; about 4× faster than real time on CPU | `bm_george`, `bm_lewis`, `am_onyx`, blend `"bm_george:0.6,am_onyx:0.4"` |
+| `chatterbox` | free, **MIT**, optional install (PyTorch; GPU recommended) | ★★★★★ expressive: `exaggeration` control, voice cloning from a 5–10 s clip | any; `reference: assets/my-voice.wav` |
+| `edge` | free but an unofficial Microsoft service; no clear licence for commercial use | ★★★★, exact word timings | `en-US-ChristopherNeural`, `en-GB-RyanNeural` |
+| `elevenlabs` | **paid for commercial use** (Starter plan and up); free tier is non-commercial and needs attribution | ★★★★★ | your ElevenLabs voice id |
+| `piper` | free, offline | ★★★ | `en_GB-alan-medium` |
 | `espeak` | free, offline | ★ robotic, last-resort fallback | `en-us` |
 
+Hear the documentary narrator candidates in `reference/voice-samples/kokoro-documentary-voices.mp3`. Speed is set with `speed: 0.92` (or `rate: "-8%"`).
+
 ```bash
-python -m ytauto voices --engine edge --locale en     # list voices
-python -m ytauto voices --engine piper --locale en
+python -m ytauto voices --engine kokoro --locale en-gb   # list voices
+python -m ytauto voices --engine edge --locale en
 ```
 
 If the main engine fails, for example because the network is down, ytauto automatically switches to `fallback`. Each sentence's audio is cached, so editing one line only re-voices that line.

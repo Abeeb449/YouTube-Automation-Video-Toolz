@@ -7,6 +7,7 @@ import {BulletList} from './BulletList';
 import {BigNumber} from './BigNumber';
 import {Quote} from './Quote';
 import {MapScene} from './docu/MapScene';
+import {Meter, OceanScene, Sonar} from './ocean/scenes';
 import {Globe} from './docu/Globe';
 import {Horizon} from './docu/Horizon';
 import {BarCompare, Clock, Counter, DotGrid, Equation, Radius, SourceList, SplitCompare, Statement, StatCards} from './docu/data';
@@ -25,6 +26,9 @@ const metadata: CalculateMetadataFunction<BaseProps> = ({props}) => {
 
 // Minimal neutral values for required props, so a scene that forgets one renders instead of crashing.
 const SAFE: Record<string, Record<string, unknown>> = {
+  OceanScene: {},
+  Meter: {to: 0},
+  Sonar: {blips: []},
   TitleCard: {title: ''},
   KineticText: {text: ''},
   BulletList: {title: '', items: []},
@@ -44,6 +48,11 @@ const SAFE: Record<string, Record<string, unknown>> = {
 };
 
 const DEMOS: Record<string, Record<string, unknown>> = {
+  OceanScene: {depth: 0.5, title: 'Biggest predator with teeth', actors: [{creature: 'spermWhale', x: 0.4, y: 0.55, to: [0.45, 0.55], scale: 1.3, detail: {teeth: true}},
+    {creature: 'diver', x: 0.85, y: 0.4, scale: 0.35, flip: true, target: {at: 2}}], facts: [{text: 'Biggest predator with teeth, ever'}, {text: 'Sank a ship on purpose', red: true}],
+    scaleBar: {x1: 0.16, x2: 0.62, y: 0.78, label: '~16 M'}},
+  Meter: {title: 'Loudest animal on Earth', to: 236, unit: 'dB', note: 'measured underwater', footnote: 'Can carry tens of kilometres'},
+  Sonar: {title: 'Echolocation', blips: [{label: 'Squid', x: 0.35, y: 0.4, creature: 'giantSquid'}, {label: 'You', x: 0.7, y: 0.3, creature: 'diver', color: '#e5372f'}, {label: 'Fish', x: 0.5, y: 0.62, creature: 'fishSchool'}]},
   TitleCard: {title: 'Your Video Title', subtitle: 'A subtitle goes here', kicker: 'Episode 1'},
   KineticText: {text: 'Every word appears as the narrator speaks it', highlight: ['narrator']},
   BulletList: {title: 'Three key ideas', items: ['First idea', 'Second idea', 'Third idea']},
@@ -91,7 +100,14 @@ export const Root: React.FC = () => (
     <Composition id="SplitCompare" component={SplitCompare as React.FC<any>} {...common} defaultProps={SAFE.SplitCompare ?? {}} />
     <Composition id="Statement" component={Statement as React.FC<any>} {...common} defaultProps={SAFE.Statement ?? {}} />
     <Composition id="Radius" component={Radius as React.FC<any>} {...common} defaultProps={SAFE.Radius ?? {}} />
+    {/* ---- Ocean / animal documentary kit ---- */}
+    <Composition id="OceanScene" component={OceanScene as React.FC<any>} {...common} defaultProps={SAFE.OceanScene} />
+    <Composition id="Meter" component={Meter as React.FC<any>} {...common} defaultProps={SAFE.Meter} />
+    <Composition id="Sonar" component={Sonar as React.FC<any>} {...common} defaultProps={SAFE.Sonar} />
     <Folder name="Demos">
+      <Composition id="Demo-OceanScene" component={OceanScene as React.FC<any>} {...common} defaultProps={DEMOS.OceanScene} />
+      <Composition id="Demo-Meter" component={Meter as React.FC<any>} {...common} defaultProps={DEMOS.Meter} />
+      <Composition id="Demo-Sonar" component={Sonar as React.FC<any>} {...common} defaultProps={DEMOS.Sonar} />
       <Composition id="Demo-TitleCard" component={TitleCard as React.FC<any>} {...common} defaultProps={DEMOS.TitleCard} />
       <Composition id="Demo-KineticText" component={KineticText as React.FC<any>} {...common} defaultProps={DEMOS.KineticText} />
       <Composition id="Demo-BulletList" component={BulletList as React.FC<any>} {...common} defaultProps={DEMOS.BulletList} />

@@ -18,7 +18,7 @@ Read `references/templates.md` for every template's props.
 ## Workflow
 
 1. **Intake.** Get the topic or question, the target length (default 10–12 min; that's about 150 words per minute, so 1,500–1,800 words),
-   the voice (default `en-US-ChristopherNeural`) and the output (16:9 1080p by default; add `preset: [documentary, shorts]` for vertical).
+   the voice (default Kokoro `bm_george`; see the ocean-documentary skill's Voice section) and the output (16:9 1080p by default; add `preset: [documentary, shorts]` for vertical).
    Use the defaults when the user doesn't say, and tell them which you used.
 2. **Research and script.** Write the narration as short, punchy sentences in present tense ("Day one. 4:12 a.m."). Then:
    - Open with a **cold open** (an establishing Horizon with a location title and HUD), then the **"Simulation, but nothing is made up"** SourceList.
@@ -33,8 +33,8 @@ Read `references/templates.md` for every template's props.
 5. **Preview.** Run `python -m ytauto render projects/<slug> --preview` (480p). Open `build/contact_sheet.jpg`, which has one frame per scene.
    Check that nothing is cut off, there are no empty frames, the maps frame the right area, and nothing on screen contradicts the narration.
    Watch for `cue word … not found` warnings and fix the cue or the narration.
-6. **Render.** Run `python -m ytauto render projects/<slug>` locally, or push and run **Actions → Render video**. Edge TTS returns exact word
-   timings on GitHub, so cues land precisely there. Offline voices only estimate the timing.
+6. **Render.** Run `python -m ytauto render projects/<slug>` locally, or push and run **Actions → Render video**. Kokoro cue timing is
+   estimated within each sentence; for exact word timing use `voice: {engine: edge, name: en-US-ChristopherNeural}`.
 7. **Deliver.** Use `build/*.mp4`, `thumbnail.jpg`, `captions.srt` (upload it; the preset doesn't burn captions in), `description.txt` (it has chapters)
    and `contact_sheet.jpg`.
 

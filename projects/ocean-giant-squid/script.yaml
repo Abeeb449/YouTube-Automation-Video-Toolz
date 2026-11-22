@@ -1,0 +1,167 @@
+# "Danger & wonder" deep-sea animal documentary — style of reference/Why You'd Never Want To Meet A Sperm Whale.mp4
+# Render:  python -m ytauto render projects/ocean-giant-squid --preview
+# Guide:   .claude/skills/ocean-documentary/SKILL.md
+preset: ocean
+title: "Why You'd Never Want To Meet A Giant Squid"
+description: |
+  Eyes the size of dinner plates, suckers ringed with teeth, and a war with the sperm whale
+  that has raged in total darkness for millions of years.
+tags: [giant squid, deep sea, ocean, animals, documentary]
+
+settings:
+  voice: {engine: kokoro, name: bm_george, speed: 0.92}
+  # music: {file: assets/deep-ambient.mp3, volume: 0.10}   # optional royalty-free bed
+
+thumbnail: {text: "NEVER MEET A GIANT SQUID"}
+youtube: {privacy: private, category_id: 15}   # 15 = Pets & Animals
+
+scenes:
+  - chapter: Intro
+    text: "You're diving in warm, sunlit water. The reef is calm. Nothing down here is hunting you."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.1
+        surface: true
+        actors:
+          - {creature: diver, x: 0.3, y: 0.45, to: [0.62, 0.5], scale: 0.8}
+          - {creature: fishSchool, x: 0.75, y: 0.72, to: [0.6, 0.7], scale: 0.7, color: "#bfe3ef"}
+        check: {text: Nothing is hunting you, at: "hunting"}
+
+  - text: "But keep going. Past two hundred metres, the sunlight is gone. Past five hundred, the pressure could crush a submarine's window. And at around nine hundred metres, something is watching you."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.15
+        depthTo: 0.95
+        depthMeter: {from: 0, to: 900, max: 1000, unit: m}
+        actors:
+          - {creature: diver, x: 0.42, y: 0.25, to: [0.45, 0.55], scale: 0.55, rotate: 35}
+          - {creature: giantSquid, x: 0.15, y: 0.82, to: [0.2, 0.78], scale: 1.4, silhouette: "#05080b", opacity: 0.9, at: "watching", enter: fade}
+        callout: Most sunlight gone
+        calloutAt: "sunlight"
+    sfx: [{sound: swell, at: "watching", volume: 0.5}]
+
+  - text: "The giant squid."
+    duration: 3.5
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.9
+        actors:
+          - {creature: giantSquid, x: 0.4, y: 0.55, to: [0.5, 0.53], scale: 1.3, at: 0.2}
+        bigText: "GIANT SQUID."
+        bigAt: 0.4
+    sfx: [{sound: hit, at: 0.4, volume: 0.6}]
+
+  - chapter: The body
+    text: "It can grow to around thirteen metres long. That is longer than a city bus, and most of that length is two feeding tentacles lined with suckers."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.85
+        actors:
+          - {creature: giantSquid, x: 0.42, y: 0.5, scale: 1.5}
+        scaleBar: {x1: 0.05, x2: 0.9, y: 0.7, label: "~13 M", at: "thirteen"}
+        facts:
+          - {text: "Up to ~13 m long", at: "thirteen"}
+          - {text: "Longer than a city bus", at: "bus"}
+          - {text: "Two feeding tentacles", at: "tentacles", red: true}
+
+  - text: "Its eyes are the largest in the animal kingdom, up to twenty seven centimetres across. Built to catch the faintest flicker of light in total darkness."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.9
+        zoom: [1, 2.6]
+        focus: [0.474, 0.497]
+        actors:
+          - {creature: giantSquid, x: 0.45, y: 0.5, scale: 1.3, ring: {at: "eyes", x: 0.474, y: 0.497, r: 0.025}}
+        title: Eyes the size of dinner plates
+        titleAt: "eyes"
+        callout: "Up to 27 cm across"
+        calloutAt: "twenty"
+
+  - text: "And those suckers? Each one is ringed with tiny, sharp teeth."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.85
+        actors:
+          - {creature: giantSquid, x: 0.3, y: 0.5, scale: 1.1, flip: true}
+        bigText: "TEETH."
+        bigAt: "teeth"
+        title: Sucker rings
+        titleColor: red
+    sfx: [{sound: thud, at: "teeth", volume: 0.5}]
+
+  - text: "Three hearts. Blue blood. A brain shaped like a doughnut, with its throat running straight through the middle."
+    visual:
+      remotion: StatCards
+      props:
+        backdrop: abyss
+        heading: Alien anatomy
+        cards:
+          - {label: Hearts, value: "3", bar: 0.3, at: "Three"}
+          - {label: Blood, value: "Blue · copper based", bar: 0.6, at: "Blue"}
+          - {label: Brain, value: "Doughnut-shaped", bar: 0.9, at: "doughnut"}
+        stamp: {text: Alien, at: "middle"}
+
+  - chapter: Its enemy
+    text: "But even the giant squid has something to fear. A hunter that sees with sound."
+    visual:
+      remotion: Sonar
+      props:
+        title: Seeing with sound
+        blips:
+          - {label: Giant squid, x: 0.62, y: 0.55, creature: giantSquid, scale: 0.6, at: "squid"}
+          - {label: Hunter, x: 0.25, y: 0.35, creature: spermWhale, scale: 0.7, color: "#e5372f", at: "hunter"}
+    sfx: [{sound: ticks, at: "sound", volume: 0.35, dur: 3}]
+
+  - text: "The sperm whale. It dives into the dark, clicking, and listens for the echo of a squid's body."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.9
+        actors:
+          - {creature: spermWhale, x: 0.2, y: 0.45, to: [0.38, 0.48], scale: 1.1, waves: {at: "clicking"}, detail: {teeth: true}}
+          - {creature: giantSquid, x: 0.82, y: 0.6, to: [0.88, 0.62], scale: 0.7, flip: true, target: {at: "echo"}}
+        title: Sperm whale
+    sfx: [{sound: ticks, at: "clicking", volume: 0.4, dur: 3}]
+
+  - text: "Whales are found covered in circular scars from squid suckers. Their stomachs can hold the beaks of hundreds of squid."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.8
+        actors:
+          - {creature: spermWhale, x: 0.4, y: 0.5, scale: 1.4, detail: {scars: true, teeth: true}}
+        facts:
+          - {text: "Circular sucker scars", at: "circular"}
+          - {text: "Hundreds of squid beaks", at: "hundreds", red: true}
+
+  - chapter: First contact
+    text: "For centuries, nobody had filmed one alive in the deep. That changed in twenty twelve, near Japan's Ogasawara Islands."
+    visual:
+      remotion: MapScene
+      props:
+        backdrop: abyss
+        bbox: [[128, 20], [150, 40]]
+        countryLabels: [{name: Japan, lon: 138, lat: 37}]
+        title: "2012"
+        subtitle: First filmed alive in the deep
+        pulses: [{lon: 142.2, lat: 27.1, at: "Ogasawara", label: "Ogasawara Islands"}]
+
+  - chapter: Outro
+    text: "Somewhere below you right now, in water darker than night, one of them is drifting. Watching. Subscribe, and we'll go even deeper next time."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.95
+        zoom: [1, 1.25]
+        actors:
+          - {creature: giantSquid, x: 0.5, y: 0.55, scale: 1.2, silhouette: "#020406", opacity: 0.9}
+          - {creature: anglerfish, x: 0.82, y: 0.3, scale: 0.35, flip: true, at: "darker"}
+        bigText: "WATCHING."
+        bigAt: "Watching"
+        bigColor: "#e6edf2"

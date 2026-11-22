@@ -95,9 +95,17 @@ PRESETS: dict[str, dict] = {
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
         "padding": 0.5,
-        "voice": {"engine": "edge", "name": "en-US-ChristopherNeural", "rate": "-4%"},
+        "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.94, "fallback": "edge"},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
         "sound": {"drone": 0.05, "whoosh_on_cut": True, "whoosh_volume": 0.18},
+    },
+    "ocean": {
+        # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
+        "transition": "none",
+        "padding": 0.45,
+        "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.92, "fallback": "edge"},
+        "subtitles": {"burn": False},
+        "sound": {"drone": 0.06, "whoosh_on_cut": True, "whoosh_volume": 0.15},
     },
     "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 64, "max_chars": 22, "margin_v": 520}},
 }

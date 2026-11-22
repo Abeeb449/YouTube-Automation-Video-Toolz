@@ -44,6 +44,17 @@ RUN cd /opt/ytauto/remotion && npm install --no-audit --no-fund && npx remotion 
     && chmod -R a+rX /opt/ytauto/remotion
 COPY remotion/ /opt/ytauto/remotion/
 
+# Kokoro voice model (Apache 2.0): the default free narrator. ~350 MB, downloaded once into the image.
+ENV YTAUTO_KOKORO_DIR=/opt/kokoro
+RUN mkdir -p /opt/kokoro && cd /opt/kokoro \
+    && curl -fsSL -o kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx \
+    && curl -fsSL -o voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin \
+    && chmod -R a+rX /opt/kokoro
+
+# Optional: Chatterbox (expressive, voice cloning). Large PyTorch install, slow on CPU — off by default.
+ARG INSTALL_CHATTERBOX=false
+RUN if [ "$INSTALL_CHATTERBOX" = "true" ]; then pip install --no-cache-dir chatterbox-tts; fi
+
 # Pre-download an offline Piper voice so renders work without any TTS network access.
 COPY ytauto/ /opt/ytauto/ytauto/
 RUN mkdir -p /opt/piper && if [ -n "$PIPER_VOICE" ]; then cd /opt/ytauto && \

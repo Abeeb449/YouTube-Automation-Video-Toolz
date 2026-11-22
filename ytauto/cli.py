@@ -30,8 +30,8 @@ tags: [automation, tutorial]
 
 settings:
   voice:
-    engine: edge                 # edge (free, online) | piper (free, offline) | elevenlabs | espeak
-    name: en-US-AndrewNeural     # list voices: python -m ytauto voices --engine edge --locale en
+    engine: kokoro               # kokoro (free, offline, commercial OK) | edge | chatterbox | piper | elevenlabs | espeak
+    name: bm_george              # list voices: python -m ytauto voices --engine kokoro
     rate: "+0%"
   # music: {{file: assets/music.mp3, volume: 0.12, duck: true}}
   # watermark: {{file: assets/logo.png, position: top-right}}
@@ -172,7 +172,8 @@ def cmd_doctor(_a) -> int:
         filters = run(["ffmpeg", "-hide_banner", "-filters"])
         check("ffmpeg subtitles filter (libass)", " subtitles " in filters, "needed to burn captions")
     check("font for text cards", find_font(), "install fonts-dejavu or set YTAUTO_FONT")
-    for mod, hint in (("edge_tts", "pip install edge-tts"), ("piper", "pip install piper-tts"),
+    for mod, hint in (("kokoro_onnx", "pip install kokoro-onnx soundfile (best free voice)"), ("edge_tts", "pip install edge-tts"),
+                      ("piper", "pip install piper-tts"), ("chatterbox", "optional: pip install chatterbox-tts (GPU recommended)"),
                       ("googleapiclient", "pip install google-api-python-client (YouTube upload)")):
         try:
             __import__(mod)
@@ -223,11 +224,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project")
     p.add_argument("--preview", action="store_true", help="fast low-res render (480p) for checking timing")
     p.add_argument("--clean", action="store_true", help="drop caches and re-render everything")
-    p.add_argument("--voice-engine", help="override the TTS engine (edge, piper, elevenlabs, espeak)")
+    p.add_argument("--voice-engine", help="override the TTS engine (kokoro, edge, chatterbox, piper, elevenlabs, espeak)")
     p.set_defaults(fn=cmd_render)
 
     p = sp.add_parser("voices", help="list available voices")
-    p.add_argument("--engine", default="edge", choices=["edge", "piper", "espeak", "elevenlabs"])
+    p.add_argument("--engine", default="kokoro", choices=["kokoro", "edge", "piper", "espeak", "elevenlabs"])
     p.add_argument("--locale", help="e.g. en, en-GB, es")
     p.set_defaults(fn=cmd_voices)
 

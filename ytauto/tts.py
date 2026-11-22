@@ -6,6 +6,11 @@ edge        Microsoft Edge neural voices via the free `edge-tts` package. Best f
             quality, needs internet. Voice ids like "en-US-AndrewNeural".
 piper       Fully offline neural TTS (https://github.com/rhasspy/piper). Voice ids
             like "en_US-lessac-medium"; models are downloaded once and cached.
+kokoro      Kokoro-82M (Apache 2.0 — free for commercial use). Excellent offline neural voices,
+            ~4x faster than real time on CPU. Voices: bm_george, bm_lewis, am_onyx, am_michael…
+            Blend voices with "bm_george:0.6,am_onyx:0.4".
+chatterbox  Chatterbox (MIT) — most expressive open model, emotion control + voice cloning from a
+            5-10 s reference clip. Heavy (PyTorch); best on a GPU. Optional install.
 elevenlabs  Premium voices. Needs ELEVENLABS_API_KEY. Voice = ElevenLabs voice id.
 espeak      Robotic but always-available offline fallback (espeak-ng).
 """
@@ -13,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import os
 import re
 import urllib.request
@@ -221,7 +227,102 @@ def _espeak(text: str, voice: dict, out: Path) -> None:
     tmp.unlink(missing_ok=True)
 
 
-ENGINES = {"edge": _edge, "piper": _piper, "elevenlabs": _elevenlabs, "espeak": _espeak}
+def _speed(voice: dict) -> float:
+    """Engine-neutral speed: `speed: 0.9`, or an Edge-style `rate: "-10%"`."""
+    if voice.get("speed"):
+        return float(voice["speed"])
+    m = re.match(r"^([+-]?\d+(?:\.\d+)?)%$", str(voice.get("rate", "")).strip())
+    return 1.0 + float(m.group(1)) / 100 if m else 1.0
+
+
+KOKORO_FILES = {
+    "kokoro-v1.0.onnx": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx",
+    "voices-v1.0.bin": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin",
+}
+_kokoro_lock = threading.Lock()
+_kokoro_model = None
+
+
+def kokoro_dir() -> Path:
+    return Path(os.environ.get("YTAUTO_KOKORO_DIR", Path.home() / ".cache" / "ytauto" / "kokoro"))
+
+
+def ensure_kokoro() -> tuple[Path, Path]:
+    d = kokoro_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    for name, url in KOKORO_FILES.items():
+        dst = d / name
+        if not dst.exists() or dst.stat().st_size == 0:
+            log(f"Downloading Kokoro {name} (one time) …")
+            urllib.request.urlretrieve(url, dst.with_suffix(".part"))
+            dst.with_suffix(".part").rename(dst)
+    return d / "kokoro-v1.0.onnx", d / "voices-v1.0.bin"
+
+
+def _kokoro(text: str, voice: dict, out: Path) -> None:
+    global _kokoro_model
+    try:
+        from kokoro_onnx import Kokoro
+        import soundfile as sf
+    except ImportError as exc:
+        raise YtautoError("kokoro-onnx not installed (pip install kokoro-onnx soundfile)") from exc
+    with _kokoro_lock:
+        if _kokoro_model is None:
+            model, voices = ensure_kokoro()
+            _kokoro_model = Kokoro(str(model), str(voices))
+    k = _kokoro_model
+    name = voice.get("name") or "bm_george"
+    if "Neural" in name or "-" in name:  # an Edge/Piper id leaked in through a fallback chain
+        name = "bm_george"
+    if "," in name or ":" in name:  # blend, e.g. "bm_george:0.6,am_onyx:0.4"
+        style, first = None, None
+        for part in name.split(","):
+            vid, _, w = part.strip().partition(":")
+            first = first or vid
+            v = k.get_voice_style(vid) * float(w or 1)
+            style = v if style is None else style + v
+        speaker, lang_src = style, first
+    else:
+        speaker, lang_src = name, name
+    lang = voice.get("lang") or ("en-gb" if str(lang_src).startswith("b") else "en-us")
+    samples, sr = k.create(text, voice=speaker, speed=max(0.5, min(2.0, _speed(voice))), lang=lang)
+    tmp = out.with_suffix(".raw.wav")
+    sf.write(str(tmp), samples, sr)
+    _to_wav(tmp, out)
+    tmp.unlink(missing_ok=True)
+
+
+_cb_lock = threading.Lock()
+_cb_model = None
+
+
+def _chatterbox(text: str, voice: dict, out: Path) -> None:
+    """Chatterbox (Resemble AI, MIT). `reference:` = a 5-10 s WAV of the voice to clone (optional).
+    `exaggeration` 0.25-1.0 (0.5 neutral, higher = more dramatic), `cfg_weight` 0.3-0.7 (lower = slower, more deliberate)."""
+    global _cb_model
+    try:
+        import torch
+        import torchaudio as ta
+        from chatterbox.tts import ChatterboxTTS
+    except ImportError as exc:
+        raise YtautoError("Chatterbox not installed (pip install chatterbox-tts) — it needs PyTorch; a GPU is recommended") from exc
+    with _cb_lock:
+        if _cb_model is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            log(f"Loading Chatterbox on {device} …")
+            _cb_model = ChatterboxTTS.from_pretrained(device=device)
+        kwargs = {"exaggeration": float(voice.get("exaggeration", 0.55)), "cfg_weight": float(voice.get("cfg_weight", 0.45))}
+        if voice.get("reference"):
+            kwargs["audio_prompt_path"] = str(voice["reference"])
+        wav = _cb_model.generate(text, **kwargs)
+    tmp = out.with_suffix(".raw.wav")
+    ta.save(str(tmp), wav, _cb_model.sr)
+    _to_wav(tmp, out)
+    tmp.unlink(missing_ok=True)
+
+
+ENGINES = {"edge": _edge, "kokoro": _kokoro, "chatterbox": _chatterbox, "piper": _piper,
+           "elevenlabs": _elevenlabs, "espeak": _espeak}
 
 
 def synthesize(text: str, voice: dict, out: Path) -> str:
@@ -277,7 +378,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         _silence(gap_file, gap)
     for i, sent in enumerate(sentences):
         sk = stable_hash("sent-v1", voice.get("engine"), voice.get("name"), voice.get("rate"),
-                         voice.get("pitch"), voice.get("length_scale"), sent)
+                         voice.get("pitch"), voice.get("length_scale"), voice.get("speed"), voice.get("lang"),
+                         voice.get("exaggeration"), voice.get("cfg_weight"), voice.get("reference"), sent)
         wav = cache / f"sent_{sk}.wav"
         if not wav.exists():
             synthesize(sent, voice, wav)
@@ -361,6 +463,15 @@ def list_voices(engine: str, locale: str | None = None) -> list[str]:
         with urllib.request.urlopen(url, timeout=60) as r:
             data = json.loads(r.read())
         return sorted(k for k in data if not locale or k.lower().startswith(locale.lower().replace("-", "_")))
+    if engine == "kokoro":
+        from kokoro_onnx import Kokoro
+
+        model, voices = ensure_kokoro()
+        names = sorted(Kokoro(str(model), str(voices)).get_voices())
+        hint = {"a": "US English", "b": "UK English"}
+        return [f"{n:<16} {'female' if n[1] == 'f' else 'male':<7} {hint.get(n[0], n[0])}" for n in names
+                if not locale or (locale.lower().startswith("en-gb") and n[0] == "b") or (locale.lower().startswith("en-us") and n[0] == "a")
+                or locale.lower() == "en" and n[0] in "ab"]
     if engine == "espeak":
         return run([which("espeak-ng") or "espeak", "--voices"]).splitlines()
     return ["ElevenLabs: see https://elevenlabs.io/app/voice-library (use the voice id)"]
