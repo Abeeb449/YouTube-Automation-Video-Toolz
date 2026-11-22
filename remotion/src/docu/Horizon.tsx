@@ -100,7 +100,7 @@ export const Horizon: React.FC<HorizonProps> = (p) => {
           {p.ruler.map((r, i) => (
             <div key={i} style={{position: 'absolute', bottom: `${(i / (p.ruler!.length - 1)) * 100}%`, left: 0, display: 'flex', alignItems: 'center', gap: 8 * s, transform: 'translateY(50%)'}}>
               <div style={{width: 14 * s, height: 2 * s, background: 'rgba(255,255,255,0.7)'}} />
-              <span style={{fontFamily: F.mono, fontSize: 13 * s, color: C.text}}>{r}</span>
+              <span style={{fontFamily: F.mono, fontSize: 20 * s, color: C.text}}>{r}</span>
             </div>
           ))}
         </div>
@@ -108,11 +108,11 @@ export const Horizon: React.FC<HorizonProps> = (p) => {
       {p.title ? (
         <div style={{position: 'absolute', left: 110 * s, top: height * 0.52}}>
           <Reveal at={p.titleAt ?? 0.6} d={1.2} y={0}>
-            <div style={{fontSize: 92 * s, fontWeight: 800, letterSpacing: 8 * s, textShadow: '0 6px 40px rgba(0,0,0,0.5)'}}>{p.title.toUpperCase()}</div>
+            <div style={{fontSize: 92.0 * s, fontWeight: 800, letterSpacing: 8 * s, textShadow: '0 6px 40px rgba(0,0,0,0.5)'}}>{p.title.toUpperCase()}</div>
           </Reveal>
           {p.subtitle ? (
             <Reveal at={(p.titleAt ?? 0.6) + 0.7}>
-              <div style={{fontSize: 16 * s, color: C.amber, letterSpacing: 3 * s, fontWeight: 700, textTransform: 'uppercase', marginTop: 4 * s}}>{p.subtitle}</div>
+              <div style={{fontSize: 23 * s, color: C.amber, letterSpacing: 3 * s, fontWeight: 700, textTransform: 'uppercase', marginTop: 4 * s}}>{p.subtitle}</div>
             </Reveal>
           ) : null}
         </div>

@@ -16,8 +16,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "fps": 30,
     "crf": 20,              # x264 quality (lower = better/larger). 18-23 is sensible.
     "preset": "veryfast",   # x264 speed preset
+    "tune": None,           # x264 tune: "animation" for flat 2D art, "film" for live footage
     "padding": 0.35,        # seconds of silence after every scene's narration
     "sentence_gap": 0.12,   # seconds of silence between sentences inside a scene
+    "align": "auto",        # exact word timings via faster-whisper when installed: auto | on | off
     "transition": "fade",   # fade | none
     "fade_duration": 0.3,
     "workers": 0,           # parallel ffmpeg clip renders; 0 = auto
@@ -92,6 +94,7 @@ class Project:
 # Style presets: `preset: documentary` at the top of script.yaml. Your own settings override them.
 PRESETS: dict[str, dict] = {
     "documentary": {
+        "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
         "padding": 0.5,
@@ -100,6 +103,7 @@ PRESETS: dict[str, dict] = {
         "sound": {"drone": 0.05, "whoosh_on_cut": True, "whoosh_volume": 0.18},
     },
     "ocean": {
+        "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
         "padding": 0.45,

@@ -68,6 +68,103 @@ def split_sentences(text: str) -> list[str]:
     return out
 
 
+_TAG_RE = re.compile(r"\[(pause|speed|emotion|voice|reset)(?:\s+([^\]]+))?\]", re.I)
+
+
+def strip_directives(text: str) -> str:
+    """Narration text without [pause]/[speed …] tags (for captions, kinetic text, cue matching)."""
+    return re.sub(r"\s+", " ", _TAG_RE.sub(" ", text)).strip()
+
+
+def parse_directives(text: str) -> list[tuple]:
+    """Split narration into ("say", sentence, voice_overrides) and ("pause", seconds) items.
+
+    Voice-direction tags, written inline in the script:
+      [pause] / [pause 1.2]   silence (default 0.7 s) — dramatic beats
+      [speed 0.85]            slower (or faster) delivery from here on
+      [emotion 0.8]           Chatterbox exaggeration 0.25–1.0 (calm → intense); Kokoro: slight slow-down when > 0.6
+      [voice bm_lewis]        switch voice from here on
+      [reset]                 back to the scene's default voice settings
+    Tags stay in effect until the end of the scene (or [reset]).
+    """
+    items: list[tuple] = []
+    over: dict = {}
+    pos = 0
+    for m in list(_TAG_RE.finditer(text)) + [None]:
+        chunk = text[pos:m.start()] if m else text[pos:]
+        for sent in split_sentences(chunk):
+            items.append(("say", sent, dict(over)))
+        if not m:
+            break
+        pos = m.end()
+        tag, arg = m.group(1).lower(), (m.group(2) or "").strip()
+        try:
+            if tag == "pause":
+                items.append(("pause", float(arg) if arg else 0.7))
+            elif tag == "speed":
+                over["speed"] = float(arg)
+            elif tag == "emotion":
+                e = float(arg)
+                over["exaggeration"] = e
+                if "speed" not in over and e > 0.6:
+                    over["speed_hint"] = round(1.0 - (e - 0.6) * 0.25, 3)
+            elif tag == "voice":
+                over["name"] = arg
+            elif tag == "reset":
+                over = {}
+        except ValueError:
+            warn(f"ignoring malformed voice tag {m.group(0)!r}")
+    # Kokoro/Edge have no emotion knob: map intensity to a slightly more deliberate pace.
+    for it in items:
+        if it[0] == "say" and "speed_hint" in it[2]:
+            hint = it[2].pop("speed_hint")
+            it[2].setdefault("speed", hint)
+    return items
+
+
+_whisper_model = None
+_whisper_lock = threading.Lock()
+_whisper_failed = False
+
+
+def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
+    """Exact word timings for engines that don't report them (Kokoro, Piper, Chatterbox, ElevenLabs):
+    run faster-whisper (MIT) over our own audio and save <wav>.words.json. Skipped when the file exists,
+    faster-whisper isn't installed, or the model can't be loaded (timings are then estimated)."""
+    global _whisper_model, _whisper_failed
+    wf = wav.with_suffix(".words.json")
+    if wf.exists() or _whisper_failed:
+        return
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        if mode == "on":
+            warn("align: on, but faster-whisper isn't installed (pip install faster-whisper)")
+        _whisper_failed = True
+        return
+    with _whisper_lock:
+        if _whisper_model is None:
+            try:
+                name = os.environ.get("YTAUTO_WHISPER_MODEL", "base.en")
+                _whisper_model = WhisperModel(name, device="cpu", compute_type="int8",
+                                              download_root=os.environ.get("YTAUTO_WHISPER_DIR"))
+            except Exception as exc:  # noqa: BLE001 — no network for the model etc.
+                warn(f"word alignment unavailable ({str(exc).splitlines()[0][:120]}); estimating word timings")
+                _whisper_failed = True
+                return
+        segs, _ = _whisper_model.transcribe(str(wav), language="en", word_timestamps=True, initial_prompt=sentence,
+                                            beam_size=1, vad_filter=False)
+        got = [w for seg in segs for w in (seg.words or [])]
+    toks = sentence.split()
+    if not got:
+        return
+    if len(got) == len(toks):
+        data = [{"start": round(w.start, 3), "end": round(w.end, 3), "text": tok} for w, tok in zip(got, toks)]
+    else:  # different tokenisation: keep whisper's words (cue matching ignores punctuation)
+        data = [{"start": round(w.start, 3), "end": round(w.end, 3), "text": w.word.strip()} for w in got]
+    wf.write_text(json.dumps(data))
+
+
 def caption_chunks(sentence: str, max_chars: int) -> list[str]:
     """Split a sentence into evenly sized caption chunks of at most two lines of `max_chars`."""
     limit = max_chars * 2
@@ -115,7 +212,10 @@ def _edge(text: str, voice: dict, out: Path) -> None:
     except ImportError as exc:
         raise YtautoError("edge-tts not installed (pip install edge-tts)") from exc
     tmp = out.with_suffix(".mp3")
-    kwargs = {"rate": voice.get("rate", "+0%"), "pitch": voice.get("pitch", "+0Hz")}
+    rate = voice.get("rate", "+0%")
+    if voice.get("speed"):
+        rate = f"{round((float(voice['speed']) - 1) * 100):+d}%"
+    kwargs = {"rate": rate, "pitch": voice.get("pitch", "+0Hz")}
     proxy = os.environ.get("YTAUTO_EDGE_PROXY")
     if proxy:
         kwargs["proxy"] = proxy
@@ -181,7 +281,7 @@ def _piper(text: str, voice: dict, out: Path) -> None:
     with wave.open(str(tmp), "wb") as wf:
         if hasattr(pv, "synthesize_wav"):          # piper-tts >= 1.3
             syn_config = None
-            length_scale = voice.get("length_scale")
+            length_scale = voice.get("length_scale") or (1 / float(voice["speed"]) if voice.get("speed") else None)
             if length_scale:
                 from piper import SynthesisConfig
                 syn_config = SynthesisConfig(length_scale=float(length_scale))
@@ -361,8 +461,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     cache.mkdir(parents=True, exist_ok=True)
     sub = settings["subtitles"]
     gap = float(settings["sentence_gap"])
-    sentences = split_sentences(text)
-    key = stable_hash("scene-audio-v4", voice, sentences, gap, fixed_duration, sub["max_chars"])
+    items = parse_directives(text)
+    key = stable_hash("scene-audio-v5", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"))
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
     if out.exists() and meta.exists():
@@ -373,23 +473,35 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     cues: list[Cue] = []
     words: list[Cue] = []
     t = 0.0
-    gap_file = cache / f"gap_{int(gap * 1000)}.wav"
-    if gap > 0 and not gap_file.exists():
-        _silence(gap_file, gap)
-    for i, sent in enumerate(sentences):
-        sk = stable_hash("sent-v1", voice.get("engine"), voice.get("name"), voice.get("rate"),
-                         voice.get("pitch"), voice.get("length_scale"), voice.get("speed"), voice.get("lang"),
-                         voice.get("exaggeration"), voice.get("cfg_weight"), voice.get("reference"), sent)
+
+    def silence(sec: float) -> Path:
+        f = cache / f"gap_{int(round(sec * 1000))}.wav"
+        if not f.exists():
+            _silence(f, sec)
+        return f
+
+    for i, item in enumerate(items):
+        if item[0] == "pause":
+            pieces.append(silence(item[1]))
+            t += item[1]
+            continue
+        _, sent, over = item
+        v = {**voice, **over}
+        sk = stable_hash("sent-v1", v.get("engine"), v.get("name"), v.get("rate"),
+                         v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
+                         v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), sent)
         wav = cache / f"sent_{sk}.wav"
         if not wav.exists():
-            synthesize(sent, voice, wav)
+            synthesize(sent, v, wav)
         d = ffprobe_duration(wav)
+        if settings.get("align", "auto") != "off":
+            align_words(sent, wav, settings.get("align", "auto"))
         sw = sentence_words(sent, d, wav.with_suffix(".words.json"))
         words.extend(Cue(round(t + w.start, 3), round(t + w.end, 3), w.text) for w in sw)
         chunks = caption_chunks(sent, int(sub["max_chars"]))
         total_chars = sum(len(c) for c in chunks) or 1
         ct = t
-        exact = len(sw) == len(sent.split())  # engine word timings line up with our tokens
+        exact = len(sw) == len(sent.split())  # word timings line up with our tokens
         wi = 0
         for ci, c in enumerate(chunks):
             n = len(c.split())
@@ -404,8 +516,9 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                 ct += cd
         pieces.append(wav)
         t += d
-        if gap > 0 and i < len(sentences) - 1:
-            pieces.append(gap_file)
+        nxt = items[i + 1] if i + 1 < len(items) else None
+        if gap > 0 and nxt is not None and nxt[0] == "say":
+            pieces.append(silence(gap))
             t += gap
 
     if fixed_duration and fixed_duration > t:

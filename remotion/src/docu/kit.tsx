@@ -7,7 +7,7 @@
  * so elements land exactly when the narrator says the word.
  */
 import React from 'react';
-import {AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Easing, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {BaseProps} from '../theme';
 import {OceanBackdrop} from '../ocean/OceanBackdrop';
 
@@ -68,6 +68,10 @@ export type DocuProps = BaseProps & {
   /** Bottom-right data panel. */
   stats?: StatRow[];
   statsAt?: number;
+  /** Real B-roll behind the graphics (file staged by ytauto, or "pexels:query" in script.yaml). */
+  footage?: string;
+  footageStart?: number;
+  footageDim?: number;
 };
 
 export const useT = () => {
@@ -182,18 +186,18 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
     <AbsoluteFill style={{fontFamily: F.sans, color: C.text}}>
       {heading ? (
         <div style={{position: 'absolute', left: 80 * s, top: 64 * s, opacity: hp, transform: `translateX(${(1 - hp) * -20 * s}px)`}}>
-          {kicker ? <div style={{fontSize: 15 * s, letterSpacing: 3 * s, color: C.dim, marginBottom: 6 * s, fontWeight: 600}}>{kicker}</div> : null}
-          <div style={{fontSize: 46 * s, fontWeight: 800, color: headingColor === 'teal' ? C.teal : C.text, letterSpacing: -0.5 * s, lineHeight: 1.05, textTransform: 'uppercase'}}>
+          {kicker ? <div style={{fontSize: 22 * s, letterSpacing: 3 * s, color: C.dim, marginBottom: 6 * s, fontWeight: 600}}>{kicker}</div> : null}
+          <div style={{fontSize: 46.0 * s, fontWeight: 800, color: headingColor === 'teal' ? C.teal : C.text, letterSpacing: -0.5 * s, lineHeight: 1.05, textTransform: 'uppercase'}}>
             {heading}
           </div>
           {headingColor === 'white' ? <div style={{height: 3 * s, width: 90 * s * hp, background: C.red, marginTop: 10 * s}} /> : null}
-          {subheading ? <div style={{fontSize: 15 * s, letterSpacing: 2.5 * s, color: C.dim, marginTop: 10 * s, fontWeight: 600, textTransform: 'uppercase'}}>{subheading}</div> : null}
+          {subheading ? <div style={{fontSize: 22 * s, letterSpacing: 2.5 * s, color: C.dim, marginTop: 10 * s, fontWeight: 600, textTransform: 'uppercase'}}>{subheading}</div> : null}
         </div>
       ) : null}
       {hud ? (
         <div style={{position: 'absolute', right: 80 * s, top: 56 * s, textAlign: 'right', opacity: hp}}>
-          {hud.label ? <div style={{fontSize: 13 * s, letterSpacing: 2.5 * s, color: C.dim, textTransform: 'uppercase'}}>{hud.label}</div> : null}
-          <div style={{fontFamily: F.mono, fontSize: 40 * s, color: hud.color ?? (hud.clock !== undefined && hud.clock + t < 0 ? C.red : C.teal)}}>
+          {hud.label ? <div style={{fontSize: 20 * s, letterSpacing: 2.5 * s, color: C.dim, textTransform: 'uppercase'}}>{hud.label}</div> : null}
+          <div style={{fontFamily: F.mono, fontSize: 40.0 * s, color: hud.color ?? (hud.clock !== undefined && hud.clock + t < 0 ? C.red : C.teal)}}>
             {hud.clock !== undefined
               ? hud.format === 'time' ? fmtTime(hud.clock + t) : fmtClock(hud.clock + t, hud.prefix, hud.decimals ?? 0)
               : hud.value}
@@ -208,8 +212,8 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
           }}
         >
           {stats.map((r, i) => (
-            <div key={i} style={{display: 'flex', justifyContent: 'space-between', gap: 40 * s, fontSize: 16 * s, lineHeight: 1.9}}>
-              <span style={{color: C.dim, letterSpacing: 1.5 * s, textTransform: 'uppercase', fontSize: 13 * s}}>{r.label}</span>
+            <div key={i} style={{display: 'flex', justifyContent: 'space-between', gap: 40 * s, fontSize: 23 * s, lineHeight: 1.9}}>
+              <span style={{color: C.dim, letterSpacing: 1.5 * s, textTransform: 'uppercase', fontSize: 20 * s}}>{r.label}</span>
               <span style={{fontFamily: F.mono, color: r.color ?? C.text}}>{r.value}</span>
             </div>
           ))}
@@ -220,7 +224,7 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
           <div
             style={{
               background: 'rgba(12,14,18,0.86)', padding: `${12 * s}px ${26 * s}px`, borderBottom: `${3 * s}px solid ${C.red}`,
-              fontWeight: 800, fontSize: 25 * s, letterSpacing: 0.5 * s, textTransform: 'uppercase',
+              fontWeight: 800, fontSize: 30 * s, letterSpacing: 0.5 * s, textTransform: 'uppercase',
               clipPath: `inset(0 ${(1 - cp) * 50}% 0 ${(1 - cp) * 50}%)`,
             }}
           >
@@ -229,7 +233,7 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
         </div>
       ) : null}
       {source ? (
-        <div style={{position: 'absolute', left: 80 * s, bottom: 34 * s, fontSize: 13 * s, color: C.faint, opacity: hp, letterSpacing: 0.5 * s}}>{source}</div>
+        <div style={{position: 'absolute', left: 80 * s, bottom: 34 * s, fontSize: 20 * s, color: C.dim, opacity: hp, letterSpacing: 0.5 * s, textShadow: '0 1px 6px rgba(0,0,0,0.8)'}}>{source}</div>
       ) : null}
     </AbsoluteFill>
   );
@@ -238,9 +242,17 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
 /** Wrap every documentary template: backdrop → content (fades) → overlays → vignette. */
 export const DocuFrame: React.FC<DocuProps & {children: React.ReactNode; defaultBackdrop?: Backdrop}> = ({children, defaultBackdrop = 'navy', ...p}) => {
   const o = useContentOpacity();
+  const {fps} = useT();
   return (
     <AbsoluteFill style={{fontFamily: F.sans, color: C.text, background: '#000'}}>
-      <BackdropLayer kind={p.backdrop ?? defaultBackdrop} />
+      {p.footage ? (
+        <AbsoluteFill>
+          <OffthreadVideo src={staticFile(p.footage)} muted startFrom={Math.round((p.footageStart ?? 0) * fps)} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+          <AbsoluteFill style={{background: `rgba(2,8,14,${p.footageDim ?? 0.45})`}} />
+        </AbsoluteFill>
+      ) : (
+        <BackdropLayer kind={p.backdrop ?? defaultBackdrop} />
+      )}
       <AbsoluteFill style={{opacity: o}}>
         {children}
         <DocuOverlays {...p} />

@@ -12,7 +12,7 @@ from pathlib import Path
 from .config import Project
 from .cues import find_word_time, resolve_cues
 from .sound import BUILTIN, build_track
-from .tts import Cue, SceneAudio, build_scene_audio
+from .tts import Cue, SceneAudio, build_scene_audio, strip_directives
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
 
@@ -129,7 +129,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         for vi, (spec, fr) in enumerate(zip(scene.visuals, plan.clip_frames)):
             # Remotion KineticText with no explicit text uses the narration.
             if isinstance(spec, dict) and spec.get("remotion") == "KineticText":
-                spec = {**spec, "props": {"text": scene.text, **(spec.get("props") or {})}}
+                spec = {**spec, "props": {"text": strip_directives(scene.text), **(spec.get("props") or {})}}
             # Word cues (at: "Hiroshima") → seconds within this clip.
             if isinstance(spec, dict) and spec.get("props"):
                 spec = {**spec, "props": resolve_cues(spec["props"], plan.audio.words, offset_frames / fps, fr / fps,
@@ -259,7 +259,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         vchain = "[v2]"
     if fparts:
         cmd += ["-filter_complex", ";".join(fparts), "-map", vchain,
-                "-c:v", "libx264", "-preset", st["preset"], "-crf", str(st["crf"]), "-pix_fmt", "yuv420p",
+                "-c:v", "libx264", "-preset", st["preset"], "-crf", str(st["crf"]),
+                *(["-tune", st["tune"]] if st.get("tune") else []), "-pix_fmt", "yuv420p",
                 "-g", str(fps * 2)]
     else:
         cmd += ["-map", "0:v", "-c:v", "copy"]

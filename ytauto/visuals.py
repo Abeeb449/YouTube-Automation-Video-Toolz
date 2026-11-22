@@ -70,6 +70,25 @@ def normalize_spec(spec: Any) -> dict:
     raise YtautoError(f"Can't tell what kind of visual {spec!r} is (use a mapping like {{image: ...}})")
 
 
+_remotion_fp: str | None = None
+
+
+def remotion_fingerprint() -> str:
+    """Hash of the Remotion template sources, so editing a template re-renders its clips."""
+    global _remotion_fp
+    if _remotion_fp is None:
+        import hashlib
+        h = hashlib.sha256()
+        for d in (REPO_ROOT / "remotion" / "src", Path(os.environ.get("YTAUTO_REMOTION_DIR", "/nonexistent")) / "src"):
+            if d.exists():
+                for f in sorted(d.rglob("*")):
+                    if f.is_file():
+                        h.update(f.read_bytes())
+                break
+        _remotion_fp = h.hexdigest()[:12]
+    return _remotion_fp
+
+
 class ClipRenderer:
     def __init__(self, project):
         self.p = project
@@ -82,7 +101,8 @@ class ClipRenderer:
     # ------------------------------------------------------------------ encoding
     def enc_args(self) -> list[str]:
         st = self.p.settings
-        return ["-c:v", "libx264", "-preset", st["preset"], "-crf", str(st["crf"]), "-pix_fmt", "yuv420p",
+        tune = ["-tune", st["tune"]] if st.get("tune") else []
+        return ["-c:v", "libx264", "-preset", st["preset"], "-crf", str(st["crf"]), *tune, "-pix_fmt", "yuv420p",
                 "-r", str(self.fps), "-g", str(self.fps * 2), "-video_track_timescale", "90000",
                 "-movflags", "+faststart", "-an"]
 
@@ -117,6 +137,10 @@ class ClipRenderer:
         for k in ("image", "video"):
             if k in spec:
                 fingerprint = file_fingerprint(Path(spec[k]))
+        if "remotion" in spec:
+            fingerprint = (fingerprint, remotion_fingerprint())
+        elif "blender" in spec:
+            fingerprint = (fingerprint, file_fingerprint(REPO_ROOT / "blender" / "render.py"))
         key = stable_hash("clip-v3", spec, fingerprint, round(duration, 3), self.W, self.H, self.fps,
                           self.p.settings["crf"], self.p.settings["preset"], self.p.settings["transition"],
                           self.p.settings["fade_duration"], fade_in, fade_out, seq % len(ZOOMS),
@@ -255,7 +279,7 @@ class ClipRenderer:
         props_file.write_text(json.dumps(props))
         raw = out.with_suffix(".remotion.mp4")
         cmd = ["npx", "remotion", "render", "src/index.ts", comp, str(raw), f"--props={props_file}",
-               "--log=error", "--codec=h264", "--crf=16"]
+               "--log=error", "--codec=h264", "--crf=10"]
         chrome = os.environ.get("YTAUTO_CHROME")
         if chrome:
             cmd.append(f"--browser-executable={chrome}")
@@ -276,10 +300,19 @@ class ClipRenderer:
             return obj
         out = {}
         for k, v in obj.items():
-            if k == "image" and isinstance(v, str) and not v.startswith(("http://", "https://")):
-                src = self.p.resolve(v)
+            if k in ("image", "lottie", "footage") and isinstance(v, str) and not v.startswith(("http://", "https://")):
+                low = v.lower()
+                if k == "footage" and low.startswith(("pexels:", "stock:", "pexels-photo:")):
+                    query = v.split(":", 1)[1].strip()
+                    try:
+                        src, _ = fetch_stock(query, "video", self.cache, self.W, nth=len(query))
+                    except Exception as exc:  # noqa: BLE001 — no key / no network: fall back to the drawn backdrop
+                        warn(f"B-roll '{query}': {exc}. Using the drawn background instead.")
+                        continue
+                else:
+                    src = self.p.resolve(v)
                 if not src.exists():
-                    raise YtautoError(f"Image not found: {src}")
+                    raise YtautoError(f"{k} file not found: {src}")
                 pub = rdir / "public" / "ytauto"
                 pub.mkdir(parents=True, exist_ok=True)
                 name = f"{stable_hash(file_fingerprint(src))}{src.suffix.lower()}"

@@ -91,7 +91,7 @@ export const MapScene: React.FC<MapSceneProps> = (p) => {
               const [x, y] = project(ll);
               if (x < 0 || y < 0 || x > width || y > height) return null;
               return (
-                <text key={`l${i}`} x={x} y={y} fill={C.dim} fontFamily={F.sans} fontWeight={700} fontSize={20 * s / z}
+                <text key={`l${i}`} x={x} y={y} fill={C.dim} fontFamily={F.sans} fontWeight={700} fontSize={26 * s / z}
                   letterSpacing={6 * s / z} textAnchor="middle" opacity={prog(t, 0.4 + i * 0.15, 0.8)}>
                   {n.toUpperCase()}
                 </text>
@@ -115,7 +115,7 @@ export const MapScene: React.FC<MapSceneProps> = (p) => {
                     strokeDasharray={len * 1.3} strokeDashoffset={len * 1.3 * (1 - k)} strokeLinecap="round" />
                   <circle cx={qx} cy={qy} r={7 * s / z} fill="#fff" />
                   <circle cx={qx} cy={qy} r={16 * s / z} fill={col} opacity={0.5} filter="url(#glow)" />
-                  {a.label ? <text x={x1 + 12 * s} y={y1 - 12 * s} fill={col} fontFamily={F.sans} fontWeight={700} fontSize={14 * s / z} letterSpacing={2 * s}>{a.label.toUpperCase()}</text> : null}
+                  {a.label ? <text x={x1 + 12 * s} y={y1 - 12 * s} fill={col} fontFamily={F.sans} fontWeight={700} fontSize={21 * s / z} letterSpacing={2 * s}>{a.label.toUpperCase()}</text> : null}
                 </g>
               );
             })}
@@ -128,7 +128,7 @@ export const MapScene: React.FC<MapSceneProps> = (p) => {
                 <g key={`p${i}`} opacity={a}>
                   <circle cx={x} cy={y} r={(10 + ring * 40) * s / z} fill="none" stroke={pu.color ?? C.red} strokeWidth={2 * s / z} opacity={t > at ? 1 - ring : 0} />
                   <circle cx={x} cy={y} r={8 * s / z} fill={pu.color ?? C.red} />
-                  {pu.label ? <text x={x + 16 * s} y={y + 5 * s} fill={C.text} fontFamily={F.sans} fontWeight={700} fontSize={16 * s / z}>{pu.label}</text> : null}
+                  {pu.label ? <text x={x + 16 * s} y={y + 5 * s} fill={C.text} fontFamily={F.sans} fontWeight={700} fontSize={23 * s / z}>{pu.label}</text> : null}
                 </g>
               );
             })}
@@ -138,10 +138,10 @@ export const MapScene: React.FC<MapSceneProps> = (p) => {
               return (
                 <g key={`c${i}`} opacity={a}>
                   <circle cx={x} cy={y} r={5 * s / z} fill={c.color ?? C.text} />
-                  <text x={x + 10 * s / z} y={y + 5 * s / z} fill={c.color ?? C.text} fontFamily={F.sans} fontWeight={700} fontSize={15 * s / z} letterSpacing={1.5 * s / z}>
+                  <text x={x + 10 * s / z} y={y + 5 * s / z} fill={c.color ?? C.text} fontFamily={F.sans} fontWeight={700} fontSize={22 * s / z} letterSpacing={1.5 * s / z}>
                     {c.name.toUpperCase()}
                   </text>
-                  {c.note ? <text x={x + 10 * s / z} y={y + 24 * s / z} fill={C.dim} fontFamily={F.sans} fontSize={12 * s / z}>{c.note}</text> : null}
+                  {c.note ? <text x={x + 10 * s / z} y={y + 24 * s / z} fill={C.dim} fontFamily={F.sans} fontSize={20 * s / z}>{c.note}</text> : null}
                 </g>
               );
             })}
@@ -149,8 +149,8 @@ export const MapScene: React.FC<MapSceneProps> = (p) => {
         </svg>
         {p.title ? (
           <div style={{position: 'absolute', left: 80 * s, top: 60 * s, opacity: tp, fontFamily: F.sans}}>
-            <div style={{fontSize: 50 * s, fontWeight: 800, color: C.text}}>{p.title}</div>
-            {p.subtitle ? <div style={{fontSize: 15 * s, letterSpacing: 2.5 * s, color: C.red, fontWeight: 700, marginTop: 6 * s, textTransform: 'uppercase'}}>{p.subtitle}</div> : null}
+            <div style={{fontSize: 50.0 * s, fontWeight: 800, color: C.text}}>{p.title}</div>
+            {p.subtitle ? <div style={{fontSize: 22 * s, letterSpacing: 2.5 * s, color: C.red, fontWeight: 700, marginTop: 6 * s, textTransform: 'uppercase'}}>{p.subtitle}</div> : null}
           </div>
         ) : null}
       </AbsoluteFill>

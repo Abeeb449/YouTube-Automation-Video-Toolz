@@ -5,6 +5,7 @@
 |---|---|
 | `depth` 0..1, `depthTo` | 0 = sunlit with light shafts, 1 = abyss. `depthTo` animates a descent over the scene. |
 | `surface`, `rays` | Surface shimmer line; force light shafts on or off |
+| `footage`, `footageStart`, `footageDim` | Real B-roll instead of the drawn water: `assets/x.mp4` or `"pexels:query"` |
 | `actors` | See below |
 | `zoom: [from, to]`, `focus: [x, y]` | Camera push-in centred on a point (fractions of the frame) |
 | `title`, `titleColor: white or red`, `titleAt` | Top-centre label (red titles get an underline) |
@@ -17,7 +18,8 @@
 | `callout`, `heading`, `source`, `hud`, `stats` | Shared docu overlays |
 
 ## Actor
-`creature` (spermWhale · giantSquid · orca · shark · anglerfish · jellyfish · diver · fishSchool · octopus) **or** `image: assets/x.png`.
+`creature` (spermWhale · giantSquid · orca · shark · anglerfish · jellyfish · diver · fishSchool · octopus) **or** `image: assets/x.png` **or** `lottie: assets/x.json`.
+When `facts` are shown, actors are moved left automatically so they never sit under the fact boxes.
 `x`, `y` (0..1) and `to: [x, y]` (movement over the scene) · `scale` (1 ≈ a third of the frame wide) and `scaleTo` · `flip` · `rotate` ·
 `at` (appear time or cue word) · `enter: fade | left | right | none` · `silhouette: "#05080b"` (flat shape) · `opacity` · `blur` ·
 `color` (recolour) · `detail: {teeth: true, scars: true, count: 40}` · `label: {text, at, color, dy}` · `target: {at}` (red lock brackets) ·

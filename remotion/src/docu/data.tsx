@@ -21,10 +21,10 @@ export const Counter: React.FC<CounterProps> = (p) => {
   return (
     <DocuFrame {...p}>
       <div style={{position: 'absolute', left: 110 * s, top: p.heading ? 200 * s : 90 * s, filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}}>
-        <div style={{fontSize: 150 * s, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums'}}>
+        <div style={{fontSize: 150.0 * s, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums'}}>
           {p.prefix}{fmtNum(v, p.decimals ?? 0)}{p.suffix}
         </div>
-        {p.label ? <Reveal at={at + cd * 0.6}><div style={{fontSize: 22 * s, color: C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: 12 * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
+        {p.label ? <Reveal at={at + cd * 0.6}><div style={{fontSize: 28 * s, color: C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: 12 * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
       </div>
       {tl ? (
         <svg width={width} height={1080 * s} style={{position: 'absolute', left: 0, top: 0}}>
@@ -33,7 +33,7 @@ export const Counter: React.FC<CounterProps> = (p) => {
           {Array.from({length: Math.floor((tl.end - tl.start) / (tl.tickEvery ?? 10)) + 1}).map((_, i) => {
             const yr = tl.start + i * (tl.tickEvery ?? 10);
             const x = x0 + (x1 - x0) * frac(yr);
-            return <text key={i} x={x} y={y + 34 * s} fill={C.dim} fontSize={14 * s} fontFamily={F.sans} textAnchor="middle" opacity={k >= frac(yr) - 0.001 ? 1 : 0.35}>{yr}</text>;
+            return <text key={i} x={x} y={y + 34 * s} fill={C.dim} fontSize={21 * s} fontFamily={F.sans} textAnchor="middle" opacity={k >= frac(yr) - 0.001 ? 1 : 0.35}>{yr}</text>;
           })}
           <circle cx={x0 + (x1 - x0) * k} cy={y} r={7 * s} fill={C.teal} />
           {(tl.events ?? []).map((ev, i) => {
@@ -43,14 +43,14 @@ export const Counter: React.FC<CounterProps> = (p) => {
               <g key={i} opacity={a}>
                 <line x1={x} x2={x} y1={y} y2={y - 90 * s} stroke={C.amber} strokeWidth={1.5 * s} />
                 <circle cx={x} cy={y - 90 * s} r={4 * s} fill={C.amber} />
-                <text x={x + 10 * s} y={y - 86 * s} fill={C.amber} fontSize={14 * s} fontFamily={F.sans} fontWeight={700} letterSpacing={1.5 * s}>{ev.label.toUpperCase()}</text>
+                <text x={x + 10 * s} y={y - 86 * s} fill={C.amber} fontSize={21 * s} fontFamily={F.sans} fontWeight={700} letterSpacing={1.5 * s}>{ev.label.toUpperCase()}</text>
               </g>
             );
           })}
           {tl.band ? (
             <g opacity={prog(t, at + cd * 0.5, 0.6)}>
               <rect x={x0 + (x1 - x0) * frac(tl.band.from)} y={y + 56 * s} width={(x1 - x0) * (frac(tl.band.to) - frac(tl.band.from))} height={30 * s} fill={C.teal} fillOpacity={0.15} stroke={C.teal} strokeOpacity={0.5} />
-              <text x={x0 + (x1 - x0) * frac(tl.band.from) + 12 * s} y={y + 76 * s} fill={C.teal} fontSize={13 * s} fontFamily={F.sans} fontWeight={700} letterSpacing={2 * s}>{tl.band.label.toUpperCase()}</text>
+              <text x={x0 + (x1 - x0) * frac(tl.band.from) + 12 * s} y={y + 76 * s} fill={C.teal} fontSize={20 * s} fontFamily={F.sans} fontWeight={700} letterSpacing={2 * s}>{tl.band.label.toUpperCase()}</text>
             </g>
           ) : null}
         </svg>
@@ -81,8 +81,8 @@ export const StatCards: React.FC<StatCardsProps> = (p) => {
             return (
               <Reveal key={i} at={at}>
                 <div style={{background: C.panel, borderLeft: `${3 * s}px solid ${C.faint}`, padding: `${14 * s}px ${22 * s}px`, width: 420 * s}}>
-                  <div style={{fontSize: 12 * s, color: C.dim, letterSpacing: 2 * s, textTransform: 'uppercase'}}>{c.label}</div>
-                  <div style={{fontFamily: F.mono, fontSize: 34 * s, marginTop: 4 * s}}>{c.value}</div>
+                  <div style={{fontSize: 20 * s, color: C.dim, letterSpacing: 2 * s, textTransform: 'uppercase'}}>{c.label}</div>
+                  <div style={{fontFamily: F.mono, fontSize: 34.0 * s, marginTop: 4 * s}}>{c.value}</div>
                   {c.bar !== undefined ? <div style={{height: 3 * s, width: `${c.bar * 100 * bp}%`, background: C.red, marginTop: 8 * s}} /> : null}
                 </div>
               </Reveal>
@@ -91,7 +91,7 @@ export const StatCards: React.FC<StatCardsProps> = (p) => {
         </div>
         {st ? (
           <div style={{position: 'absolute', right: 260 * s, top: 330 * s, transform: `rotate(-9deg) scale(${sp === 0 ? 2 : 2 - sp})`, opacity: Math.min(1, sp)}}>
-            <div style={{border: `${6 * s}px solid ${st.color ?? C.red}`, color: st.color ?? C.red, fontSize: 84 * s, fontWeight: 900, padding: `${6 * s}px ${28 * s}px`, letterSpacing: 4 * s}}>
+            <div style={{border: `${6 * s}px solid ${st.color ?? C.red}`, color: st.color ?? C.red, fontSize: 84.0 * s, fontWeight: 900, padding: `${6 * s}px ${28 * s}px`, letterSpacing: 4 * s}}>
               {st.text.toUpperCase()}
             </div>
           </div>
@@ -120,9 +120,9 @@ export const DotGrid: React.FC<DotGridProps> = (p) => {
   return (
     <DocuFrame {...p}>
       <div style={{position: 'absolute', left: 110 * s, top: 260 * s, width: 640 * s}}>
-        {p.value ? <Reveal at={0.2}><div style={{fontSize: 120 * s, fontWeight: 800, lineHeight: 1}}>{p.value}</div></Reveal> : null}
-        {p.label ? <Reveal at={0.5}><div style={{fontSize: 22 * s, color: p.color ?? C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: 10 * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
-        {p.note ? <Reveal at={0.8}><div style={{fontSize: 15 * s, color: C.dim, letterSpacing: 2 * s, marginTop: 10 * s, textTransform: 'uppercase'}}>{p.note}</div></Reveal> : null}
+        {p.value ? <Reveal at={0.2}><div style={{fontSize: 120.0 * s, fontWeight: 800, lineHeight: 1}}>{p.value}</div></Reveal> : null}
+        {p.label ? <Reveal at={0.5}><div style={{fontSize: 28 * s, color: p.color ?? C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: 10 * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
+        {p.note ? <Reveal at={0.8}><div style={{fontSize: 22 * s, color: C.dim, letterSpacing: 2 * s, marginTop: 10 * s, textTransform: 'uppercase'}}>{p.note}</div></Reveal> : null}
       </div>
       <svg width={1920 * s} height={1080 * s} style={{position: 'absolute', left: 0, top: 0}}>
         {Array.from({length: n}).map((_, i) => {
@@ -155,10 +155,10 @@ export const BarCompare: React.FC<BarCompareProps> = (p) => {
           const k = prog(t, at, 1.1);
           return (
             <div key={i} style={{opacity: Math.min(1, k * 3)}}>
-              <div style={{fontSize: 14 * s, color: C.dim, letterSpacing: 2.5 * s, textTransform: 'uppercase', marginBottom: 8 * s}}>{b.label}</div>
+              <div style={{fontSize: 21 * s, color: C.dim, letterSpacing: 2.5 * s, textTransform: 'uppercase', marginBottom: 8 * s}}>{b.label}</div>
               <div style={{display: 'flex', alignItems: 'center', gap: 18 * s}}>
                 <div style={{height: 34 * s, width: `${(b.value / max) * 78 * k}%`, background: b.color ?? (i === p.bars.length - 1 ? C.red : '#7f8fa0'), minWidth: 4 * s}} />
-                <div style={{fontFamily: F.mono, fontSize: 24 * s}}>{b.display ?? `${fmtNum(b.value * k)}${p.unit ? ` ${p.unit}` : ''}`}</div>
+                <div style={{fontFamily: F.mono, fontSize: 30 * s}}>{b.display ?? `${fmtNum(b.value * k)}${p.unit ? ` ${p.unit}` : ''}`}</div>
               </div>
             </div>
           );
@@ -183,16 +183,16 @@ export const SourceList: React.FC<SourceListProps> = (p) => {
         <div style={{border: `${2.5 * s}px solid ${C.red}`, padding: `${12 * s}px ${30 * s}px`, display: 'flex', alignItems: 'center', gap: 16 * s,
           transform: `scale(${0.9 + 0.1 * tp})`, opacity: tp, background: 'rgba(229,55,47,0.06)'}}>
           <div style={{width: 14 * s, height: 14 * s, borderRadius: 7 * s, background: C.red, opacity: 0.6 + 0.4 * Math.abs(Math.sin(t * 3))}} />
-          <div style={{fontSize: 46 * s, fontWeight: 800, letterSpacing: 1 * s}}>{p.tag.toUpperCase()}</div>
+          <div style={{fontSize: 46.0 * s, fontWeight: 800, letterSpacing: 1 * s}}>{p.tag.toUpperCase()}</div>
         </div>
-        {p.tagNote ? <Reveal at={0.6}><div style={{fontSize: 15 * s, color: C.red, letterSpacing: 3 * s, marginTop: 14 * s, fontWeight: 700, textTransform: 'uppercase'}}>{p.tagNote}</div></Reveal> : null}
+        {p.tagNote ? <Reveal at={0.6}><div style={{fontSize: 22 * s, color: C.red, letterSpacing: 3 * s, marginTop: 14 * s, fontWeight: 700, textTransform: 'uppercase'}}>{p.tagNote}</div></Reveal> : null}
         <div style={{marginTop: 70 * s, width: 1150 * s}}>
           {p.rows.map((r, i) => (
             <Reveal key={i} at={r.at ?? stagger(i, p.rows.length, dur, 1.2, 0.75)}>
               <div style={{display: 'flex', alignItems: 'baseline', gap: 30 * s, padding: `${12 * s}px 0`, borderBottom: `1px solid rgba(138,161,182,0.15)`}}>
-                <span style={{fontFamily: F.mono, color: C.faint, fontSize: 15 * s, width: 40 * s}}>{String(i + 1).padStart(2, '0')}</span>
-                <span style={{fontSize: 24 * s, fontWeight: 800, flex: 1, textTransform: 'uppercase'}}>{r.title}</span>
-                <span style={{fontSize: 14 * s, color: C.dim}}>{r.source}</span>
+                <span style={{fontFamily: F.mono, color: C.faint, fontSize: 22 * s, width: 40 * s}}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{fontSize: 30 * s, fontWeight: 800, flex: 1, textTransform: 'uppercase'}}>{r.title}</span>
+                <span style={{fontSize: 21 * s, color: C.dim}}>{r.source}</span>
               </div>
             </Reveal>
           ))}
@@ -236,7 +236,7 @@ export const Clock: React.FC<ClockProps> = (p) => {
         <circle cx={cx} cy={cy} r={9 * s} fill={C.red} />
         {pts.length > 1 ? (
           <g opacity={prog(t, 1, 0.5)}>
-            <text x={chart.x} y={chart.y - 24 * s} fill={C.dim} fontSize={13 * s} fontFamily={F.sans} letterSpacing={2 * s}>{(p.seriesLabel ?? '').toUpperCase()}</text>
+            <text x={chart.x} y={chart.y - 24 * s} fill={C.dim} fontSize={20 * s} fontFamily={F.sans} letterSpacing={2 * s}>{(p.seriesLabel ?? '').toUpperCase()}</text>
             <polyline points={pts.map((q) => q.join(',')).join(' ')} fill="none" stroke={C.teal} strokeWidth={2.5 * s}
               strokeDasharray={chart.w * 3} strokeDashoffset={chart.w * 3 * (1 - cp)} />
           </g>
@@ -244,8 +244,8 @@ export const Clock: React.FC<ClockProps> = (p) => {
       </svg>
       {p.value ? (
         <div style={{position: 'absolute', left: 1100 * s, top: 640 * s, display: 'flex', alignItems: 'baseline', gap: 14 * s, opacity: prog(t, dur * 0.45, 0.6)}}>
-          <div style={{fontSize: 130 * s, fontWeight: 900, color: C.red, lineHeight: 1}}>{p.value}</div>
-          <div style={{fontSize: 22 * s, color: C.red, fontWeight: 800, letterSpacing: 2 * s, textTransform: 'uppercase', maxWidth: 260 * s}}>{p.label}</div>
+          <div style={{fontSize: 130.0 * s, fontWeight: 900, color: C.red, lineHeight: 1}}>{p.value}</div>
+          <div style={{fontSize: 28 * s, color: C.red, fontWeight: 800, letterSpacing: 2 * s, textTransform: 'uppercase', maxWidth: 260 * s}}>{p.label}</div>
         </div>
       ) : null}
     </DocuFrame>
@@ -268,7 +268,7 @@ export const Equation: React.FC<EquationProps> = (p) => {
             <div style={{fontFamily: F.serif, fontStyle: 'italic', fontSize: (l.big ? 64 : i === 0 ? 46 : 34) * s, color: i === p.lines.length - 1 && p.lines.length > 1 ? C.teal : C.text}}>
               {mathText(l.text)}
             </div>
-            {l.note ? <div style={{fontSize: 13 * s, color: C.faint, marginTop: 4 * s}}>{l.note}</div> : null}
+            {l.note ? <div style={{fontSize: 20 * s, color: C.faint, marginTop: 4 * s}}>{l.note}</div> : null}
           </Reveal>
         ))}
       </div>
@@ -286,14 +286,14 @@ export const SplitCompare: React.FC<SplitCompareProps> = (p) => {
     const a = prog(t, at, 0.7);
     return (
       <div style={{position: 'absolute', left: x, top: 200 * s, width: 820 * s, display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.25 + 0.75 * a}}>
-        <div style={{fontSize: 30 * s, fontWeight: 800, textTransform: 'uppercase'}}>{sd.title}</div>
-        {sd.subtitle ? <div style={{fontSize: 14 * s, letterSpacing: 2 * s, color: sd.color ?? C.teal, marginTop: 8 * s, textTransform: 'uppercase', fontWeight: 700}}>{sd.subtitle}</div> : null}
+        <div style={{fontSize: 30.0 * s, fontWeight: 800, textTransform: 'uppercase'}}>{sd.title}</div>
+        {sd.subtitle ? <div style={{fontSize: 21 * s, letterSpacing: 2 * s, color: sd.color ?? C.teal, marginTop: 8 * s, textTransform: 'uppercase', fontWeight: 700}}>{sd.subtitle}</div> : null}
         {sd.orb ? (
           <div style={{marginTop: 120 * s, width: 150 * s, height: 150 * s, borderRadius: 75 * s, opacity: a,
             background: 'radial-gradient(circle, #fff4c2 0%, #ffb347 40%, #e8571f 75%, rgba(232,87,31,0) 100%)', boxShadow: `0 0 ${90 * s}px ${30 * s}px rgba(255,140,40,0.35)`}} />
         ) : <div style={{height: 270 * s}} />}
         {sd.footer ? (
-          <div style={{marginTop: 120 * s, background: C.panel, padding: `${16 * s}px ${40 * s}px`, fontSize: 14 * s, letterSpacing: 2 * s, textTransform: 'uppercase', color: sd.color ?? C.dim, fontWeight: 700, opacity: a}}>
+          <div style={{marginTop: 120 * s, background: C.panel, padding: `${16 * s}px ${40 * s}px`, fontSize: 21 * s, letterSpacing: 2 * s, textTransform: 'uppercase', color: sd.color ?? C.dim, fontWeight: 700, opacity: a}}>
             {sd.footer}
           </div>
         ) : null}
@@ -317,10 +317,10 @@ export const Statement: React.FC<StatementProps> = (p) => {
   return (
     <DocuFrame {...p} defaultBackdrop="ember">
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', textAlign: 'center'}}>
-        {p.kicker2 ? <Reveal at={0.2}><div style={{fontSize: 15 * s, letterSpacing: 3 * s, color: C.amber, fontWeight: 700, marginBottom: 20 * s, textTransform: 'uppercase'}}>{p.kicker2}</div></Reveal> : null}
-        <Reveal at={0.4}><div style={{fontSize: 84 * s, fontWeight: 900, lineHeight: 1.02, textTransform: 'uppercase'}}>{p.line1}</div></Reveal>
-        {p.line2 ? <Reveal at={0.9}><div style={{fontSize: 84 * s, fontWeight: 900, lineHeight: 1.02, color: C.red, textTransform: 'uppercase'}}>{p.line2}</div></Reveal> : null}
-        {p.footnote ? <Reveal at={1.5}><div style={{fontSize: 15 * s, letterSpacing: 2.5 * s, color: C.dim, marginTop: 34 * s, textTransform: 'uppercase'}}>{p.footnote}</div></Reveal> : null}
+        {p.kicker2 ? <Reveal at={0.2}><div style={{fontSize: 22 * s, letterSpacing: 3 * s, color: C.amber, fontWeight: 700, marginBottom: 20 * s, textTransform: 'uppercase'}}>{p.kicker2}</div></Reveal> : null}
+        <Reveal at={0.4}><div style={{fontSize: 84.0 * s, fontWeight: 900, lineHeight: 1.02, textTransform: 'uppercase'}}>{p.line1}</div></Reveal>
+        {p.line2 ? <Reveal at={0.9}><div style={{fontSize: 84.0 * s, fontWeight: 900, lineHeight: 1.02, color: C.red, textTransform: 'uppercase'}}>{p.line2}</div></Reveal> : null}
+        {p.footnote ? <Reveal at={1.5}><div style={{fontSize: 22 * s, letterSpacing: 2.5 * s, color: C.dim, marginTop: 34 * s, textTransform: 'uppercase'}}>{p.footnote}</div></Reveal> : null}
       </AbsoluteFill>
     </DocuFrame>
   );
@@ -352,20 +352,20 @@ export const Radius: React.FC<RadiusProps> = (p) => {
           return (
             <g key={i} opacity={k > 0 ? 1 : 0}>
               <circle cx={cx} cy={cy} r={r.km * scale * k} fill={col} fillOpacity={0.12} stroke={col} strokeWidth={2.5 * s} />
-              <text x={cx + r.km * scale * k * 0.71 + 8 * s} y={cy - r.km * scale * k * 0.71} fill={col} fontFamily={F.mono} fontSize={15 * s} opacity={k}>{`${r.km} KM`}</text>
+              <text x={cx + r.km * scale * k * 0.71 + 8 * s} y={cy - r.km * scale * k * 0.71} fill={col} fontFamily={F.mono} fontSize={22 * s} opacity={k}>{`${r.km} KM`}</text>
             </g>
           );
         })}
         <circle cx={cx} cy={cy} r={7 * s} fill="#fff" />
-        {p.centerLabel ? <text x={cx + 14 * s} y={cy + 26 * s} fill={C.text} fontFamily={F.sans} fontWeight={700} fontSize={14 * s} letterSpacing={2 * s}>{p.centerLabel.toUpperCase()}</text> : null}
+        {p.centerLabel ? <text x={cx + 14 * s} y={cy + 26 * s} fill={C.text} fontFamily={F.sans} fontWeight={700} fontSize={21 * s} letterSpacing={2 * s}>{p.centerLabel.toUpperCase()}</text> : null}
       </svg>
       <div style={{position: 'absolute', right: 110 * s, top: 320 * s, width: 420 * s, background: C.panel, borderLeft: `${3 * s}px solid ${C.faint}`, padding: `${16 * s}px ${22 * s}px`}}>
         {p.rings.map((r, i) => (
           <Reveal key={i} at={(r.at ?? stagger(i, p.rings.length, dur, 0.6, 0.6)) + 0.3} y={8}>
             <div style={{display: 'flex', gap: 14 * s, alignItems: 'baseline', padding: `${6 * s}px 0`}}>
               <span style={{width: 12 * s, height: 12 * s, background: r.color ?? palette[i % palette.length], display: 'inline-block'}} />
-              <span style={{fontFamily: F.mono, fontSize: 14 * s, color: C.dim, width: 70 * s}}>{r.km} km</span>
-              <span style={{fontSize: 17 * s, fontWeight: 700}}>{r.label}{r.detail ? <span style={{color: C.dim, fontWeight: 400}}> · {r.detail}</span> : null}</span>
+              <span style={{fontFamily: F.mono, fontSize: 21 * s, color: C.dim, width: 70 * s}}>{r.km} km</span>
+              <span style={{fontSize: 24 * s, fontWeight: 700}}>{r.label}{r.detail ? <span style={{color: C.dim, fontWeight: 400}}> · {r.detail}</span> : null}</span>
             </div>
           </Reveal>
         ))}

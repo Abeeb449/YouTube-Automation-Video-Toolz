@@ -39,7 +39,7 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    | `PEXELS_API_KEY` | free stock videos/photos | https://www.pexels.com/api/ |
    | `PIXABAY_API_KEY` | extra free stock source | https://pixabay.com/api/docs/ |
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
-   | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#7-youtube-upload-optional) |
+   | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#8-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.
 4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 14 days. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.
    *(Optional: tick **Also publish as a GitHub Release** for a direct link. On a public repo that download is public.)*
@@ -158,7 +158,7 @@ This is a second template set for **infographic "what-if" documentaries**: navy 
 | `DotGrid` | "1,500 warheads" as dots |
 | `BarCompare`, `SplitCompare`, `Equation`, `Clock`, `Statement`, `Radius`, `SourceList` | Comparisons, step-by-step maths, a doomsday clock, a thesis line, blast rings, sources |
 
-Every template also takes `heading`, `callout` (a bottom key-phrase box), `source` (a tiny citation), `hud` (a live clock or countdown) and `stats`.
+Every template also takes `footage` (real B-roll behind the graphics: a video file or `"pexels:humpback whale"`), `heading`, `callout` (a bottom key-phrase box), `source` (a tiny citation), `hud` (a live clock or countdown) and `stats`.
 
 **Graphics on the spoken word:** any `at:` can be a word instead of seconds, e.g. `at: "Hiroshima"`, `at: "bomb#2"` or `at: "launch+0.5"`. Edge voices return exact word timings; other voices estimate them.
 
@@ -171,6 +171,9 @@ Every template also takes `heading`, `callout` (a bottom key-phrase box), `sourc
 This kit makes "danger & wonder" deep-sea animal documentaries in the style of `reference/Why You'd Never Want To Meet A Sperm Whale.mp4`. Start from `projects/ocean-giant-squid/script.yaml`. The guide is in `.claude/skills/ocean-documentary/`.
 
 - **`OceanScene`**: a procedural underwater world (light shafts at the surface, black abyss, drifting marine snow, animated descents) with animated flat-vector **creatures**: `spermWhale`, `giantSquid`, `orca`, `shark`, `anglerfish`, `jellyfish`, `diver`, `fishSchool`, `octopus`. For any other animal, use your own transparent PNG via `image: assets/x.png`. Overlays include big reveal words, fact chips, ✓/✕ chips, scale bars, a depth meter, a stopwatch, target lock-on brackets, echolocation waves, spotlight rings and camera push-ins.
+- **B-roll:** set `footage: "pexels:sperm whale"` (or `assets/clip.mp4`) on any scene to play real footage behind the labels, fact boxes and drawn animals. Whole-scene stock clips still work as before with `visual: pexels:…`.
+- **More animals:** use `lottie: assets/whale.json` for free animated animals from LottieFiles, or turn any photo or AI image into a cut-out with `python -m ytauto cutout photo.jpg --out assets --outline 4 --flip` and use it as `image: assets/photo.png`.
+- **No text on top of animals:** when fact boxes are showing, animals are moved clear of them automatically.
 - **`Meter`** (e.g. 0 → 236 dB), **`Sonar`** (green echolocation view), and all the documentary infographic templates with `backdrop: abyss` or `backdrop: ocean`.
 
 **Blender templates** live in `blender/render.py` and are built from Python code, so no binary files are needed. Props: `text`, `subtext`, `color`, `accent`, `bg`, `font`, `resolution_percentage` (default 50 for speed; use 100 for full quality). Your own `.blend` file renders its animation for the scene's duration.
@@ -188,6 +191,23 @@ This kit makes "danger & wonder" deep-sea animal documentaries in the style of `
 
 Hear the documentary narrator candidates in `reference/voice-samples/kokoro-documentary-voices.mp3`. Speed is set with `speed: 0.92` (or `rate: "-8%"`).
 
+**Directing the voice from the script.** Emotion and flow come from the script itself. Put tags inline in a scene's `text`:
+
+```yaml
+text: "It is quiet down here. [pause 1.2] Too quiet. [speed 0.85] Something is moving in the dark. [emotion 0.9] It has already found you."
+```
+| Tag | Effect |
+|---|---|
+| `[pause]` / `[pause 1.5]` | Dramatic silence (default 0.7 s) |
+| `[speed 0.85]` | Slower (or faster) delivery from here to the end of the scene |
+| `[emotion 0.9]` | Intensity 0.25–1.0. With Chatterbox this drives real emotional exaggeration; with Kokoro or Edge it slows the delivery slightly |
+| `[voice bm_lewis]` | Switch narrator mid-scene |
+| `[reset]` | Back to the scene's default voice |
+
+Punctuation matters too: commas, em dashes, "…" and question marks all change the delivery. You can also set `voice:` per scene.
+
+**Word-perfect sync.** When `faster-whisper` is installed (it's in the Docker image), ytauto listens back to every generated line and records exactly when each word is spoken. Labels, fact boxes and sound effects with `at: "word"` then land on the word for every voice engine. Without it, timings are estimated.
+
 ```bash
 python -m ytauto voices --engine kokoro --locale en-gb   # list voices
 python -m ytauto voices --engine edge --locale en
@@ -195,7 +215,19 @@ python -m ytauto voices --engine edge --locale en
 
 If the main engine fails, for example because the network is down, ytauto automatically switches to `fallback`. Each sentence's audio is cached, so editing one line only re-voices that line.
 
-## 6. Outputs (`projects/<name>/build/`)
+## 6. Installed tools (all free and open source, CPU only)
+
+| Area | Tools |
+|---|---|
+| Video | ffmpeg (x264 with `tune animation` for crisp flat 2D), Remotion + headless Chromium (vector templates render sharp at any resolution), Lottie |
+| 3D | Blender (Cycles CPU) |
+| Drawing / images | Inkscape (SVG editing and conversion), ImageMagick, potrace (bitmap → vector), librsvg, rembg (AI background removal → `ytauto cutout`) |
+| Voice | Kokoro, Piper, Edge, eSpeak; optional Chatterbox; faster-whisper word alignment |
+| Audio | sox, built-in synthesized sound design |
+
+Run `python -m ytauto doctor` to see what's installed. The Docker image includes all of it.
+
+## 7. Outputs (`projects/<name>/build/`)
 
 - `<title>.mp4`: H.264 + AAC, `+faststart`, chapters embedded
 - `thumbnail.jpg`: 1280×720 with big outlined text
@@ -206,7 +238,7 @@ If the main engine fails, for example because the network is down, ytauto automa
 
 Caching: `projects/<name>/.cache/` keeps voice clips, stock downloads and rendered clips. Re-rendering after a small edit takes seconds. On GitHub Actions this cache is persisted between runs. Use `--clean` to start fresh.
 
-## 7. YouTube upload (optional)
+## 8. YouTube upload (optional)
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a project, enable **YouTube Data API v3**, and configure the OAuth consent screen. Add yourself as a test user.
 2. Create **OAuth client ID → Desktop app** and download the JSON.
@@ -220,15 +252,15 @@ Caching: `projects/<name>/.cache/` keeps voice clips, stock downloads and render
 
 Notes: the API's default quota allows about 6 uploads per day. Custom thumbnails require a phone-verified channel. While your Google app is in "Testing" mode, refresh tokens expire after 7 days. Publish the app (no review is needed for personal use) to keep tokens working.
 
-## 8. Tips for 10–15 minute videos
+## 9. Tips for 10–15 minute videos
 
 - ~150 spoken words per minute means **1,500–2,200 words** for 10–15 minutes.
 - Change the visual every 8–15 seconds. Use lists of visuals or `--visuals stock`.
 - Use `chapter:` on 5–10 scenes. YouTube needs ≥3 chapters, the first at 0:00 (automatic), each ≥10 s.
-- Render with `--preview` first to check pacing. It renders at 480p with `ultrafast` encoding.
+- Render with `--preview` first to check pacing. It renders at 540p with fast encoding, so it looks soft; full renders are 1080p and sharp.
 - Render a Blender intro once (it stays cached), or render it to `assets/intro.mp4` and reuse it as a `video:` visual across projects.
 
-## 9. Licences and YouTube policies
+## 10. Licences and YouTube policies
 
 - **Remotion** is free for individuals and companies with up to 3 employees. Larger companies need a [company licence](https://www.remotion.dev/license).
 - **Pexels/Pixabay** content is free to use, including commercially, without attribution.

@@ -1,8 +1,9 @@
-import React from 'react';
-import {AbsoluteFill, Easing, Img, interpolate, staticFile} from 'remotion';
+import React, {useEffect, useState} from 'react';
+import {AbsoluteFill, continueRender, delayRender, Easing, Img, interpolate, OffthreadVideo, staticFile} from 'remotion';
+import {Lottie, LottieAnimationData} from '@remotion/lottie';
 import {C, DocuFrame, DocuProps, F, fmtNum, prog, Reveal, stagger, useT} from '../docu/kit';
 import {OceanBackdrop} from './OceanBackdrop';
-import {CREATURES} from './creatures';
+import {CREATURES, EXTENTS} from './creatures';
 
 type XY = [number, number];
 
@@ -11,6 +12,8 @@ export type Actor = {
   creature?: string;
   /** Or your own cut-out image (PNG/SVG with transparency), path relative to the project. */
   image?: string;
+  /** Or a Lottie animation (.json, e.g. a free animal from lottiefiles.com), path relative to the project. */
+  lottie?: string;
   /** Position as fractions of the frame (0..1). `to` moves it over the scene. */
   x?: number; y?: number; to?: XY;
   /** 1 = about a third of the frame wide. */
@@ -35,6 +38,8 @@ export type Actor = {
 
 export type OceanSceneProps = DocuProps & {
   depth?: number; depthTo?: number; surface?: boolean; rays?: boolean;
+  /** Real B-roll behind everything: a video file or "pexels:sperm whale" (resolved by ytauto). */
+  footage?: string; footageStart?: number; footageDim?: number;
   actors?: Actor[];
   /** Camera: zoom from → to, centred on focus (fractions). */
   zoom?: XY; focus?: XY;
@@ -49,7 +54,31 @@ export type OceanSceneProps = DocuProps & {
 
 const UNIT = 600; // creature drawing length in local units
 
-const ActorView: React.FC<{a: Actor; i: number}> = ({a, i}) => {
+/** Lottie animation loaded from remotion/public (ytauto stages project files there). */
+const LottieAsset: React.FC<{src: string; style: React.CSSProperties}> = ({src, style}) => {
+  const [data, setData] = useState<LottieAnimationData | null>(null);
+  const [handle] = useState(() => delayRender(`lottie ${src}`));
+  useEffect(() => {
+    fetch(staticFile(src))
+      .then((r) => r.json())
+      .then((j) => { setData(j); continueRender(handle); })
+      .catch((e) => { console.error(e); continueRender(handle); });
+  }, [handle, src]);
+  return data ? <div style={style}><Lottie animationData={data} loop /></div> : null;
+};
+
+/** Full-frame background footage (B-roll), cover-cropped and slightly darkened so overlays stay readable. */
+export const Footage: React.FC<{src: string; startFrom?: number; dim?: number}> = ({src, startFrom = 0, dim = 0.25}) => {
+  const {fps} = useT();
+  return (
+    <AbsoluteFill>
+      <OffthreadVideo src={staticFile(src)} muted startFrom={Math.round(startFrom * fps)} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+      <AbsoluteFill style={{background: `rgba(2,8,14,${dim})`}} />
+    </AbsoluteFill>
+  );
+};
+
+const ActorView: React.FC<{a: Actor; i: number; maxRight?: number}> = ({a, i, maxRight}) => {
   const {t, dur, s, width, height} = useT();
   const at = a.at ?? 0;
   const k = interpolate(t, [at, Math.max(at + 0.01, dur)], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
@@ -61,7 +90,14 @@ const ActorView: React.FC<{a: Actor; i: number}> = ({a, i}) => {
   const sc = ((a.scale ?? 1) + ((a.scaleTo ?? a.scale ?? 1) - (a.scale ?? 1)) * k) * (width * 0.33) / UNIT;
   const op = (a.enter === 'none' ? (t >= at ? 1 : 0) : a.enter === 'left' || a.enter === 'right' ? (t >= at ? 1 : 0) : ent) * (a.opacity ?? 1);
   const Comp = a.creature ? CREATURES[a.creature] : undefined;
-  const px = x * width, py = y * height;
+  let px = x * width;
+  const py = y * height;
+  // Keep the drawing clear of the fact panel (right side) so text never sits on top of an animal.
+  if (maxRight !== undefined) {
+    const ext = a.creature ? EXTENTS[a.creature] ?? [-300, 300] : [-300, 300];
+    const right = (a.flip ? -ext[0] : ext[1]) * sc;
+    if (px + right > maxRight * width) px = maxRight * width - right;
+  }
   const halfW = (UNIT / 2) * sc, halfH = UNIT * 0.2 * sc;
   const fid = `sil${i}`;
   const tp = a.target ? prog(t, a.target.at ?? at + 0.5, 0.35) : 0;
@@ -106,9 +142,13 @@ const ActorView: React.FC<{a: Actor; i: number}> = ({a, i}) => {
           transform: `${a.flip ? 'scaleX(-1) ' : ''}rotate(${(a.rotate ?? 0) + Math.sin(t * 1.4 + i) * 1.5}deg)`,
           filter: [a.silhouette ? 'brightness(0)' : '', a.blur ? `blur(${a.blur * s}px)` : ''].join(' ').trim() || undefined}} />
       ) : null}
+      {a.lottie ? (
+        <LottieAsset src={a.lottie} style={{position: 'absolute', left: px - halfW, top: py - halfW, width: halfW * 2, height: halfW * 2, opacity: op,
+          transform: `${a.flip ? 'scaleX(-1) ' : ''}rotate(${a.rotate ?? 0}deg)`, filter: a.silhouette ? 'brightness(0)' : undefined}} />
+      ) : null}
       {a.label ? (
         <div style={{position: 'absolute', left: px, top: py + (a.label.dy ?? 0.16) * height, transform: 'translateX(-50%)', fontFamily: F.sans, fontWeight: 800,
-          fontSize: 22 * s, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: a.label.color ?? C.text, opacity: prog(t, a.label.at ?? at + 0.4, 0.5),
+          fontSize: 28 * s, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: a.label.color ?? C.text, opacity: prog(t, a.label.at ?? at + 0.4, 0.5),
           whiteSpace: 'nowrap', textShadow: '0 2px 12px rgba(0,0,0,.7)'}}>
           {a.label.text}
         </div>
@@ -126,20 +166,21 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
   const dm = p.depthMeter;
   const dv = dm ? interpolate(t, [0.3, dur * 0.9], [dm.from, dm.to], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad)}) : 0;
   return (
-    <DocuFrame {...p} backdrop="none">
+    <DocuFrame {...p} footage={undefined} backdrop="none">
       <AbsoluteFill style={{transform: `scale(${z})`, transformOrigin: `${fx * 100}% ${fy * 100}%`}}>
-        <OceanBackdrop depth={p.depth ?? 0.6} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />
-        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} />)}
+        {p.footage ? <Footage src={p.footage} startFrom={p.footageStart} dim={p.footageDim} />
+          : <OceanBackdrop depth={p.depth ?? 0.6} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />}
+        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} />)}
       </AbsoluteFill>
       {p.title ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: 70 * s, textAlign: 'center', opacity: tp}}>
-          <span style={{fontSize: 40 * s, fontWeight: 900, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: p.titleColor === 'red' ? C.red : C.text,
+          <span style={{fontSize: 40.0 * s, fontWeight: 900, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: p.titleColor === 'red' ? C.red : C.text,
             borderBottom: p.titleColor === 'red' ? `${3 * s}px solid ${C.red}` : 'none', paddingBottom: 4 * s}}>{p.title}</span>
         </div>
       ) : null}
       {p.bigText ? (
         <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-          <div style={{fontSize: 150 * s, fontWeight: 900, color: p.bigColor ?? C.red, opacity: bp, transform: `scale(${1.25 - 0.25 * bp})`, letterSpacing: 2 * s,
+          <div style={{fontSize: 150.0 * s, fontWeight: 900, color: p.bigColor ?? C.red, opacity: bp, transform: `scale(${1.25 - 0.25 * bp})`, letterSpacing: 2 * s,
             textShadow: '0 10px 60px rgba(0,0,0,.6)'}}>{p.bigText}</div>
         </AbsoluteFill>
       ) : null}
@@ -147,7 +188,7 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
         <div style={{position: 'absolute', right: 80 * s, top: 0.3 * height, display: 'flex', flexDirection: 'column', gap: 14 * s, width: 520 * s}}>
           {p.facts.map((f, i) => (
             <Reveal key={i} at={f.at ?? stagger(i, p.facts!.length, dur, 0.6, 0.7)} y={0}>
-              <div style={{background: f.red ? 'rgba(229,55,47,0.85)' : 'rgba(255,255,255,0.08)', padding: `${14 * s}px ${20 * s}px`, fontWeight: 800, fontSize: 19 * s,
+              <div style={{background: f.red ? 'rgba(212,45,38,0.96)' : 'rgba(14,24,34,0.92)', boxShadow: '0 6px 24px rgba(0,0,0,0.45)', padding: `${14 * s}px ${20 * s}px`, fontWeight: 800, fontSize: 26 * s,
                 letterSpacing: 1 * s, textTransform: 'uppercase', borderLeft: `${3 * s}px solid ${f.red ? '#fff' : 'rgba(255,255,255,0.4)'}`}}>{f.text}</div>
             </Reveal>
           ))}
@@ -155,10 +196,10 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
       ) : null}
       {p.check ? (
         <div style={{position: 'absolute', left: 90 * s, bottom: 110 * s, display: 'flex', alignItems: 'center', gap: 14 * s, opacity: prog(t, p.check.at ?? 1, 0.5),
-          fontWeight: 800, fontSize: 24 * s, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: '#dfe7ec'}}>
+          fontWeight: 800, fontSize: 30 * s, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: '#dfe7ec'}}>
           {p.check.text}
           <span style={{width: 34 * s, height: 34 * s, borderRadius: 17 * s, background: p.check.ok === false ? C.red : '#2fbf71', display: 'inline-flex',
-            alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22 * s}}>{p.check.ok === false ? '✕' : '✓'}</span>
+            alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 28 * s}}>{p.check.ok === false ? '✕' : '✓'}</span>
         </div>
       ) : null}
       {p.scaleBar ? (() => {
@@ -170,27 +211,27 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
             <div style={{position: 'absolute', left: x1, top: y, width: (x2 - x1) * k, height: 3 * s, background: '#e8eef2'}} />
             <div style={{position: 'absolute', left: x1, top: y - 10 * s, width: 3 * s, height: 23 * s, background: '#e8eef2', opacity: k}} />
             <div style={{position: 'absolute', left: x2, top: y - 10 * s, width: 3 * s, height: 23 * s, background: '#e8eef2', opacity: k > 0.98 ? 1 : 0}} />
-            <div style={{position: 'absolute', left: (x1 + x2) / 2, top: y + 18 * s, transform: 'translateX(-50%)', fontWeight: 800, fontSize: 26 * s, opacity: k}}>{sb.label}</div>
+            <div style={{position: 'absolute', left: (x1 + x2) / 2, top: y + 18 * s, transform: 'translateX(-50%)', fontWeight: 800, fontSize: 26.0 * s, opacity: k}}>{sb.label}</div>
           </>
         );
       })() : null}
       {dm ? (
         <div style={{position: 'absolute', right: 110 * s, top: 120 * s, bottom: 120 * s, width: 2 * s, background: 'rgba(255,255,255,0.25)'}}>
           {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-            <div key={f} style={{position: 'absolute', top: `${f * 100}%`, left: 6 * s, fontFamily: F.mono, fontSize: 13 * s, color: C.dim, whiteSpace: 'nowrap'}}>
+            <div key={f} style={{position: 'absolute', top: `${f * 100}%`, left: 6 * s, fontFamily: F.mono, fontSize: 20 * s, color: C.dim, whiteSpace: 'nowrap'}}>
               {fmtNum((dm.max ?? dm.to) * f)} {dm.unit ?? 'm'}
             </div>
           ))}
           <div style={{position: 'absolute', top: `${(dv / (dm.max ?? dm.to)) * 100}%`, right: 12 * s, transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: 8 * s,
-            fontWeight: 800, fontSize: 30 * s, whiteSpace: 'nowrap'}}>
-            {fmtNum(dv)} {dm.unit ?? 'm'} <span style={{color: C.red, fontSize: 18 * s}}>▶</span>
+            fontWeight: 800, fontSize: 30.0 * s, whiteSpace: 'nowrap'}}>
+            {fmtNum(dv)} {dm.unit ?? 'm'} <span style={{color: C.red, fontSize: 24 * s}}>▶</span>
           </div>
         </div>
       ) : null}
       {p.timer ? (
         <div style={{position: 'absolute', right: 90 * s, top: 70 * s, background: 'rgba(0,0,0,0.45)', padding: `${10 * s}px ${22 * s}px`, borderRadius: 10 * s,
-          fontFamily: F.sans, fontWeight: 800, fontSize: 40 * s, color: '#e8eef2'}}>
-          {p.timer.label ? <div style={{fontSize: 12 * s, letterSpacing: 2 * s, color: C.dim}}>{p.timer.label}</div> : null}
+          fontFamily: F.sans, fontWeight: 800, fontSize: 40.0 * s, color: '#e8eef2'}}>
+          {p.timer.label ? <div style={{fontSize: 20 * s, letterSpacing: 2 * s, color: C.dim}}>{p.timer.label}</div> : null}
           {(() => { const v = Math.max(0, (p.timer!.from ?? 0) + t); return `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`; })()}
         </div>
       ) : null}
@@ -214,16 +255,16 @@ export const Meter: React.FC<MeterProps> = (p) => {
       <AbsoluteFill style={{alignItems: 'center'}}>
         {p.title ? (
           <div style={{marginTop: 120 * s, opacity: prog(t, 0.2, 0.5)}}>
-            <span style={{fontSize: 40 * s, fontWeight: 900, color: C.red, textTransform: 'uppercase', borderBottom: `${3 * s}px solid ${C.red}`}}>{p.title}</span>
+            <span style={{fontSize: 40.0 * s, fontWeight: 900, color: C.red, textTransform: 'uppercase', borderBottom: `${3 * s}px solid ${C.red}`}}>{p.title}</span>
           </div>
         ) : null}
         <div style={{position: 'absolute', top: 470 * s, width: 1000 * s, height: 56 * s, borderRadius: 28 * s, background: 'rgba(255,255,255,0.07)', overflow: 'hidden'}}>
           <div style={{width: `${Math.max(3, frac * 100)}%`, height: '100%', borderRadius: 28 * s,
             background: 'linear-gradient(90deg, #2fbf71 0%, #e8c547 55%, #e5372f 100%)', backgroundSize: `${1000 * s}px 100%`}} />
         </div>
-        <div style={{position: 'absolute', top: 560 * s, fontSize: 84 * s, fontWeight: 900}}>{fmtNum(v)} {p.unit}</div>
-        {p.note ? <div style={{position: 'absolute', top: 668 * s, fontSize: 16 * s, color: C.dim}}>{p.note}</div> : null}
-        {p.footnote ? <Reveal at={at + 2} style={{position: 'absolute', top: 760 * s}}><div style={{fontSize: 18 * s, fontWeight: 800, letterSpacing: 2 * s, textTransform: 'uppercase', color: '#cfd8de'}}>{p.footnote}</div></Reveal> : null}
+        <div style={{position: 'absolute', top: 560 * s, fontSize: 84.0 * s, fontWeight: 900}}>{fmtNum(v)} {p.unit}</div>
+        {p.note ? <div style={{position: 'absolute', top: 668 * s, fontSize: 23 * s, color: C.dim}}>{p.note}</div> : null}
+        {p.footnote ? <Reveal at={at + 2} style={{position: 'absolute', top: 760 * s}}><div style={{fontSize: 24 * s, fontWeight: 800, letterSpacing: 2 * s, textTransform: 'uppercase', color: '#cfd8de'}}>{p.footnote}</div></Reveal> : null}
       </AbsoluteFill>
     </DocuFrame>
   );
@@ -261,12 +302,12 @@ export const Sonar: React.FC<SonarProps> = (p) => {
               {Comp ? (
                 <g transform={`translate(${x} ${y}) scale(${b.flip ? -sc : sc} ${sc})`} filter="url(#sonar-sil)"><Comp t={t + i} /></g>
               ) : <circle cx={x} cy={y} r={10 * s} fill={b.color ?? G} />}
-              <text x={x} y={y - 50 * s} fill={b.color ?? G} fontFamily={F.sans} fontWeight={800} fontSize={18 * s} letterSpacing={1.5 * s} textAnchor="middle">{b.label.toUpperCase()}</text>
+              <text x={x} y={y - 50 * s} fill={b.color ?? G} fontFamily={F.sans} fontWeight={800} fontSize={24 * s} letterSpacing={1.5 * s} textAnchor="middle">{b.label.toUpperCase()}</text>
             </g>
           );
         })}
       </svg>
-      {p.title ? <div style={{position: 'absolute', left: 0, right: 0, top: 70 * s, textAlign: 'center', color: G, fontWeight: 900, fontSize: 36 * s, letterSpacing: 2 * s,
+      {p.title ? <div style={{position: 'absolute', left: 0, right: 0, top: 70 * s, textAlign: 'center', color: G, fontWeight: 900, fontSize: 36.0 * s, letterSpacing: 2 * s,
         textTransform: 'uppercase', opacity: prog(t, 0.2, 0.5)}}>{p.title}</div> : null}
     </DocuFrame>
   );

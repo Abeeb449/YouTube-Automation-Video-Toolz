@@ -139,7 +139,7 @@ def cmd_render(a) -> int:
 
     overrides = {}
     if a.preview:
-        overrides = {"width": 854, "height": 480, "preset": "ultrafast", "crf": 30}
+        overrides = {"width": 960, "height": 540, "preset": "ultrafast", "crf": 26}
     if a.voice_engine:
         overrides.setdefault("voice", {})["engine"] = a.voice_engine
     project = load_project(a.project, overrides)
@@ -184,10 +184,51 @@ def cmd_doctor(_a) -> int:
     check("node / npx (Remotion)", which("npx"), "install Node.js 18+")
     check("remotion installed", (REPO_ROOT / "remotion" / "node_modules").exists(), "cd remotion && npm install")
     check("blender", which("blender"), "optional: needed only for blender: visuals")
+    for tool, hint in (("inkscape", "SVG drawing/conversion"), ("convert", "ImageMagick"), ("potrace", "bitmap → vector"),
+                       ("rsvg-convert", "librsvg"), ("sox", "audio tools")):
+        check(tool, which(tool), f"optional: {hint}")
+    for mod, hint in (("rembg", 'pip install "rembg[cpu]" (ytauto cutout)'), ("faster_whisper", "pip install faster-whisper (exact word timing)")):
+        try:
+            __import__(mod)
+            check(f"python: {mod}", True)
+        except ImportError:
+            check(f"python: {mod}", False, f"optional: {hint}")
     import os
     for key in ("PEXELS_API_KEY", "PIXABAY_API_KEY", "ELEVENLABS_API_KEY", "YT_REFRESH_TOKEN"):
         check(f"env {key}", os.environ.get(key), "optional")
     return 0 if ok else 1
+
+
+def cmd_cutout(a) -> int:
+    """Remove the background from photos/AI images so they can be animated as `image:` actors."""
+    try:
+        from PIL import Image, ImageFilter
+        from rembg import new_session, remove
+    except ImportError as exc:
+        raise YtautoError('pip install "rembg[cpu]" (background removal)') from exc
+    session = new_session(a.model)
+    for src in a.images:
+        src = Path(src)
+        out = Path(a.out) / f"{src.stem}.png" if a.out else src.with_name(f"{src.stem}-cutout.png")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        im = remove(Image.open(src).convert("RGB"), session=session)
+        bbox = im.getchannel("A").point(lambda v: 255 if v > 20 else 0).getbbox()
+        if bbox:  # trim empty space so `scale` in scripts behaves predictably
+            im = im.crop(bbox)
+        if a.outline:  # sticker-style outline, reads well on dark water
+            alpha = im.getchannel("A").filter(ImageFilter.MaxFilter(a.outline * 2 + 1))
+            border = Image.new("RGBA", im.size, (255, 255, 255, 0))
+            border.putalpha(alpha)
+            pad = Image.new("RGBA", im.size, (0, 0, 0, 0))
+            pad.alpha_composite(Image.new("RGBA", im.size, (240, 244, 246, 255)), (0, 0))
+            pad.putalpha(alpha)
+            pad.alpha_composite(im)
+            im = pad
+        if a.flip:
+            im = im.transpose(Image.FLIP_LEFT_RIGHT)
+        im.save(out)
+        log(f"cut-out → {out}")
+    return 0
 
 
 def cmd_upload(a) -> int:
@@ -234,6 +275,14 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sp.add_parser("doctor", help="check installed tools")
     p.set_defaults(fn=cmd_doctor)
+
+    p = sp.add_parser("cutout", help="remove backgrounds from images (animals for image: actors)")
+    p.add_argument("images", nargs="+")
+    p.add_argument("--out", help="output folder (default: next to each image, *-cutout.png)")
+    p.add_argument("--model", default="isnet-general-use", help="rembg model (isnet-general-use, u2net, birefnet-general…)")
+    p.add_argument("--outline", type=int, default=0, help="add a light sticker outline N px wide")
+    p.add_argument("--flip", action="store_true", help="mirror horizontally (creatures should face right)")
+    p.set_defaults(fn=cmd_cutout)
 
     p = sp.add_parser("upload", help="upload a rendered project to YouTube")
     p.add_argument("project")

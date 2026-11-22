@@ -27,7 +27,12 @@ Template props: `references/templates.md`, plus `.claude/skills/whatif-documenta
 4. **Write the scenes.** Use one beat per scene and put cue words (`at: "teeth"`) on every reveal.
    Use the built-in creatures (`spermWhale`, `giantSquid`, `orca`, `shark`, `anglerfish`, `jellyfish`, `diver`, `fishSchool`, `octopus`).
    For other animals, put a transparent PNG/SVG in `assets/` and use `image: assets/<file>.png`
-   (draw it, generate it with an image tool, or use a CC0 vector). For a few seconds of real footage, use `pexels:<animal>` stock clips.
+   (draw it, generate it with an image tool, or use a CC0 vector). Make cut-outs from any picture with
+   `python -m ytauto cutout pic.jpg --out projects/<slug>/assets --outline 4`, or use a free LottieFiles animation: `lottie: assets/x.json`. For a few seconds of real footage, use `pexels:<animal>` stock clips.
+   **Direct the voice in the text:** `[pause 1.2]` before reveals, `[speed 0.85]` for menace, `[emotion 0.8]` at the climax
+   (real emotion with Chatterbox; a slower pace with Kokoro). Ellipses and em dashes also change delivery.
+   **B-roll:** use `footage: "pexels:<animal> underwater"` on an OceanScene (or any docu template) for real clips under the labels.
+   Mix roughly 1 B-roll scene for every 4–6 drawn scenes, as in the reference.
 5. **Preview.** Run `python -m ytauto render projects/<slug> --preview` and check `build/contact_sheet.jpg`. Check that creatures are framed,
    labels aren't covered, there are no empty frames, and nothing contradicts the narration.
 6. **Render and deliver**, as in the whatif-documentary skill.

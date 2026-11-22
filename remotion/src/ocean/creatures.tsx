@@ -194,3 +194,9 @@ export const CREATURES: Record<string, React.FC<CreatureProps>> = {
   spermWhale: SpermWhale, giantSquid: GiantSquid, orca: Orca, shark: Shark, anglerfish: Anglerfish,
   jellyfish: Jellyfish, diver: Diver, fishSchool: FishSchool, octopus: Octopus,
 };
+
+/** Horizontal drawing extent [left, right] in local units, used to keep creatures clear of text panels. */
+export const EXTENTS: Record<string, [number, number]> = {
+  spermWhale: [-320, 300], giantSquid: [-300, 495], orca: [-305, 292], shark: [-300, 302], anglerfish: [-250, 290],
+  jellyfish: [-100, 100], diver: [-215, 222], fishSchool: [-330, 330], octopus: [-100, 100],
+};

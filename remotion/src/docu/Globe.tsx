@@ -75,18 +75,18 @@ export const Globe: React.FC<GlobeProps> = (p) => {
               {m.ring !== false ? <circle cx={target[0]} cy={target[1]} r={(60 - 25 * mp) * s} fill="none" stroke="#fff" strokeWidth={2 * s} opacity={0.8} /> : null}
               <circle cx={target[0]} cy={target[1]} r={6 * s} fill={C.red} />
               {m.label ? (
-                <text x={target[0] + 16 * s} y={target[1] - 8 * s} fill={C.text} fontFamily={F.sans} fontWeight={700} fontSize={16 * s} letterSpacing={2 * s}>
+                <text x={target[0] + 16 * s} y={target[1] - 8 * s} fill={C.text} fontFamily={F.sans} fontWeight={700} fontSize={23 * s} letterSpacing={2 * s}>
                   {m.label.toUpperCase()}
                 </text>
               ) : null}
-              {m.note ? <text x={target[0] + 16 * s} y={target[1] + 12 * s} fill={C.dim} fontFamily={F.mono} fontSize={12 * s}>{m.note}</text> : null}
+              {m.note ? <text x={target[0] + 16 * s} y={target[1] + 12 * s} fill={C.dim} fontFamily={F.mono} fontSize={20 * s}>{m.note}</text> : null}
             </g>
           ) : null}
         </svg>
         {p.title ? (
           <div style={{position: 'absolute', left: 80 * s, bottom: 150 * s, opacity: tp, transform: `translateY(${(1 - tp) * 20 * s}px)`}}>
-            <div style={{fontSize: 76 * s, fontWeight: 800, letterSpacing: 2 * s, textShadow: '0 4px 30px rgba(0,0,0,.6)'}}>{p.title}</div>
-            {p.subtitle ? <div style={{fontSize: 16 * s, letterSpacing: 3 * s, color: C.amber, fontWeight: 700, textTransform: 'uppercase'}}>{p.subtitle}</div> : null}
+            <div style={{fontSize: 76.0 * s, fontWeight: 800, letterSpacing: 2 * s, textShadow: '0 4px 30px rgba(0,0,0,.6)'}}>{p.title}</div>
+            {p.subtitle ? <div style={{fontSize: 23 * s, letterSpacing: 3 * s, color: C.amber, fontWeight: 700, textTransform: 'uppercase'}}>{p.subtitle}</div> : null}
           </div>
         ) : null}
       </AbsoluteFill>
