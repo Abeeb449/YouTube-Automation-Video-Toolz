@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .config import Project
 from .cues import find_word_time, resolve_cues
+from .music import MOODS, build_duck_envelope, build_score, speech_from_audio
 from .sound import BUILTIN, build_track
 from .tts import Cue, SceneAudio, build_scene_audio, strip_directives
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
@@ -195,23 +196,45 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         mix.append(f"[s{idx}]")
         idx += 1
     music = st.get("music")
-    if music:
-        mfile = project.resolve(music["file"] if isinstance(music, dict) else music)
-        mcfg = music if isinstance(music, dict) else {}
-        if mfile.exists():
+    if isinstance(music, str):
+        music = {"file": music}
+    if music and (music.get("file") or music.get("generate")):
+        mfile, generated = None, False
+        if music.get("file"):
+            mfile = project.resolve(music["file"])
+            if not mfile.exists():
+                warn(f"music file not found: {mfile} — " + ("using the generated score" if music.get("generate") else "rendering without music"))
+                mfile = None
+        if mfile is None and music.get("generate"):
+            segs = mood_segments(project, plans, music.get("mood", "wonder"))
+            key = stable_hash("score-v1", segs, round(total, 2), music.get("seed", 0))
+            mfile = cache / "music" / f"score_{key}.wav"
+            if not mfile.exists():
+                mfile.parent.mkdir(parents=True, exist_ok=True)
+                log("   composing background score (" + ", ".join(sorted({m for _, _, m in segs})) + ")")
+                build_score(total, segs, mfile, seed=int(music.get("seed", 0)))
+            generated = True
+        if mfile is not None:
             inputs += ["-stream_loop", "-1", "-i", mfile]
-            vol = float(mcfg.get("volume", 0.12))
-            filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},"
-                           f"atrim=0:{total:.3f},afade=t=in:d=1.5,afade=t=out:st={max(0, total - 3):.3f}:d=3[mus]")
-            if mcfg.get("duck", True):
-                filters[0] = "[0:a]aresample=48000,aformat=channel_layouts=stereo,asplit=2[vo][vokey]"
-                filters.append("[mus][vokey]sidechaincompress=threshold=0.03:ratio=6:attack=50:release=400[musd]")
+            vol = float(music.get("volume", 0.8))
+            space = ",aecho=0.8:0.55:90|170|290:0.32|0.22|0.14" if generated else ""
+            # Normalise any track to the same loudness first, so `volume` means the same for every song.
+            filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=-20:TP=-2{space},"
+                           f"volume={vol},atrim=0:{total:.3f},afade=t=in:d=2,afade=t=out:st={max(0, total - 4):.3f}:d=4[mus]")
+            idx += 1
+            duck = music.get("duck", 0.45)
+            if duck is True:
+                duck = 0.45
+            if duck:
+                speech = speech_from_audio(narration)  # exact for every voice engine
+                env = build_duck_envelope(total, speech, float(duck), work / "duck_envelope.wav")
+                inputs += ["-i", env]
+                filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[env]")
+                filters.append("[mus][env]amultiply[musd]")
                 mix.append("[musd]")
+                idx += 1
             else:
                 mix.append("[mus]")
-            idx += 1
-        else:
-            warn(f"music file not found: {mfile} — rendering without music")
     lufs = st.get("loudness", -14)
     filters.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0,"
                    f"loudnorm=I={lufs}:TP=-1.5:LRA=11,aresample=48000[aout]")
@@ -294,6 +317,24 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     size = final.stat().st_size / 1e6
     log(f"Done in {time.time() - t0:.0f}s → {final} ({fmt_ts(total)}, {size:.1f} MB)")
     return final
+
+
+def mood_segments(project: Project, plans: list[ScenePlan], default: str) -> list[tuple[float, float, str]]:
+    """Scene `mood:` → (start, end, mood). A scene without a mood keeps the previous one."""
+    segs: list[tuple[float, float, str]] = []
+    cur = default
+    for p in plans:
+        m = project.scenes[p.scene_index].raw.get("mood")
+        if m:
+            if m not in MOODS:
+                warn(f"scene {p.scene_index + 1}: unknown mood {m!r} (use {', '.join(MOODS)})")
+            else:
+                cur = m
+        if segs and segs[-1][2] == cur:
+            segs[-1] = (segs[-1][0], p.start + p.duration, cur)
+        else:
+            segs.append((p.start, p.start + p.duration, cur))
+    return segs
 
 
 def collect_sfx(project: Project, plans: list[ScenePlan]):

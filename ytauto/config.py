@@ -42,7 +42,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "outline": 3,
         "margin_v": 70,
     },
-    "music": None,               # {file: assets/music.mp3, volume: 0.12, duck: true}
+    "music": None,               # {generate: true, mood: wonder} (original score) or {file: assets/music.mp3}
+                                 # + volume (0.8 ≈ 11 dB under the voice in pauses), duck (0.45 = level while speaking; false = off)
     "watermark": None,           # {file: assets/logo.png, position: top-right, opacity: 0.8, scale: 0.08}
     "sound": {                   # synthesized sound design (ytauto/sound.py) — no downloads
         "drone": 0,              # ambient tension bed level, e.g. 0.06; 0 = off
@@ -100,7 +101,8 @@ PRESETS: dict[str, dict] = {
         "padding": 0.5,
         "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.94, "fallback": "edge"},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
-        "sound": {"drone": 0.05, "whoosh_on_cut": True, "whoosh_volume": 0.18},
+        "music": {"generate": True, "mood": "mystery", "volume": 0.8, "duck": 0.45},
+        "sound": {"drone": 0.0, "whoosh_on_cut": True, "whoosh_volume": 0.15},
     },
     "ocean": {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
@@ -109,7 +111,8 @@ PRESETS: dict[str, dict] = {
         "padding": 0.45,
         "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.92, "fallback": "edge"},
         "subtitles": {"burn": False},
-        "sound": {"drone": 0.06, "whoosh_on_cut": True, "whoosh_volume": 0.15},
+        "music": {"generate": True, "mood": "wonder", "volume": 0.8, "duck": 0.45},
+        "sound": {"drone": 0.0, "whoosh_on_cut": True, "whoosh_volume": 0.15},
     },
     "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 64, "max_chars": 22, "margin_v": 520}},
 }

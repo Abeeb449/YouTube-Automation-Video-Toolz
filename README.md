@@ -215,6 +215,29 @@ python -m ytauto voices --engine edge --locale en
 
 If the main engine fails, for example because the network is down, ytauto automatically switches to `fallback`. Each sentence's audio is cached, so editing one line only re-voices that line.
 
+## 5b. Background music that follows the voice
+
+The `ocean` and `documentary` presets compose an **original background score** for every video. It is synthesized by `ytauto/music.py`, so it's free to monetise, with no samples and no Content ID claims. Set the feeling per scene with `mood:`. Each scene keeps the previous mood until you change it, and moods crossfade:
+
+| `mood` | Sound | Use for |
+|---|---|---|
+| `wonder` | Bright, warm pads with soft high bells | Discoveries, scale, beauty |
+| `mystery` | Suspended minor chords with sparse low bells | The deep, the unknown |
+| `danger` | Low minor pads, a heartbeat pulse and a dissonant swell | Threat, the hunt |
+| `tension` | Low cluster, rising tone, faster pulse | Build-ups before a reveal |
+| `calm` | Soft open pads | Intros and outros |
+| `none` | Silence | |
+
+Listen to all five in `reference/voice-samples/background-score-moods.mp3`.
+
+**It sits under the voice and fills the pauses.** ytauto detects exactly when the narrator is speaking from the narration audio, then dips the music just before each sentence (about 18 dB under the voice) and lets it swell back up in pauses, about 11 dB under. Short breaths between sentences lift it halfway, so the music never cuts in and out. In a test render the gaps came out at about −29 dB against −24 to −30 dB in your reference. The same pause-aware mixing applies to your own music:
+
+```yaml
+settings:
+  music: {file: assets/my-track.mp3}            # or {generate: true, mood: mystery}
+  # volume: 0.8 (pause level), duck: 0.45 (level while speaking), duck: false = no ducking
+```
+
 ## 6. Installed tools (all free and open source, CPU only)
 
 | Area | Tools |

@@ -46,6 +46,15 @@ use `engine: chatterbox` with `exaggeration: 0.6` and `reference: assets/my-voic
 Kokoro gives no word timestamps, so cue timing is estimated within each sentence (usually within ±0.3 s).
 Edge voices give exact timings but are an unofficial free service; don't rely on them for a monetised channel.
 
+## Sound
+
+**Score:** `preset: ocean` composes original background music. Set `mood:` on scenes where the feeling changes
+(wonder · mystery · danger · tension · calm · none). It holds until the next change and crossfades between moods.
+It ducks about 18 dB under every sentence (detected from the narration audio) and swells into pauses, like the reference.
+Typical arc: calm (false safety) → mystery (descent) → danger (reveal) → wonder (superpowers) → tension (the hunt) →
+danger → wonder or mystery (outro). Use your own track instead with `settings.music: {file: assets/x.mp3}`; it gets the same ducking.
+**Effects:** add `sfx: [{sound: swell|hit|thud|ticks|boom|riser…, at: "<word>"}]` (see the style guide's Sound section).
+
 ## Rules
 
 - **Accuracy first:** never invent attacks on humans, records or numbers. If something is a theory, say so ("one theory says…").

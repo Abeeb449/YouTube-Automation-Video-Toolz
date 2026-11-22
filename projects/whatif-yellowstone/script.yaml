@@ -16,7 +16,8 @@ thumbnail: {text: "WHAT IF YELLOWSTONE ERUPTED?"}
 youtube: {privacy: private, category_id: 28}
 
 scenes:
-  - chapter: Cold open
+  - mood: calm
+    chapter: Cold open
     text: "Wyoming. A quiet morning in the oldest national park in America. Nothing here looks unusual."
     visual:
       remotion: Horizon
@@ -55,7 +56,8 @@ scenes:
           - {title: Real ash-fall models, source: "Mastin et al. 2014 · Ash3d"}
           - {title: Peer-reviewed eruption records, source: "Lava Creek · Huckleberry Ridge"}
 
-  - chapter: The history
+  - mood: mystery
+    chapter: The history
     text: "Yellowstone has had three super-eruptions. The last one happened about six hundred and thirty thousand years ago."
     visual:
       remotion: Counter
@@ -87,7 +89,8 @@ scenes:
           - {label: "Huckleberry Ridge · 2.1 million years ago", value: 2450, at: "Huckleberry"}
         source: "USGS volcano hazards program"
 
-  - chapter: The eruption
+  - mood: tension
+    chapter: The eruption
     text: "Day one. The ground near the caldera rises. Earthquake swarms light up every seismometer in the park."
     visual:
       remotion: MapScene
@@ -106,7 +109,8 @@ scenes:
         calloutAt: "seismometer"
     sfx: [{sound: alarm, at: "swarms", volume: 0.25, dur: 2.0}]
 
-  - text: "Then, the eruption."
+  - mood: danger
+    text: "Then, the eruption."
     duration: 6
     visual:
       remotion: Horizon
@@ -130,7 +134,8 @@ scenes:
           - {km: 1500, label: "Ash · several mm", detail: "crops, power, water", at: "fall"}
         source: "Mastin et al. 2014 · USGS"
 
-  - chapter: The aftermath
+  - mood: mystery
+    chapter: The aftermath
     text: "Military analysts and climate scientists agree on one thing. The real danger is not the blast. It is the sky."
     visual:
       remotion: Statement
@@ -165,7 +170,8 @@ scenes:
         fillAt: "chance"
         source: "Yellowstone Volcano Observatory"
 
-  - chapter: Outro
+  - mood: calm
+    chapter: Outro
     text: "So, how worried should you be? Subscribe, and we'll map the next what-if together."
     visual:
       remotion: Globe

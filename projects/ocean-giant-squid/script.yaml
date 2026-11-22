@@ -10,13 +10,15 @@ tags: [giant squid, deep sea, ocean, animals, documentary]
 
 settings:
   voice: {engine: kokoro, name: bm_george, speed: 0.92}
-  # music: {file: assets/deep-ambient.mp3, volume: 0.10}   # optional royalty-free bed
+  # Background score is generated per scene `mood:` (wonder · mystery · danger · tension · calm).
+  # Use your own track instead with: music: {file: assets/track.mp3}
 
 thumbnail: {text: "NEVER MEET A GIANT SQUID"}
 youtube: {privacy: private, category_id: 15}   # 15 = Pets & Animals
 
 scenes:
-  - chapter: Intro
+  - mood: calm
+    chapter: Intro
     text: "You're diving in warm, sunlit water. The reef is calm. Nothing down here is hunting you."
     visual:
       remotion: OceanScene
@@ -28,7 +30,8 @@ scenes:
           - {creature: fishSchool, x: 0.75, y: 0.72, to: [0.6, 0.7], scale: 0.7, color: "#bfe3ef"}
         check: {text: Nothing is hunting you, at: "hunting"}
 
-  - text: "But keep going. Past two hundred metres, the sunlight is gone. Past five hundred, the pressure could crush a submarine's window. And at around nine hundred metres... [pause 0.8] [speed 0.86] something is watching you."
+  - mood: mystery
+    text: "But keep going. Past two hundred metres, the sunlight is gone. Past five hundred, the pressure could crush a submarine's window. And at around nine hundred metres... [pause 0.8] [speed 0.86] something is watching you."
     visual:
       remotion: OceanScene
       props:
@@ -42,7 +45,8 @@ scenes:
         calloutAt: "sunlight"
     sfx: [{sound: swell, at: "watching", volume: 0.5}]
 
-  - text: "[emotion 0.8] The giant squid."
+  - mood: danger
+    text: "[emotion 0.8] The giant squid."
     duration: 3.5
     visual:
       remotion: OceanScene
@@ -54,7 +58,8 @@ scenes:
         bigAt: 0.4
     sfx: [{sound: hit, at: 0.4, volume: 0.6}]
 
-  - chapter: The body
+  - mood: wonder
+    chapter: The body
     text: "It can grow to around thirteen metres long. That is longer than a city bus, and most of that length is two feeding tentacles lined with suckers."
     visual:
       remotion: OceanScene
@@ -82,7 +87,8 @@ scenes:
         callout: "Up to 27 cm across"
         calloutAt: "twenty"
 
-  - text: "And those suckers? Each one is ringed with tiny, sharp teeth."
+  - mood: danger
+    text: "And those suckers? Each one is ringed with tiny, sharp teeth."
     visual:
       remotion: OceanScene
       props:
@@ -95,7 +101,8 @@ scenes:
         titleColor: red
     sfx: [{sound: thud, at: "teeth", volume: 0.5}]
 
-  - text: "Three hearts. Blue blood. A brain shaped like a doughnut, with its throat running straight through the middle."
+  - mood: mystery
+    text: "Three hearts. Blue blood. A brain shaped like a doughnut, with its throat running straight through the middle."
     visual:
       remotion: StatCards
       props:
@@ -107,7 +114,8 @@ scenes:
           - {label: Brain, value: "Doughnut-shaped", bar: 0.9, at: "doughnut"}
         stamp: {text: Alien, at: "middle"}
 
-  - chapter: Its enemy
+  - mood: tension
+    chapter: Its enemy
     text: "But even the giant squid has something to fear. A hunter that sees with sound."
     visual:
       remotion: Sonar
@@ -118,7 +126,8 @@ scenes:
           - {label: Hunter, x: 0.25, y: 0.35, creature: spermWhale, scale: 0.7, color: "#e5372f", at: "hunter"}
     sfx: [{sound: ticks, at: "sound", volume: 0.35, dur: 3}]
 
-  - text: "The sperm whale. It dives into the dark, clicking, and listens for the echo of a squid's body."
+  - mood: danger
+    text: "The sperm whale. It dives into the dark, clicking, and listens for the echo of a squid's body."
     visual:
       remotion: OceanScene
       props:
@@ -140,7 +149,8 @@ scenes:
           - {text: "Circular sucker scars", at: "circular"}
           - {text: "Hundreds of squid beaks", at: "hundreds", red: true}
 
-  - chapter: First contact
+  - mood: wonder
+    chapter: First contact
     text: "For centuries, nobody had filmed one alive in the deep. That changed in twenty twelve, near Japan's Ogasawara Islands."
     visual:
       remotion: MapScene
@@ -152,7 +162,8 @@ scenes:
         subtitle: First filmed alive in the deep
         pulses: [{lon: 142.2, lat: 27.1, at: "Ogasawara", label: "Ogasawara Islands"}]
 
-  - chapter: Outro
+  - mood: mystery
+    chapter: Outro
     text: "Somewhere below you right now, in water darker than night, one of them is drifting. [pause 0.6] [speed 0.85] Watching. [reset] Subscribe, and we'll go even deeper next time."
     visual:
       remotion: OceanScene
