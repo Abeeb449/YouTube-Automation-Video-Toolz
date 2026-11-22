@@ -17,6 +17,9 @@ Template props: `references/templates.md`, plus `.claude/skills/whatif-documenta
 
 ## Workflow
 
+Shortcut: if the user just gives narration, save it as `projects/<slug>/script.txt` and run
+`python -m ytauto plan … --style ocean` (or write the script.yaml yourself following this guide; that's better than the rule-based director).
+
 1. **Pick the animal and the angle.** Use the title formula: *"Why You'd Never Want To Meet A ___"*, *"What Happens If You Meet A ___"*
    or *"The ___ Is Scarier Than You Think"*. The deep-ocean series is the first season.
 2. **Research.** Collect 8–12 verified facts: size, depth, senses, weapons, diet, a record ("loudest", "largest eye"), its enemy,
@@ -39,16 +42,17 @@ Template props: `references/templates.md`, plus `.claude/skills/whatif-documenta
 
 ## Voice
 
-The default is **Kokoro `bm_george`** at speed 0.92: free, Apache 2.0 (commercial use OK), offline, and fast on CPU.
-Alternatives: `bm_lewis` (deeper, slower), `bm_fable`, `am_onyx` (deep US) or a blend such as `"bm_george:0.6,am_onyx:0.4"`.
-A sample pack is in `reference/voice-samples/`. For more emotion, or to clone a voice you own,
-use `engine: chatterbox` with `exaggeration: 0.6` and `reference: assets/my-voice.wav`. It needs a GPU to be practical.
-Kokoro gives no word timestamps, so cue timing is estimated within each sentence (usually within ±0.3 s).
-Edge voices give exact timings but are an unofficial free service; don't rely on them for a monetised channel.
+Default: **Qwen3-TTS `ryan`** (Apache 2.0, free, commercial OK) directed with the preset's `instruct`
+("calm, deep-voiced nature documentary narrator…"). Direct individual sentences with `[tone …]` in plain English
+(`[tone whispered and tense]`, `[tone awed, full of wonder]`) plus `[pause 0.8]` before reveals and `[speed 0.88]` for menace.
+Alternatives: other Qwen speakers (`eric`, `aiden`, `dylan`), an invented voice (`name: design`, `description: "deep, warm
+British narrator"`), a cloned voice the user owns (`reference: assets/voice.wav`), or `engine: chatterbox` (faster).
+Kokoro is the automatic fallback. Exact word timings come from faster-whisper alignment, so cue words land precisely.
+Qwen on CPU is about 6× slower than real time; voice audio is cached per sentence.
 
 ## Sound
 
-**Score:** `preset: ocean` composes original background music. Set `mood:` on scenes where the feeling changes
+**Music:** `preset: ocean` fetches real Kevin MacLeod (Incompetech, CC BY) tracks per mood and adds the credits to the description automatically (fallback: a generated score). Set `mood:` on scenes where the feeling changes
 (wonder · mystery · danger · tension · calm · none). It holds until the next change and crossfades between moods.
 It ducks about 18 dB under every sentence (detected from the narration audio) and swells into pauses, like the reference.
 Typical arc: calm (false safety) → mystery (descent) → danger (reveal) → wonder (superpowers) → tension (the hunt) →

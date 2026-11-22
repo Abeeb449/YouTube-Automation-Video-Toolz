@@ -78,6 +78,23 @@ pip install -r requirements.txt
 python -m ytauto doctor        # shows what's installed / missing
 ```
 
+## 3b. Just a script → finished video
+
+Write plain narration in a text file. Leave a blank line between paragraphs; `# Heading` lines become chapters. Then:
+
+```bash
+python -m ytauto make projects/anglerfish/script.txt --style ocean        # plan scenes + render
+python -m ytauto plan projects/anglerfish/script.txt --style ocean        # only write script.yaml (to review/edit)
+```
+
+On GitHub, commit `projects/<name>/script.txt` and push, or run **Render video** with that folder. The workflow plans the scenes, renders the video, and puts the generated `script.yaml` next to the MP4, so you can tweak it and re-render.
+
+Two "directors" decide the visuals:
+- **Claude director** (best). Add an `ANTHROPIC_API_KEY` secret (from console.anthropic.com; pay-as-you-go, typically a few cents to a few tens of cents per video). Claude reads the style guide and picks templates, animals, cue words, moods, B-roll and voice tags like an editor would.
+- **Rule-based director** (free, used automatically without a key). It recognises animals, depths, numbers, danger and wonder words, and short punchy lines, and varies the shots. That's fine for drafts, but expect to edit.
+
+You can also ask Claude Code in this repo: *"Make an ocean documentary from projects/anglerfish/script.txt"*. The skill files guide it.
+
 ## 4. The script format (`script.yaml`)
 
 ```yaml
@@ -180,14 +197,16 @@ This kit makes "danger & wonder" deep-sea animal documentaries in the style of `
 
 ## 5. Voices
 
-| Engine | Cost / licence | Quality | Example `name` |
+| Engine | Licence | Quality / speed on a 4-core CPU | Example |
 |---|---|---|---|
-| `kokoro` **(recommended)** | free, offline, **Apache 2.0, OK for monetised channels** | ★★★★ natural; about 4× faster than real time on CPU | `bm_george`, `bm_lewis`, `am_onyx`, blend `"bm_george:0.6,am_onyx:0.4"` |
-| `chatterbox` | free, **MIT**, optional install (PyTorch; GPU recommended) | ★★★★★ expressive: `exaggeration` control, voice cloning from a 5–10 s clip | any; `reference: assets/my-voice.wav` |
-| `edge` | free but an unofficial Microsoft service; no clear licence for commercial use | ★★★★, exact word timings | `en-US-ChristopherNeural`, `en-GB-RyanNeural` |
-| `elevenlabs` | **paid for commercial use** (Starter plan and up); free tier is non-commercial and needs attribution | ★★★★★ | your ElevenLabs voice id |
-| `piper` | free, offline | ★★★ | `en_GB-alan-medium` |
-| `espeak` | free, offline | ★ robotic, last-resort fallback | `en-us` |
+| `qwen` **(default for ocean/documentary)** | **Apache 2.0**, free, commercial OK | ★★★★★ very natural; **direct it in plain English per sentence**; about 6× slower than real time (10 min of narration ≈ 1 h) | `name: ryan` (or `eric`, `aiden`, `dylan`, `serena`, `vivian`), `instruct: "hushed nature narrator"`, or `name: design` + `description: "deep British narrator"` to invent a voice, or `reference: assets/my-voice.wav` to clone one you own |
+| `chatterbox` | **MIT**, free, commercial OK | ★★★★ expressive; turbo ≈ 2.6× slower than real time; `model: standard` honours `exaggeration` (emotion) | `model: turbo`, `reference: assets/my-voice.wav` |
+| `kokoro` | Apache 2.0 | ★★★ clear but flatter; 4× *faster* than real time | `bm_george`, `am_onyx` |
+| `edge` | unofficial Microsoft service | ★★★★, exact word timings | `en-US-ChristopherNeural` |
+| `elevenlabs` | paid for commercial use | ★★★★★ | your voice id |
+| `piper`, `espeak` | free, offline | ★★ / ★ fallbacks | |
+
+Compare them: `reference/voice-samples/voice-comparison-qwen-chatterbox.mp3` (same line in 7 voices). Every sentence's audio is cached, so editing one line only re-voices that line.
 
 Hear the documentary narrator candidates in `reference/voice-samples/kokoro-documentary-voices.mp3`. Speed is set with `speed: 0.92` (or `rate: "-8%"`).
 
@@ -202,6 +221,7 @@ text: "It is quiet down here. [pause 1.2] Too quiet. [speed 0.85] Something is m
 | `[speed 0.85]` | Slower (or faster) delivery from here to the end of the scene |
 | `[emotion 0.9]` | Intensity 0.25–1.0. With Chatterbox this drives real emotional exaggeration; with Kokoro or Edge it slows the delivery slightly |
 | `[voice bm_lewis]` | Switch narrator mid-scene |
+| `[tone hushed, awed]` | **Qwen3-TTS:** describe how to say the following sentences in plain English ("whispered and tense", "excited, full of wonder") |
 | `[reset]` | Back to the scene's default voice |
 
 Punctuation matters too: commas, em dashes, "…" and question marks all change the delivery. You can also set `voice:` per scene.
@@ -216,6 +236,20 @@ python -m ytauto voices --engine edge --locale en
 If the main engine fails, for example because the network is down, ytauto automatically switches to `fallback`. Each sentence's audio is cached, so editing one line only re-voices that line.
 
 ## 5b. Background music that follows the voice
+
+**Real music, fetched automatically (default):** ytauto picks tracks from **Kevin MacLeod's Incompetech** library (1,400+ cinematic and ambient pieces, CC BY 4.0, widely used on YouTube) to match each scene's `mood`. It downloads them, loops and crossfades them, and adds the required credit lines to `description.txt`. You don't download anything. Other sources:
+
+| `music:` | What happens |
+|---|---|
+| `{source: incompetech}` *(preset default)* | Kevin MacLeod tracks matched to moods by their "feel" tags; credits added automatically |
+| `{source: openverse}` | Searches Openverse (Jamendo, Freesound…) for CC0 / CC BY music; credits added. Quality varies |
+| `{source: library, library: assets/music}` | Your own folder, with sub-folders named after moods (`wonder/`, `danger/`…). Fill it once, e.g. from the YouTube Audio Library |
+| `{generate: true}` | The built-in synthesized score (also the automatic fallback when offline) |
+| `{file: assets/track.mp3}` | One specific track |
+
+The **YouTube Audio Library can't be fetched automatically.** It has no public API and needs your YouTube login, so download tracks from it once into a mood folder and use `source: library`.
+
+#### The built-in score
 
 The `ocean` and `documentary` presets compose an **original background score** for every video. It is synthesized by `ytauto/music.py`, so it's free to monetise, with no samples and no Content ID claims. Set the feeling per scene with `mood:`. Each scene keeps the previous mood until you change it, and moods crossfade:
 

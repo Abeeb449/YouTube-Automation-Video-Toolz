@@ -9,7 +9,6 @@ description: |
 tags: [giant squid, deep sea, ocean, animals, documentary]
 
 settings:
-  voice: {engine: kokoro, name: bm_george, speed: 0.92}
   # Background score is generated per scene `mood:` (wonder · mystery · danger · tension · calm).
   # Use your own track instead with: music: {file: assets/track.mp3}
 

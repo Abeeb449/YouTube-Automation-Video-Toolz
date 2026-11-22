@@ -9,7 +9,6 @@ description: |
 tags: [yellowstone, supervolcano, what if, simulation, geology]
 
 settings:
-  voice: {name: en-US-ChristopherNeural, rate: "-4%"}
   # music: {file: assets/dark-ambient.mp3, volume: 0.10}   # optional royalty-free bed
 
 thumbnail: {text: "WHAT IF YELLOWSTONE ERUPTED?"}

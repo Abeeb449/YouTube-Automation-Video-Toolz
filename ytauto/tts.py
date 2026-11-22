@@ -9,8 +9,9 @@ piper       Fully offline neural TTS (https://github.com/rhasspy/piper). Voice i
 kokoro      Kokoro-82M (Apache 2.0 — free for commercial use). Excellent offline neural voices,
             ~4x faster than real time on CPU. Voices: bm_george, bm_lewis, am_onyx, am_michael…
             Blend voices with "bm_george:0.6,am_onyx:0.4".
-chatterbox  Chatterbox (MIT) — most expressive open model, emotion control + voice cloning from a
-            5-10 s reference clip. Heavy (PyTorch); best on a GPU. Optional install.
+qwen        Qwen3-TTS (Apache 2.0) — very natural; direct it in plain English per sentence ("hushed, awed"),
+            invent a voice from a description, or clone one. Runs on CPU (slower than real time).
+chatterbox  Chatterbox (MIT) — expressive, emotion exaggeration, voice cloning from a 5-10 s clip.
 elevenlabs  Premium voices. Needs ELEVENLABS_API_KEY. Voice = ElevenLabs voice id.
 espeak      Robotic but always-available offline fallback (espeak-ng).
 """
@@ -68,7 +69,7 @@ def split_sentences(text: str) -> list[str]:
     return out
 
 
-_TAG_RE = re.compile(r"\[(pause|speed|emotion|voice|reset)(?:\s+([^\]]+))?\]", re.I)
+_TAG_RE = re.compile(r"\[(pause|speed|emotion|voice|tone|reset)(?:\s+([^\]]+))?\]", re.I)
 
 
 def strip_directives(text: str) -> str:
@@ -84,6 +85,7 @@ def parse_directives(text: str) -> list[tuple]:
       [speed 0.85]            slower (or faster) delivery from here on
       [emotion 0.8]           Chatterbox exaggeration 0.25–1.0 (calm → intense); Kokoro: slight slow-down when > 0.6
       [voice bm_lewis]        switch voice from here on
+      [tone hushed, awed]     Qwen3-TTS: describe how to say it, in plain English
       [reset]                 back to the scene's default voice settings
     Tags stay in effect until the end of the scene (or [reset]).
     """
@@ -110,6 +112,8 @@ def parse_directives(text: str) -> list[tuple]:
                     over["speed_hint"] = round(1.0 - (e - 0.6) * 0.25, 3)
             elif tag == "voice":
                 over["name"] = arg
+            elif tag == "tone":  # Qwen3-TTS: plain-English direction, e.g. [tone whispered and tense]
+                over["tone"] = arg
             elif tag == "reset":
                 over = {}
         except ValueError:
@@ -154,9 +158,21 @@ def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
                 warn(f"word alignment unavailable ({str(exc).splitlines()[0][:120]}); estimating word timings")
                 _whisper_failed = True
                 return
-        segs, _ = _whisper_model.transcribe(str(wav), language="en", word_timestamps=True, initial_prompt=sentence,
-                                            beam_size=1, vad_filter=False)
-        got = [w for seg in segs for w in (seg.words or [])]
+        try:
+            import subprocess
+
+            import numpy as np
+            # decode with ffmpeg ourselves (16 kHz mono float) — avoids PyAV version clashes
+            raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-ar", "16000", "-f", "f32le", "-"],
+                                 capture_output=True, check=True).stdout
+            audio = np.frombuffer(raw, dtype=np.float32)
+            segs, _ = _whisper_model.transcribe(audio, language="en", word_timestamps=True, initial_prompt=sentence,
+                                                beam_size=1, vad_filter=False)
+            got = [w for seg in segs for w in (seg.words or [])]
+        except Exception as exc:  # noqa: BLE001 — alignment is a nice-to-have; never fail the render
+            warn(f"word alignment failed ({str(exc).splitlines()[0][:120]}); estimating word timings")
+            _whisper_failed = True
+            return
     toks = sentence.split()
     if not got:
         return
@@ -374,8 +390,8 @@ def _kokoro(text: str, voice: dict, out: Path) -> None:
             _kokoro_model = Kokoro(str(model), str(voices))
     k = _kokoro_model
     name = voice.get("name") or "bm_george"
-    if "Neural" in name or "-" in name:  # an Edge/Piper id leaked in through a fallback chain
-        name = "bm_george"
+    if "Neural" in name or "-" in name or ("," not in name and ":" not in name and name not in k.get_voices()):
+        name = "bm_george"  # an id from another engine leaked in through a fallback chain
     if "," in name or ":" in name:  # blend, e.g. "bm_george:0.6,am_onyx:0.4"
         style, first = None, None
         for part in name.split(","):
@@ -394,36 +410,103 @@ def _kokoro(text: str, voice: dict, out: Path) -> None:
     tmp.unlink(missing_ok=True)
 
 
-_cb_lock = threading.Lock()
-_cb_model = None
+class _Worker:
+    """A long-running TTS worker in its own Python environment (see ytauto/tts_workers/)."""
+
+    def __init__(self, name: str, python: str, script: str):
+        self.name, self.python, self.script = name, python, script
+        self.proc = None
+        self.lock = threading.Lock()
+
+    def _start(self):
+        import subprocess
+
+        if not Path(self.python).exists():
+            raise YtautoError(f"{self.name} is not installed (expected {self.python}); see README → Voices")
+        log(f"Starting {self.name} voice engine (first line loads the model, this can take a minute) …")
+        self.proc = subprocess.Popen([self.python, "-u", self.script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=subprocess.DEVNULL, text=True, bufsize=1)
+        if self._read() is None:
+            raise YtautoError(f"{self.name} worker failed to start")
+
+    def _read(self) -> dict | None:
+        """Next JSON line from the worker, skipping anything libraries print to stdout."""
+        while True:
+            line = self.proc.stdout.readline()
+            if not line:
+                return None
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    return json.loads(line)
+                except ValueError:
+                    pass
+
+    def run(self, job: dict) -> dict:
+        with self.lock:
+            if self.proc is None or self.proc.poll() is not None:
+                self._start()
+            self.proc.stdin.write(json.dumps(job) + "\n")
+            self.proc.stdin.flush()
+            res = self._read()
+        if res is None:
+            raise YtautoError(f"{self.name} worker crashed")
+        if not res.get("ok"):
+            raise YtautoError(f"{self.name}: {res.get('error')}")
+        return res
+
+
+_WORKERS_DIR = Path(__file__).resolve().parent / "tts_workers"
+_qwen = _Worker("Qwen3-TTS", os.environ.get("YTAUTO_QWEN_PYTHON", "/opt/tts-qwen/bin/python"), str(_WORKERS_DIR / "qwen_worker.py"))
+_cbox = _Worker("Chatterbox", os.environ.get("YTAUTO_CHATTERBOX_PYTHON", "/opt/tts-chatterbox/bin/python"),
+                str(_WORKERS_DIR / "chatterbox_worker.py"))
+
+EMOTION_WORDS = [(0.85, "very intense, urgent and dramatic"), (0.7, "tense and gripping"), (0.55, "engaged and expressive"),
+                 (0.4, "calm and measured"), (0.0, "soft, quiet and gentle")]
+
+
+def _qwen_tts(text: str, voice: dict, out: Path) -> None:
+    """Qwen3-TTS (Apache 2.0). voice: name = speaker (ryan, aiden, eric, dylan, serena, vivian…) or "design";
+    description = the voice to invent for "design"; instruct / [tone …] = how to say it; reference = clone a voice."""
+    name = (voice.get("name") or "ryan").lower()
+    if "neural" in name or "_" in name and name not in ("uncle_fu", "ono_anna"):
+        name = "ryan"
+    style = [voice.get("instruct") or "", voice.get("tone") or ""]
+    if voice.get("exaggeration") is not None:
+        e = float(voice["exaggeration"])
+        style.append(next(w for lvl, w in EMOTION_WORDS if e >= lvl))
+    sp = voice.get("speed")
+    if sp and float(sp) < 0.95:
+        style.append("slow, deliberate pace")
+    elif sp and float(sp) > 1.05:
+        style.append("brisk pace")
+    instruct = ". ".join(x.strip().rstrip(".") for x in style if x and x.strip())
+    job = {"text": text, "out": str(out.with_suffix(".raw.wav")), "language": voice.get("language", "English")}
+    if voice.get("reference"):
+        job.update(model="Base", reference=str(voice["reference"]), ref_text=voice.get("ref_text"))
+    elif name == "design" or voice.get("description"):
+        desc = voice.get("description") or "A deep, warm, mature male narrator voice, like a nature documentary"
+        job.update(model="VoiceDesign", instruct=f"{desc}. {instruct}".strip(". "))
+    else:
+        job.update(model="CustomVoice", speaker=name, instruct=instruct or None)
+    _qwen.run(job)
+    _to_wav(Path(job["out"]), out)
+    Path(job["out"]).unlink(missing_ok=True)
 
 
 def _chatterbox(text: str, voice: dict, out: Path) -> None:
-    """Chatterbox (Resemble AI, MIT). `reference:` = a 5-10 s WAV of the voice to clone (optional).
-    `exaggeration` 0.25-1.0 (0.5 neutral, higher = more dramatic), `cfg_weight` 0.3-0.7 (lower = slower, more deliberate)."""
-    global _cb_model
-    try:
-        import torch
-        import torchaudio as ta
-        from chatterbox.tts import ChatterboxTTS
-    except ImportError as exc:
-        raise YtautoError("Chatterbox not installed (pip install chatterbox-tts) — it needs PyTorch; a GPU is recommended") from exc
-    with _cb_lock:
-        if _cb_model is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            log(f"Loading Chatterbox on {device} …")
-            _cb_model = ChatterboxTTS.from_pretrained(device=device)
-        kwargs = {"exaggeration": float(voice.get("exaggeration", 0.55)), "cfg_weight": float(voice.get("cfg_weight", 0.45))}
-        if voice.get("reference"):
-            kwargs["audio_prompt_path"] = str(voice["reference"])
-        wav = _cb_model.generate(text, **kwargs)
-    tmp = out.with_suffix(".raw.wav")
-    ta.save(str(tmp), wav, _cb_model.sr)
-    _to_wav(tmp, out)
-    tmp.unlink(missing_ok=True)
+    """Chatterbox (MIT). model: turbo (faster) | standard (honours exaggeration = emotion);
+    reference: a 5-10 s WAV of a voice you own to clone."""
+    job = {"text": text, "out": str(out.with_suffix(".raw.wav")), "model": voice.get("model", "turbo"),
+           "exaggeration": voice.get("exaggeration", 0.55), "cfg_weight": voice.get("cfg_weight", 0.45)}
+    if voice.get("reference"):
+        job["reference"] = str(voice["reference"])
+    _cbox.run(job)
+    _to_wav(Path(job["out"]), out)
+    Path(job["out"]).unlink(missing_ok=True)
 
 
-ENGINES = {"edge": _edge, "kokoro": _kokoro, "chatterbox": _chatterbox, "piper": _piper,
+ENGINES = {"edge": _edge, "kokoro": _kokoro, "qwen": _qwen_tts, "chatterbox": _chatterbox, "piper": _piper,
            "elevenlabs": _elevenlabs, "espeak": _espeak}
 
 
@@ -442,7 +525,8 @@ def synthesize(text: str, voice: dict, out: Path) -> str:
         if not fn:
             raise YtautoError(f"Unknown TTS engine {eng!r}. Choose from {', '.join(ENGINES)}")
         try:
-            fn(text, voice, out)
+            v = voice if eng == engine else {**voice, "name": voice.get("fallback_name")}
+            fn(text, v, out)
             return eng
         except Exception as exc:  # noqa: BLE001 — fall through to the fallback engine
             last = exc
@@ -491,7 +575,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         v = {**voice, **over}
         sk = stable_hash("sent-v1", v.get("engine"), v.get("name"), v.get("rate"),
                          v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
-                         v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), sent)
+                         v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), v.get("tone"),
+                         v.get("instruct"), v.get("description"), v.get("model"), sent)
         wav = cache / f"sent_{sk}.wav"
         if not wav.exists():
             synthesize(sent, v, wav)

@@ -6,3 +6,4 @@ projects/*/build/
 projects/*/.cache/
 .env
 client_secret*.json
+/.cache/

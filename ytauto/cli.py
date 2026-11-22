@@ -152,6 +152,30 @@ def cmd_render(a) -> int:
     return 0
 
 
+def cmd_plan(a) -> int:
+    from .planner import write_plan
+
+    script = Path(a.script)
+    out = Path(a.out) if a.out else (script.parent if script.parent.name not in ("", ".") else Path("projects") / script.stem)
+    write_plan(script, out, a.style, a.title, a.director, a.model)
+    return 0
+
+
+def cmd_make(a) -> int:
+    """Plain script → planned scenes → rendered video, in one go."""
+    from .config import load_project
+    from .pipeline import render_project
+    from .planner import write_plan
+
+    script = Path(a.script)
+    out = Path(a.out) if a.out else script.parent
+    if not (out / "script.yaml").exists() or a.replan:
+        write_plan(script, out, a.style, a.title, a.director, a.model)
+    overrides = {"width": 960, "height": 540, "preset": "ultrafast", "crf": 26} if a.preview else {}
+    render_project(load_project(out, overrides), preview=a.preview)
+    return 0
+
+
 def cmd_voices(a) -> int:
     from .tts import list_voices
 
@@ -270,6 +294,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--voice-engine", help="override the TTS engine (kokoro, edge, chatterbox, piper, elevenlabs, espeak)")
     p.add_argument("--music", choices=["incompetech", "openverse", "library", "generate", "none"], help="override the background music source")
     p.set_defaults(fn=cmd_render)
+
+    for name, fn, hlp in (("plan", cmd_plan, "turn a plain narration script (.txt) into script.yaml scenes"),
+                          ("make", cmd_make, "plain script → planned scenes → finished video, in one step")):
+        p = sp.add_parser(name, help=hlp)
+        p.add_argument("script", help="plain text narration; blank lines between paragraphs, optional '# Chapter' lines")
+        p.add_argument("--style", choices=["ocean", "documentary"], default="ocean")
+        p.add_argument("--title")
+        p.add_argument("--out", help="project folder (default: the script's folder)")
+        p.add_argument("--director", choices=["auto", "claude", "rules"], default="auto",
+                       help="claude = Claude API (needs ANTHROPIC_API_KEY, best); rules = free offline; auto = claude if a key is set")
+        p.add_argument("--model", help="Claude model for the director (default claude-opus-5-5)")
+        if name == "make":
+            p.add_argument("--preview", action="store_true")
+            p.add_argument("--replan", action="store_true", help="re-plan even if script.yaml exists")
+        p.set_defaults(fn=fn)
 
     p = sp.add_parser("voices", help="list available voices")
     p.add_argument("--engine", default="kokoro", choices=["kokoro", "edge", "piper", "espeak", "elevenlabs"])

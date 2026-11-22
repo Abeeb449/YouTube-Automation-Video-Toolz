@@ -1,7 +1,7 @@
 # ytauto render environment — everything needed to make finished videos, CPU only (no GPU required):
 #   video: ffmpeg · Remotion (React + headless Chromium) · Blender · Lottie
 #   graphics: Inkscape · ImageMagick · potrace · librsvg · rembg (background removal)
-#   voice: Kokoro (default) · Piper · Edge · eSpeak · optional Chatterbox · faster-whisper word alignment
+#   voice: Qwen3-TTS · Chatterbox · Kokoro · Piper · Edge · eSpeak · faster-whisper word alignment
 #   audio: sox · numpy sound design
 # Used by GitHub Actions, GitHub Codespaces and locally:
 #   docker build -t ytauto .
@@ -63,9 +63,22 @@ RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('base.en',
     && python3 -c "from rembg import new_session; new_session('isnet-general-use')" \
     && chmod -R a+rX /opt/whisper /opt/u2net
 
-# Optional: Chatterbox (expressive, voice cloning). Large PyTorch install, slow on CPU — off by default.
-ARG INSTALL_CHATTERBOX=false
-RUN if [ "$INSTALL_CHATTERBOX" = "true" ]; then pip install --no-cache-dir chatterbox-tts; fi
+# Natural open-source narrators, each in its own environment (their dependencies conflict), CPU builds of PyTorch.
+# Models (~2-4 GB each) download from Hugging Face on first use and are cached between runs (HF_HOME).
+#   Qwen3-TTS (Apache 2.0): very natural, plain-English direction per sentence, voice design + cloning.
+#   Chatterbox (MIT): expressive, fast "turbo" model, voice cloning.
+ARG INSTALL_QWEN=true
+ARG INSTALL_CHATTERBOX=true
+RUN if [ "$INSTALL_QWEN" = "true" ]; then \
+      python3 -m venv /opt/tts-qwen && \
+      /opt/tts-qwen/bin/pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchaudio && \
+      /opt/tts-qwen/bin/pip install --no-cache-dir qwen-tts soundfile; \
+    fi
+RUN if [ "$INSTALL_CHATTERBOX" = "true" ]; then \
+      python3 -m venv /opt/tts-chatterbox && \
+      /opt/tts-chatterbox/bin/pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
+        chatterbox-tts "setuptools<81"; \
+    fi
 
 # Pre-download an offline Piper voice so renders work without any TTS network access.
 COPY ytauto/ /opt/ytauto/ytauto/

@@ -308,6 +308,8 @@ class ClipRenderer:
                         src, _ = fetch_stock(query, "video", self.cache, self.W, nth=len(query))
                     except Exception as exc:  # noqa: BLE001 — no key / no network: fall back to the drawn backdrop
                         warn(f"B-roll '{query}': {exc}. Using the drawn background instead.")
+                        for fk, fv in (obj.get("fallback") or {}).items():  # e.g. drawn actors for the same beat
+                            out.setdefault(fk, self._stage_assets(fv, rdir))
                         continue
                 else:
                     src = self.p.resolve(v)
@@ -319,6 +321,8 @@ class ClipRenderer:
                 if not (pub / name).exists():
                     shutil.copyfile(src, pub / name)
                 out[k] = f"ytauto/{name}"
+            elif k == "fallback":
+                continue  # only used when footage can't be fetched
             else:
                 out[k] = self._stage_assets(v, rdir)
         return out

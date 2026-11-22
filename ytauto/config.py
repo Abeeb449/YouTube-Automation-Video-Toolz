@@ -99,7 +99,8 @@ PRESETS: dict[str, dict] = {
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
         "padding": 0.5,
-        "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.94, "fallback": "edge"},
+        "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
+                  "instruct": "Narrate like a calm, authoritative documentary narrator: measured, clear and gripping."},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
         "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.8, "duck": 0.45},
         "sound": {"drone": 0.0, "whoosh_on_cut": True, "whoosh_volume": 0.15},
@@ -109,7 +110,8 @@ PRESETS: dict[str, dict] = {
         # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
         "padding": 0.45,
-        "voice": {"engine": "kokoro", "name": "bm_george", "speed": 0.92, "fallback": "edge"},
+        "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
+                  "instruct": "Narrate like a calm, deep-voiced nature documentary narrator: slow, hushed and suspenseful, with a sense of wonder."},
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.8, "duck": 0.45},
         "sound": {"drone": 0.0, "whoosh_on_cut": True, "whoosh_volume": 0.15},
