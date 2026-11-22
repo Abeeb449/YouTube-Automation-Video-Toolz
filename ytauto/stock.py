@@ -34,6 +34,12 @@ def download(url: str, dst: Path) -> Path:
     return dst
 
 
+def providers_used() -> list[str]:
+    """Stock sites that supplied footage in this render (for description credits)."""
+    names = {"pexels": "Pexels (pexels.com)", "pixabay": "Pixabay (pixabay.com)"}
+    return [names[p] for p in sorted({cid.split("-")[0] for cid in _used}) if p in names]
+
+
 def _pick(candidates: list[tuple[str, str]]) -> tuple[str, str]:
     """candidates: (id, url). Prefer one not used yet in this render."""
     with _lock:

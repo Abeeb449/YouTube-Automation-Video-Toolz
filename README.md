@@ -36,8 +36,8 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
 2. *(Optional)* Add secrets under **Settings → Secrets and variables → Actions**:
    | Secret | Why | Where |
    |---|---|---|
-   | `PEXELS_API_KEY` | free stock videos/photos | https://www.pexels.com/api/ |
-   | `PIXABAY_API_KEY` | extra free stock source | https://pixabay.com/api/docs/ |
+   | `PIXABAY_API_KEY` | free stock videos/photos (recommended: Pexels has paused new keys) | https://pixabay.com/api/docs/ (log in, the key is shown on that page) |
+   | `PEXELS_API_KEY` | optional second stock source, if you already have a key | https://www.pexels.com/api/ |
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
    | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#8-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.

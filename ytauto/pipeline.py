@@ -310,6 +310,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         warn(f"YouTube ignores chapters when any is under 10s: {', '.join(short)}")
     if music_credits:
         desc += "\n\nMusic:\n" + "\n".join(music_credits)
+    from .stock import providers_used
+    if providers_used():
+        desc += "\n\nStock footage: " + ", ".join(providers_used())
     if len(marks) >= 3:
         desc += "\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)
     (build / "description.txt").write_text(desc + "\n", encoding="utf-8")
