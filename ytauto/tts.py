@@ -143,6 +143,8 @@ def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
         _whisper_failed = True
         return
     with _whisper_lock:
+        if _whisper_failed:
+            return
         if _whisper_model is None:
             try:
                 name = os.environ.get("YTAUTO_WHISPER_MODEL", "base.en")
