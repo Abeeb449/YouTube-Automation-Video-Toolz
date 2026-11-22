@@ -190,13 +190,150 @@ export const Octopus: React.FC<CreatureProps> = ({t, color = '#b0553f'}) => (
   </g>
 );
 
+
+const spots = (n: number, seed: number, w: number, h: number, cx: number, cy: number) =>
+  Array.from({length: n}).map((_, i) => {
+    const a = ((i * 7919 + seed) % 1000) / 1000, b = ((i * 104729 + seed * 3) % 1000) / 1000;
+    return [cx + (a - 0.5) * w, cy + (b - 0.5) * h, 3 + ((i * 31) % 5)] as const;
+  });
+
+/** Leopard seal: long serpentine body, huge reptilian head, spotted silver-grey. detail.jaw 0..1 opens the mouth. */
+export const LeopardSeal: React.FC<CreatureProps> = ({t, color = '#5f6870', detail = {}}) => {
+  const jaw = Math.max(0, Math.min(1, Number(detail.jaw ?? 0)));
+  const hf = sw(t, 1.8, 12);
+  return (
+    <g>
+      <defs>
+        <linearGradient id="ls-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3f474e" />
+          <stop offset="55%" stopColor={color} />
+          <stop offset="100%" stopColor="#c9d0d4" />
+        </linearGradient>
+      </defs>
+      <g transform={`rotate(${hf} -262 0)`}>
+        <path d="M-258,-8 C-280,-22 -300,-44 -326,-50 C-316,-28 -306,-12 -294,0 C-306,12 -316,28 -326,50 C-300,44 -280,22 -258,8 Z" fill="#454d54" />
+      </g>
+      <path d="M300,2 Q300,-30 262,-44 Q222,-54 176,-46 Q120,-60 36,-62 Q-84,-62 -184,-38 Q-242,-22 -266,-8 L-266,8 Q-232,24 -160,40 Q-58,60 52,56 Q150,50 204,36 Q262,26 300,10 Z" fill="url(#ls-body)" />
+      {spots(26, 3, 380, 70, -20, -24).map(([x, y, r], i) => <ellipse key={i} cx={x} cy={y} rx={r * 1.4} ry={r} fill="#2c3237" opacity={0.55} />)}
+      {spots(12, 9, 320, 30, 0, 34).map(([x, y, r], i) => <ellipse key={`b${i}`} cx={x} cy={y} rx={r} ry={r * 0.7} fill="#5b646b" opacity={0.6} />)}
+      {/* lower jaw (opens) */}
+      <g transform={`rotate(${jaw * 24} 206 10)`}>
+        <path d="M206,10 Q252,20 298,10 Q290,28 250,32 Q220,30 206,22 Z" fill="#aab3b8" />
+        {jaw > 0.05 ? Array.from({length: 6}).map((_, i) => <path key={i} d={`M${222 + i * 12},${14 + i * 0.6} l4,-10 l4,10 Z`} fill="#f4f1ea" />) : null}
+      </g>
+      {jaw > 0.05 ? <path d="M206,10 Q252,20 298,10" stroke="#5a1f1f" strokeWidth={6} opacity={jaw} fill="none" /> : null}
+      {jaw > 0.05 ? Array.from({length: 6}).map((_, i) => <path key={`u${i}`} d={`M${220 + i * 13},${10 + i * 0.3} l4,10 l4,-10 Z`} fill="#f4f1ea" opacity={jaw} />) : null}
+      <path d="M300,6 Q252,16 206,10" stroke="#1d2226" strokeWidth={3} fill="none" />
+      <circle cx={246} cy={-22} r={6} fill="#0d1013" />
+      <circle cx={248} cy={-24} r={1.8} fill="#fff" opacity={0.7} />
+      <g transform={`rotate(${sw(t, 1.8, 9)} 128 40)`}><path d="M132,38 Q104,92 30,104 Q76,72 96,40 Z" fill="#4b545b" /></g>
+    </g>
+  );
+};
+
+/** Sea lion / fur seal (eared seal): sleek brown body, small external ear, long front flippers. color for species, detail.pup for a pup. */
+export const SeaLion: React.FC<CreatureProps> = ({t, color = '#6b4a32', detail = {}}) => {
+  const pup = !!detail.pup;
+  const body = pup ? '#6d6259' : color;
+  const fl = sw(t, pup ? 3 : 2.2, 16);
+  if (detail.rest) {
+    // on land: chest up on the front flippers, head raised (classic eared-seal posture); ground line at y = 40
+    const nod = sw(t, 0.9, 3);
+    return (
+      <g>
+        <path d="M-236,40 L-270,26 L-262,40 L-270,52 Z" fill="#4d3524" />
+        <path d="M-236,40 Q-210,8 -130,0 Q-30,-8 50,-36 Q104,-62 140,-108 L196,-112 Q188,-80 178,-40 Q170,10 146,40 Z" fill={body} />
+        <path d="M-200,36 Q-100,24 20,10 Q100,-6 150,30 Q60,40 -200,40 Z" fill="#fff" opacity={0.1} />
+        <g transform={`rotate(${nod} 160 -110)`}>
+          <path d="M138,-104 Q146,-150 184,-162 Q222,-170 250,-156 Q264,-148 256,-136 Q236,-128 214,-122 Q196,-104 192,-96 Z" fill={body} />
+          <path d="M196,-160 q-2,-12 6,-12 q3,6 -2,12 Z" fill="#3b2a1d" />
+          <circle cx={226} cy={-150} r={4.5} fill="#120d0a" />
+          <circle cx={256} cy={-142} r={3} fill="#1c1410" />
+          {[0, 1].map((i) => <path key={i} d={`M250,${-136 + i * 3} q14,0 26,${2 + i * 3}`} stroke="#e8e1d6" strokeWidth={1.2} opacity={0.7} fill="none" />)}
+        </g>
+        <path d="M118,-6 Q138,26 166,42 L112,42 Q120,20 112,0 Z" fill="#4d3524" />
+      </g>
+    );
+  }
+  return (
+    <g>
+      <g transform={`rotate(${sw(t, 2.2, 10)} -250 0)`}>
+        <path d="M-248,-6 L-306,-34 Q-300,-8 -292,0 Q-300,8 -306,34 L-248,6 Z" fill="#4d3524" opacity={0.95} />
+      </g>
+      <path d="M292,0 Q292,-24 266,-32 Q236,-40 204,-34 Q140,-50 40,-52 Q-80,-50 -170,-28 Q-230,-14 -256,-4 L-256,6 Q-222,18 -152,32 Q-40,50 60,46 Q160,40 206,28 Q252,20 292,6 Z" fill={body} />
+      <path d="M290,4 Q250,20 206,28 Q120,44 40,46 Q-60,46 -150,30 Q-40,30 60,30 Q170,24 290,4 Z" fill="#fff" opacity={0.12} />
+      <path d="M232,-34 q-4,-12 4,-14 q4,6 -1,14 Z" fill="#3b2a1d" />
+      <circle cx={262} cy={-18} r={5} fill="#120d0a" />
+      <circle cx={263.5} cy={-19.5} r={1.5} fill="#fff" opacity={0.7} />
+      <circle cx={290} cy={-4} r={3.5} fill="#1c1410" />
+      {[0, 1, 2].map((i) => <path key={i} d={`M282,${2 + i * 3} q16,${-2 + i * 3} 30,${-4 + i * 4}`} stroke="#e8e1d6" strokeWidth={1.2} opacity={0.7} fill="none" />)}
+      <g transform={`rotate(${fl} 140 34)`}><path d="M146,32 Q120,96 52,118 Q98,82 112,36 Z" fill="#4d3524" /></g>
+    </g>
+  );
+};
+
+/** Penguin. detail.stand = upright on ice/land; otherwise swimming (torpedo, flapping). */
+export const Penguin: React.FC<CreatureProps> = ({t, detail = {}}) => {
+  if (detail.stand) {
+    const sway = sw(t, 2.5, 3);
+    return (
+      <g transform={`rotate(${sway} 0 120)`}>
+        <ellipse cx={0} cy={20} rx={62} ry={105} fill="#15181c" />
+        <ellipse cx={8} cy={34} rx={44} ry={86} fill="#f3f4f2" />
+        <circle cx={6} cy={-78} r={40} fill="#15181c" />
+        <circle cx={22} cy={-84} r={7} fill="#fff" />
+        <circle cx={23} cy={-84} r={3} fill="#111" />
+        <path d="M40,-78 L70,-72 L40,-66 Z" fill="#2a2a2a" />
+        <path d={`M-52,-10 Q${-96 + sway * 3},40 -70,90 Q-48,40 -40,0 Z`} fill="#15181c" />
+        <path d="M-20,122 l-18,10 l30,0 Z M22,122 l-6,10 l30,0 Z" fill="#e7a4a0" />
+      </g>
+    );
+  }
+  const flap = sw(t, 7, 28);
+  return (
+    <g>
+      <path d="M150,0 Q140,-34 60,-40 Q-60,-44 -140,-12 Q-160,0 -140,12 Q-60,44 60,40 Q140,34 150,0 Z" fill="#15181c" />
+      <path d="M140,6 Q100,30 40,32 Q-60,34 -130,10 Q-40,16 50,12 Q110,10 140,6 Z" fill="#f3f4f2" />
+      <circle cx={112} cy={-12} r={6} fill="#fff" />
+      <circle cx={113} cy={-12} r={2.5} fill="#111" />
+      <path d="M150,-4 L184,0 L150,6 Z" fill="#2a2a2a" />
+      <g transform={`rotate(${flap} 40 4)`}><path d="M44,0 Q10,56 -40,70 Q-6,40 24,2 Z" fill="#0d0f12" /></g>
+      <path d="M-140,-4 l-26,-10 l6,14 l-6,14 l26,-10 Z" fill="#e7a4a0" opacity={0.9} />
+    </g>
+  );
+};
+
+/** Antarctic krill swarm (detail.count). */
+export const Krill: React.FC<CreatureProps> = ({t, color = '#f08a7a', detail = {}}) => {
+  const n = Number(detail.count ?? 120);
+  return (
+    <g>
+      {Array.from({length: n}).map((_, i) => {
+        const a = (i * 2.39996) % (Math.PI * 2);
+        const r = 20 + ((i * 53) % 260);
+        const x = Math.cos(a) * r * 1.3 + Math.sin(t * 1.7 + i) * 12;
+        const y = Math.sin(a) * r * 0.55 + Math.cos(t * 1.3 + i * 0.7) * 10;
+        const rot = (i * 47) % 360;
+        return (
+          <g key={i} transform={`translate(${x} ${y}) rotate(${rot})`} opacity={0.85}>
+            <path d="M-9,0 Q-2,-5 9,-1 Q2,3 -9,0 Z" fill={color} />
+            <circle cx={8} cy={-1} r={1.3} fill="#111" />
+          </g>
+        );
+      })}
+    </g>
+  );
+};
+
 export const CREATURES: Record<string, React.FC<CreatureProps>> = {
   spermWhale: SpermWhale, giantSquid: GiantSquid, orca: Orca, shark: Shark, anglerfish: Anglerfish,
   jellyfish: Jellyfish, diver: Diver, fishSchool: FishSchool, octopus: Octopus,
+  leopardSeal: LeopardSeal, seaLion: SeaLion, furSeal: SeaLion, penguin: Penguin, krill: Krill,
 };
 
 /** Horizontal drawing extent [left, right] in local units, used to keep creatures clear of text panels. */
 export const EXTENTS: Record<string, [number, number]> = {
   spermWhale: [-320, 300], giantSquid: [-300, 495], orca: [-305, 292], shark: [-300, 302], anglerfish: [-250, 290],
   jellyfish: [-100, 100], diver: [-215, 222], fishSchool: [-330, 330], octopus: [-100, 100],
+  leopardSeal: [-326, 300], seaLion: [-306, 292], furSeal: [-306, 292], penguin: [-166, 184], krill: [-350, 350],
 };

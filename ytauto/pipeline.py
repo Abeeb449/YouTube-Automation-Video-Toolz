@@ -13,7 +13,7 @@ from .config import Project
 from .cues import find_word_time, resolve_cues
 from .music import MOODS, build_duck_envelope, build_score, speech_from_audio
 from .sound import BUILTIN, build_track
-from .tts import Cue, SceneAudio, build_scene_audio, strip_directives
+from .tts import Cue, SceneAudio, build_scene_audio, shutdown_workers, strip_directives
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
 
@@ -102,6 +102,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
 
     with ThreadPoolExecutor(max_workers=4) as ex:
         audios = list(ex.map(do_audio, project.scenes))
+    shutdown_workers()  # release voice-model memory before rendering
 
     plans: list[ScenePlan] = []
     t = 0.0

@@ -38,6 +38,8 @@ export type Actor = {
 
 export type OceanSceneProps = DocuProps & {
   depth?: number; depthTo?: number; surface?: boolean; rays?: boolean;
+  /** Above/below the waterline: sky + ice or rocky shore on top, ocean below. y = waterline (0..1). */
+  split?: {y?: number; land?: 'ice' | 'rocks' | 'none'; landWidth?: number; sky?: 'polar' | 'dusk' | 'storm'; floes?: boolean};
   /** Real B-roll behind everything: a video file or "pexels:sperm whale" (resolved by ytauto). */
   footage?: string; footageStart?: number; footageDim?: number;
   actors?: Actor[];
@@ -53,6 +55,54 @@ export type OceanSceneProps = DocuProps & {
 };
 
 const UNIT = 600; // creature drawing length in local units
+
+/** The surface world for split shots: sky, waterline, drifting ice floes, an ice shelf or a rocky shore. */
+const SplitSurface: React.FC<{cfg: NonNullable<OceanSceneProps['split']>}> = ({cfg}) => {
+  const {t, s, width, height} = useT();
+  const wy = (cfg.y ?? 0.34) * height;
+  const sky = cfg.sky === 'dusk' ? ['#2e3242', '#b98a6e'] : cfg.sky === 'storm' ? ['#4a535b', '#8d979e'] : ['#9fb7c7', '#dfe8ee'];
+  const lw = (cfg.landWidth ?? 0.4) * width;
+  const swell = (x: number) => Math.sin(x / (120 * s) + t * 1.2) * 4 * s;
+  const surf = Array.from({length: 49}).map((_, i) => `${(i / 48) * width},${wy + swell((i / 48) * width)}`).join(' ');
+  return (
+    <svg width={width} height={height} style={{position: 'absolute'}}>
+      <defs>
+        <linearGradient id="sp-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={sky[0]} /><stop offset="100%" stopColor={sky[1]} /></linearGradient>
+        <linearGradient id="sp-ice" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="100%" stopColor="#cfe3ee" /></linearGradient>
+        <linearGradient id="sp-under" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a9d4e6" stopOpacity={0.75} /><stop offset="100%" stopColor="#3f7d9c" stopOpacity={0.15} /></linearGradient>
+        <linearGradient id="sp-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b3a38" /><stop offset="100%" stopColor="#1d1d1c" /></linearGradient>
+      </defs>
+      <polygon points={`0,0 ${width},0 ${width},${wy} ${surf.split(' ').reverse().join(' ')} 0,${wy}`} fill="url(#sp-sky)" />
+      {cfg.land === 'rocks' ? (
+        <>
+          <path d={`M0,${wy - 70 * s} L${lw * 0.15},${wy - 95 * s} L${lw * 0.32},${wy - 60 * s} L${lw * 0.5},${wy - 85 * s} L${lw * 0.7},${wy - 40 * s} L${lw * 0.86},${wy - 22 * s} L${lw},${wy + 6 * s} L0,${wy + 6 * s} Z`} fill="url(#sp-rock)" />
+          <path d={`M0,${wy} L${lw * 1.02},${wy} L${lw * 0.8},${wy + 140 * s} L${lw * 0.3},${wy + 260 * s} L0,${wy + 300 * s} Z`} fill="#121516" opacity={0.85} />
+        </>
+      ) : cfg.land === 'ice' ? (
+        <>
+          <path d={`M0,${wy - 80 * s} L${lw * 0.92},${wy - 74 * s} L${lw},${wy - 30 * s} L${lw * 0.97},${wy + 2 * s} L0,${wy + 2 * s} Z`} fill="url(#sp-ice)" />
+          <path d={`M${lw * 0.92},${wy - 74 * s} L${lw},${wy - 30 * s} L${lw * 0.97},${wy + 2 * s} L${lw * 0.88},${wy + 2 * s} Z`} fill="#b9d6e4" />
+          <path d={`M0,${wy} L${lw * 0.97},${wy} L${lw * 0.9},${wy + 150 * s} L${lw * 0.55},${wy + 230 * s} L0,${wy + 260 * s} Z`} fill="url(#sp-under)" />
+        </>
+      ) : null}
+      {cfg.floes !== false
+        ? Array.from({length: 5}).map((_, i) => {
+            const fw = (90 + ((i * 53) % 120)) * s;
+            const x0 = (lw + 60 * s) + i * ((width - lw) / 5) + Math.sin(t * 0.2 + i) * 30 * s;
+            const top = wy - (8 + (i % 3) * 6) * s;
+            return (
+              <g key={i}>
+                <path d={`M${x0},${wy} L${x0 + fw * 0.1},${top} L${x0 + fw * 0.85},${top + 2 * s} L${x0 + fw},${wy} Z`} fill="url(#sp-ice)" />
+                <path d={`M${x0},${wy} L${x0 + fw},${wy} L${x0 + fw * 0.8},${wy + fw * 0.45} L${x0 + fw * 0.2},${wy + fw * 0.5} Z`} fill="url(#sp-under)" />
+              </g>
+            );
+          })
+        : null}
+      <polyline points={surf} fill="none" stroke="#e8f6ff" strokeOpacity={0.75} strokeWidth={2.5 * s} />
+      <rect x={0} y={wy} width={width} height={40 * s} fill="url(#sp-under)" opacity={0.35} />
+    </svg>
+  );
+};
 
 /** Lottie animation loaded from remotion/public (ytauto stages project files there). */
 const LottieAsset: React.FC<{src: string; style: React.CSSProperties}> = ({src, style}) => {
@@ -169,7 +219,8 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
     <DocuFrame {...p} footage={undefined} backdrop="none">
       <AbsoluteFill style={{transform: `scale(${z})`, transformOrigin: `${fx * 100}% ${fy * 100}%`}}>
         {p.footage ? <Footage src={p.footage} startFrom={p.footageStart} dim={p.footageDim} />
-          : <OceanBackdrop depth={p.depth ?? 0.6} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />}
+          : <OceanBackdrop depth={p.depth ?? (p.split ? 0.35 : 0.6)} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />}
+        {p.split && !p.footage ? <SplitSurface cfg={p.split} /> : null}
         {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} />)}
       </AbsoluteFill>
       {p.title ? (

@@ -51,6 +51,9 @@ const DEMOS: Record<string, Record<string, unknown>> = {
   OceanScene: {depth: 0.5, title: 'Biggest predator with teeth', actors: [{creature: 'spermWhale', x: 0.4, y: 0.55, to: [0.45, 0.55], scale: 1.3, detail: {teeth: true}},
     {creature: 'diver', x: 0.85, y: 0.4, scale: 0.35, flip: true, target: {at: 2}}], facts: [{text: 'Biggest predator with teeth, ever'}, {text: 'Sank a ship on purpose', red: true}],
     scaleBar: {x1: 0.16, x2: 0.62, y: 0.78, label: '~16 M'}},
+  Polar: {split: {y: 0.36, land: 'rocks'}, actors: [{creature: 'seaLion', x: 0.16, y: 0.25, scale: 0.4, detail: {rest: true}},
+    {creature: 'penguin', x: 0.3, y: 0.27, scale: 0.12, detail: {stand: true}}, {creature: 'leopardSeal', x: 0.62, y: 0.7, scale: 1.1}],
+    title: 'The ice edge'},
   Meter: {title: 'Loudest animal on Earth', to: 236, unit: 'dB', note: 'measured underwater', footnote: 'Can carry tens of kilometres'},
   Sonar: {title: 'Echolocation', blips: [{label: 'Squid', x: 0.35, y: 0.4, creature: 'giantSquid'}, {label: 'You', x: 0.7, y: 0.3, creature: 'diver', color: '#e5372f'}, {label: 'Fish', x: 0.5, y: 0.62, creature: 'fishSchool'}]},
   TitleCard: {title: 'Your Video Title', subtitle: 'A subtitle goes here', kicker: 'Episode 1'},
@@ -106,6 +109,7 @@ export const Root: React.FC = () => (
     <Composition id="Sonar" component={Sonar as React.FC<any>} {...common} defaultProps={SAFE.Sonar} />
     <Folder name="Demos">
       <Composition id="Demo-OceanScene" component={OceanScene as React.FC<any>} {...common} defaultProps={DEMOS.OceanScene} />
+      <Composition id="Demo-Polar" component={OceanScene as React.FC<any>} {...common} defaultProps={DEMOS.Polar} />
       <Composition id="Demo-Meter" component={Meter as React.FC<any>} {...common} defaultProps={DEMOS.Meter} />
       <Composition id="Demo-Sonar" component={Sonar as React.FC<any>} {...common} defaultProps={DEMOS.Sonar} />
       <Composition id="Demo-TitleCard" component={TitleCard as React.FC<any>} {...common} defaultProps={DEMOS.TitleCard} />

@@ -1,0 +1,775 @@
+# Why Do Sea Lions Fear Leopard Seals? — first channel video (ocean / danger & wonder style)
+# Narration is in script.txt (the same words, split into scenes here with visuals, moods and voice direction).
+# Render:  python -m ytauto render projects/sea-lions-fear-leopard-seals            (add --preview for a fast check)
+# Sources: Krause et al. (Cape Shirreff fur seal collapse); individual-specialisation whisker study (PMC12184730);
+#          Muir, Barnes & Reid 2006 (human–leopard seal interactions); NOAA AMLR field reports.
+preset: ocean
+title: "Why Do Sea Lions Fear Leopard Seals?"
+description: |
+  At the bottom of the world, young sea lions and fur seals face one predator above all others.
+  We follow the leopard seal from its krill-sieving teeth and haunting songs to the Antarctic colony
+  where a handful of hunters is reshaping an entire population.
+
+  Sources: Krause et al. on Cape Shirreff fur seals; studies on leopard seal diet specialisation;
+  Muir, Barnes & Reid (2006), Antarctic Science.
+tags: [leopard seal, sea lion, fur seal, antarctica, ocean predators, wildlife documentary, animals]
+
+settings:
+  voice:
+    engine: qwen
+    name: ryan
+    instruct: "Narrate like a calm, deep-voiced nature documentary narrator: measured, intimate and gripping, with a sense of wonder."
+  music: {source: incompetech, mood: mystery}
+  sound: {whoosh_on_cut: true, whoosh_volume: 0.12}
+
+thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
+youtube: {privacy: private, category_id: 15}
+
+scenes:
+  # ─────────────────────────────── HOOK ───────────────────────────────
+  - chapter: The hook
+    mood: mystery
+    text: "[tone hushed and intimate] A young fur seal stands at the edge of the rocks. Behind it, the colony: hundreds of warm, noisy bodies packed together. Safe."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.42, land: rocks, landWidth: 0.55, sky: storm}
+        zoom: [1.08, 1.0]
+        actors:
+          - {creature: seaLion, x: 0.42, y: 0.33, scale: 0.32, detail: {pup: true, rest: true}, label: {text: "Fur seal pup", at: "young", dy: 0.1}}
+          - {creature: seaLion, x: 0.12, y: 0.3, scale: 0.42, detail: {rest: true}, at: "colony"}
+          - {creature: seaLion, x: 0.26, y: 0.28, scale: 0.38, detail: {rest: true}, flip: true, at: "colony"}
+    sfx: [{sound: swell, at: 0.2, volume: 0.25}]
+
+  - text: "[tone hushed, slow] In front of it, the Southern Ocean. [pause 0.4] Grey. [pause 0.3] Calm. [pause 0.3] And completely silent."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: rocks, landWidth: 0.3, sky: storm}
+        zoom: [1.0, 1.15]
+        focus: [0.6, 0.5]
+        actors:
+          - {creature: seaLion, x: 0.24, y: 0.31, scale: 0.3, detail: {pup: true, rest: true}}
+
+  - text: "It has been watching the water for a long time. [tone tense, building suspense] Because somewhere under that surface is the one animal that every sea lion and fur seal in this part of the world has learned to fear."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.36, land: rocks, landWidth: 0.32, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.22, y: 0.27, scale: 0.3, detail: {pup: true, rest: true}}
+          - {creature: leopardSeal, x: 0.95, y: 0.74, to: [0.62, 0.72], scale: 1.0, silhouette: "#071118", opacity: 0.85, at: "somewhere", enter: fade}
+    sfx: [{sound: swell, at: "fear", volume: 0.35}]
+
+  - text: "[tone low and menacing] It does not chase you across the open ocean. [pause 0.5] It waits right here, at the edge."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.36, land: rocks, landWidth: 0.4, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.3, y: 0.27, scale: 0.3, detail: {pup: true, rest: true}, target: {at: "waits"}}
+          - {creature: leopardSeal, x: 0.55, y: 0.58, to: [0.5, 0.56], scale: 1.0, silhouette: "#071118", opacity: 0.9}
+        callout: "It waits at the edge"
+        calloutAt: "edge"
+
+  - mood: danger
+    text: "[tone serious, quietly shocked] In one Antarctic colony, this hunter has taken around seven out of every ten pups born there, year after year."
+    visual:
+      remotion: DotGrid
+      props:
+        backdrop: abyss
+        value: "7 in 10"
+        label: "Pups taken each year"
+        note: "Cape Shirreff, Antarctica · estimate"
+        count: 10
+        cols: 5
+        highlight: 7
+        fillAt: "seven"
+        source: "Krause et al. · NOAA Antarctic Marine Living Resources"
+
+  - text: "[tone intrigued, leaning in] And the strangest part? [pause 0.5] Scientists think most of that killing comes down to just a handful of individuals."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.85
+        actors:
+          - {creature: leopardSeal, x: 0.3, y: 0.4, scale: 0.6, silhouette: "#0a1218", opacity: 0.8, at: "handful"}
+          - {creature: leopardSeal, x: 0.7, y: 0.62, scale: 0.6, silhouette: "#0a1218", opacity: 0.8, flip: true, at: "handful+0.3"}
+          - {creature: leopardSeal, x: 0.5, y: 0.8, scale: 0.55, silhouette: "#0a1218", opacity: 0.8, at: "individuals"}
+        title: "Just a handful?"
+        titleAt: "handful"
+
+  - text: "[tone slow, deliberate, dramatic] This is the leopard seal. [pause 0.6] And this is why sea lions fear it."
+    duration: 7
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.75
+        zoom: [1.0, 1.12]
+        actors:
+          - {creature: leopardSeal, x: 0.3, y: 0.55, to: [0.52, 0.53], scale: 1.4, detail: {jaw: 0.0}}
+        bigText: "LEOPARD SEAL"
+        bigAt: "leopard"
+    sfx: [{sound: hit, at: "leopard", volume: 0.55}]
+
+  # ─────────────────────────────── THE EARED SEALS ───────────────────────────────
+  - chapter: The eared seals
+    mood: calm
+    text: "[tone warm and curious] To understand the fear, you have to start with the hunted. Sea lions and fur seals belong to the same family: the eared seals."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.25
+        actors:
+          - {creature: seaLion, x: 0.2, y: 0.42, to: [0.45, 0.45], scale: 0.8, label: {text: "Sea lion", at: "Sea"}}
+          - {creature: seaLion, x: 0.55, y: 0.7, to: [0.75, 0.68], scale: 0.6, color: "#5a4a3c", label: {text: "Fur seal", at: "fur"}}
+        title: "The eared seals"
+        titleAt: "eared"
+
+  - text: "You can tell them apart from other seals by the tiny ears on the sides of their heads, and by the way they walk on land, propping themselves up on long front flippers."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.62, land: rocks, landWidth: 0.95, sky: polar, floes: false}
+        actors:
+          - {creature: seaLion, x: 0.45, y: 0.47, scale: 0.85, detail: {rest: true}, ring: {at: "ears", x: 0.565, y: 0.29, r: 0.03}}
+        facts:
+          - {text: "Tiny external ears", at: "ears"}
+          - {text: "Walk on front flippers", at: "propping"}
+
+  - text: "On land, they are loud, social and surprisingly agile. [tone lively, fascinated] In the water, they are fast, playful swimmers that chase fish and squid through the kelp."
+    visual:
+      remotion: OceanScene
+      props:
+        footage: "pexels:sea lion underwater"
+        callout: "Fast, playful swimmers"
+        calloutAt: "playful"
+        fallback:
+          depth: 0.2
+          surface: true
+          actors:
+            - {creature: fishSchool, x: 0.72, y: 0.4, to: [0.55, 0.38], scale: 0.7, color: "#d7e7ee"}
+            - {creature: seaLion, x: 0.15, y: 0.55, to: [0.5, 0.5], scale: 0.9}
+
+  - text: "Most of the time, the ocean is where they are strongest. [pause 0.5] [tone darker, quieter] But far to the south, where the ice begins, that changes."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.2
+        depthTo: 0.7
+        actors:
+          - {creature: seaLion, x: 0.3, y: 0.45, to: [0.65, 0.5], scale: 0.8}
+        callout: "Where the ice begins"
+        calloutAt: "ice"
+
+  - mood: mystery
+    text: "Antarctic fur seals breed on rocky beaches around the islands off the Antarctic Peninsula."
+    visual:
+      remotion: MapScene
+      props:
+        backdrop: abyss
+        bbox: [[-75, -68], [-50, -56]]
+        countryLabels: [{name: "Antarctic Peninsula", lon: -63, lat: -65.5}]
+        title: "Antarctic Peninsula"
+        subtitle: "Southern Ocean"
+        pulses: [{lon: -60.8, lat: -62.47, at: "islands", label: "South Shetland Islands"}]
+        zoom: 1.1
+
+  - text: "[tone tender] Every summer, the mothers give birth on land, then leave their pups on shore for days at a time while they head out to sea to feed."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.5, land: rocks, landWidth: 0.6, sky: polar}
+        actors:
+          - {creature: seaLion, x: 0.2, y: 0.4, scale: 0.4, detail: {rest: true}, color: "#5a4a3c"}
+          - {creature: seaLion, x: 0.35, y: 0.42, scale: 0.26, detail: {rest: true, pup: true}}
+          - {creature: seaLion, x: 0.55, y: 0.7, to: [0.95, 0.75], scale: 0.5, color: "#5a4a3c", at: "sea"}
+        facts:
+          - {text: "Born on land", at: "birth"}
+          - {text: "Left on shore for days", at: "days"}
+
+  - text: "For weeks, a pup's whole world is a strip of rock and the water's edge. [pause 0.4] [tone ominous, slow] And sooner or later, it has to learn to swim."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.42, land: rocks, landWidth: 0.48, sky: storm}
+        zoom: [1.0, 1.25]
+        focus: [0.42, 0.42]
+        actors:
+          - {creature: seaLion, x: 0.4, y: 0.34, scale: 0.3, detail: {rest: true, pup: true}}
+        callout: "It has to learn to swim"
+        calloutAt: "learn"
+
+  # ─────────────────────────────── MEET THE LEOPARD SEAL ───────────────────────────────
+  - chapter: Meet the leopard seal
+    mood: danger
+    text: "[tone low, dramatic] Waiting for it is one of the most remarkable predators in the Southern Ocean."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.8
+        actors:
+          - {creature: leopardSeal, x: 0.1, y: 0.55, to: [0.55, 0.52], scale: 1.3}
+        title: "The leopard seal"
+        titleColor: red
+        titleAt: "predators"
+    sfx: [{sound: swell, at: 0.0, volume: 0.3}]
+
+  - mood: wonder
+    text: "[tone fascinated, vivid] The leopard seal is long, sleek and spotted, with a broad head that looks almost reptilian."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.6
+        zoom: [1.0, 1.6]
+        focus: [0.62, 0.5]
+        actors:
+          - {creature: leopardSeal, x: 0.45, y: 0.5, scale: 1.4, ring: {at: "head", x: 0.705, y: 0.47, r: 0.06}}
+        facts:
+          - {text: "Long and sleek", at: "sleek"}
+          - {text: "Spotted coat", at: "spotted"}
+          - {text: "Reptile-like head", at: "reptilian", red: true}
+
+  - text: "Females are the bigger sex. They can grow to around three and a half metres long and weigh well over four hundred kilograms."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.6
+        actors:
+          - {creature: leopardSeal, x: 0.45, y: 0.48, scale: 1.45}
+          - {creature: diver, x: 0.38, y: 0.78, scale: 0.42, label: {text: "Human for scale", at: "metres", dy: 0.07}}
+        scaleBar: {x1: 0.12, x2: 0.79, y: 0.64, label: "~3.5 M", at: "three"}
+        facts:
+          - {text: "Females are larger", at: "Females"}
+          - {text: "Up to ~3.5 m", at: "three"}
+          - {text: "400+ kg", at: "four", red: true}
+
+  - text: "[tone tense] Its jaws open astonishingly wide, and its front teeth are long, curved and built for gripping."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.7
+        zoom: [1.3, 1.9]
+        focus: [0.66, 0.5]
+        actors:
+          - {creature: leopardSeal, x: 0.45, y: 0.5, scale: 1.4, detail: {jaw: 0.9}}
+        bigText: "BUILT TO GRIP"
+        bigAt: "gripping"
+    sfx: [{sound: thud, at: "jaws", volume: 0.35}]
+
+  - text: "[tone curious, a little playful] But look closer at the back of its mouth, and you find something you would never expect from a hunter like this."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.7
+        zoom: [1.6, 2.4]
+        focus: [0.66, 0.52]
+        actors:
+          - {creature: leopardSeal, x: 0.45, y: 0.5, scale: 1.4, detail: {jaw: 0.6}}
+        title: "Look closer"
+        titleAt: "closer"
+
+  - text: "[tone amazed] Its cheek teeth have three sharp points that lock together like a sieve. A leopard seal can take in a mouthful of seawater, push it out through those teeth, and keep the krill trapped inside."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.35
+        actors:
+          - {creature: krill, x: 0.7, y: 0.5, scale: 0.9, at: "krill-2"}
+          - {creature: leopardSeal, x: 0.15, y: 0.5, to: [0.4, 0.5], scale: 1.1, detail: {jaw: 0.5}}
+        facts:
+          - {text: "Three-pointed cheek teeth", at: "three"}
+          - {text: "Lock together like a sieve", at: "sieve"}
+          - {text: "Filters krill from seawater", at: "krill", red: false}
+
+  - text: "Krill makes up a huge part of its diet. Fish, squid and penguins are on the menu too. [tone darker] But some leopard seals go after something much bigger. [pause 0.6] [tone grave, deliberate] Other seals."
+    visual:
+      remotion: BarCompare
+      props:
+        backdrop: ocean
+        heading: "What leopard seals eat"
+        headingColor: teal
+        subheading: "Rough diet share · varies by place and season"
+        unit: "%"
+        bars:
+          - {label: "Krill", value: 45, color: "#62b6cb", at: "Krill"}
+          - {label: "Fish, squid and penguins", value: 25, color: "#7f8fa0", at: "penguins"}
+          - {label: "Other seals", value: 30, color: "#e5372f", at: "Other"}
+        source: "Diet estimates vary widely between studies and regions"
+
+  - mood: danger
+    text: "Leopard seals are the only seals that regularly hunt other warm-blooded animals. [pause 0.3] Crabeater seal pups. [pause 0.2] Fur seals. [pause 0.2] And, in parts of their range, young sea lions."
+    visual:
+      remotion: SourceList
+      props:
+        backdrop: abyss
+        tag: "Warm-blooded prey"
+        tagNote: "The only seal that hunts them regularly"
+        rows:
+          - {title: "Crabeater seal pups", source: "Antarctic pack ice", at: "Crabeater"}
+          - {title: "Antarctic fur seals", source: "South Shetland Islands", at: "Fur"}
+          - {title: "Young sea lions", source: "Where ranges overlap", at: "young"}
+          - {title: "Penguins", source: "Ice edges and colonies", at: "range"}
+
+  - mood: wonder
+    text: "[tone soft, full of wonder] They are not only hunters. In the breeding season, the males sing. Long, haunting calls that drift for kilometres beneath the ice, and every male has his own song."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.22, land: none, sky: polar}
+        depth: 0.6
+        actors:
+          - {creature: leopardSeal, x: 0.4, y: 0.6, scale: 1.0, rotate: 75, waves: {at: "sing", color: "#bfe8ff"}}
+        title: "It sings"
+        titleAt: "sing"
+        callout: "Every male has his own song"
+        calloutAt: "own"
+
+  - text: "Most of the time, a leopard seal lives alone. It hauls out on drifting floes to rest between hunts, a solitary grey shape on the ice, and slips back into the water without a sound."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.45, land: ice, landWidth: 0.5, sky: polar}
+        zoom: [1.0, 1.1]
+        actors:
+          - {creature: leopardSeal, x: 0.25, y: 0.375, scale: 0.55}
+        callout: "A solitary hunter"
+        calloutAt: "alone"
+
+  - text: "On land it looks clumsy, almost lazy. [tone energised] In the water, it is a different animal: long front flippers, a flexible body, and sudden bursts of speed that most of its prey never see coming."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.55
+        actors:
+          - {creature: leopardSeal, x: -0.1, y: 0.6, to: [1.15, 0.45], scale: 1.1, at: "water"}
+          - {creature: fishSchool, x: 0.75, y: 0.35, to: [0.85, 0.25], scale: 0.6}
+        facts:
+          - {text: "Long front flippers", at: "flippers"}
+          - {text: "Sudden bursts of speed", at: "bursts", red: true}
+    sfx: [{sound: whoosh, at: "bursts", volume: 0.4}]
+
+  - text: "Almost nothing hunts the leopard seal in return. Its main natural enemy is the orca."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.5
+        actors:
+          - {creature: leopardSeal, x: 0.35, y: 0.62, scale: 0.8}
+          - {creature: orca, x: 1.1, y: 0.35, to: [0.62, 0.33], scale: 1.1, at: "orca", enter: fade}
+        callout: "Its main enemy: the orca"
+        calloutAt: "orca"
+
+  # ─────────────────────────────── THE HUNT ───────────────────────────────
+  - chapter: The hunt
+    mood: tension
+    text: "[tone hushed, suspenseful] So how does a leopard seal catch a fur seal pup? [pause 0.7] Patience."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: rocks, landWidth: 0.42, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.32, y: 0.32, scale: 0.28, detail: {pup: true, rest: true}}
+          - {creature: leopardSeal, x: 0.62, y: 0.72, scale: 0.9, silhouette: "#071118", opacity: 0.85}
+        bigText: "PATIENCE."
+        bigAt: "Patience"
+        bigColor: "#e6edf2"
+    sfx: [{sound: ticks, at: 0.3, volume: 0.25, dur: 4}]
+
+  - text: "It patrols the shallows close to the colony, often near the ice edge or just off the beach, exactly where young seals have to enter the water."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.36, land: rocks, landWidth: 0.38, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.14, y: 0.27, scale: 0.36, detail: {rest: true}}
+          - {creature: seaLion, x: 0.28, y: 0.28, scale: 0.26, detail: {pup: true, rest: true}}
+          - {creature: leopardSeal, x: 0.95, y: 0.58, to: [0.5, 0.55], scale: 0.85}
+        callout: "It patrols the shallows"
+        calloutAt: "patrols"
+
+  - text: "[tone low, tense] It stays low and quiet, sometimes hidden beneath floating ice, waiting for an inexperienced swimmer to leave the safety of the rocks."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.3, land: rocks, landWidth: 0.3, sky: storm}
+        actors:
+          - {creature: leopardSeal, x: 0.65, y: 0.42, scale: 0.85, silhouette: "#0b151c", opacity: 0.85}
+          - {creature: seaLion, x: 0.2, y: 0.36, to: [0.3, 0.38], scale: 0.3, detail: {pup: true}, at: "inexperienced"}
+        callout: "Hidden beneath the ice"
+        calloutAt: "hidden"
+
+  - mood: danger
+    text: "[tone sudden, urgent] Then it comes up from below. [pause 0.3] Fast. [pause 0.5] [tone grave] A pup that is still learning to swim has very little chance."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.3, land: none, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.5, y: 0.34, scale: 0.32, detail: {pup: true}, target: {at: "below"}}
+          - {creature: leopardSeal, x: 0.5, y: 1.05, to: [0.5, 0.5], scale: 1.0, rotate: -80, detail: {jaw: 0.7}, at: "below"}
+    sfx: [{sound: riser, at: 0.0, volume: 0.35, dur: 1.4}, {sound: hit, at: "Fast", volume: 0.6}]
+
+  - text: "Leopard seals often shake their prey hard at the surface, tearing it into pieces small enough to swallow. Researchers watching from shore have seen it happen again and again during the pupping season."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: none, sky: storm}
+        actors:
+          - {creature: leopardSeal, x: 0.5, y: 0.47, scale: 0.9, rotate: -15, silhouette: "#141b20", opacity: 0.9}
+        callout: "Seen again and again"
+        calloutAt: "again"
+
+  - mood: tension
+    text: "[tone thoughtful] Penguins know this problem well. At many Antarctic colonies, they gather at the edge of the ice and hesitate, sometimes for a long time, before plunging in together."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.48, land: ice, landWidth: 0.62, sky: polar}
+        actors:
+          - {creature: penguin, x: 0.3, y: 0.355, scale: 0.12, detail: {stand: true}}
+          - {creature: penguin, x: 0.36, y: 0.36, scale: 0.12, detail: {stand: true}}
+          - {creature: penguin, x: 0.42, y: 0.355, scale: 0.12, detail: {stand: true}}
+          - {creature: penguin, x: 0.48, y: 0.36, scale: 0.12, detail: {stand: true}}
+          - {creature: penguin, x: 0.54, y: 0.355, scale: 0.12, detail: {stand: true}, flip: true}
+          - {creature: leopardSeal, x: 0.85, y: 0.75, scale: 0.8, silhouette: "#071118", opacity: 0.8}
+        callout: "They hesitate at the edge"
+        calloutAt: "hesitate"
+
+  - text: "A crowd is harder to single out than one bird on its own. [tone grave] Young fur seals do not have that option. When it is time to learn to swim, they go in where they were born, and the hunter knows exactly where that is."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.38, land: rocks, landWidth: 0.4, sky: storm}
+        actors:
+          - {creature: penguin, x: 0.6, y: 0.55, to: [0.8, 0.6], scale: 0.18}
+          - {creature: penguin, x: 0.65, y: 0.6, to: [0.85, 0.65], scale: 0.18}
+          - {creature: penguin, x: 0.58, y: 0.65, to: [0.78, 0.7], scale: 0.18}
+          - {creature: seaLion, x: 0.3, y: 0.3, scale: 0.28, detail: {pup: true, rest: true}, target: {at: "hunter"}}
+        callout: "The hunter knows where"
+        calloutAt: "knows"
+
+  - text: "[tone slow, emphatic] For a young fur seal, the most dangerous moment of its life is not out in the open ocean. [pause 0.4] It is the first few metres from shore."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: rocks, landWidth: 0.4, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.43, y: 0.45, scale: 0.28, detail: {pup: true}}
+          - {creature: leopardSeal, x: 0.75, y: 0.7, scale: 0.85, silhouette: "#071118", opacity: 0.85}
+        scaleBar: {x1: 0.4, x2: 0.62, y: 0.43, label: "THE FIRST FEW METRES", at: "first"}
+
+  # ─────────────────────────────── THE COLONY THAT COLLAPSED ───────────────────────────────
+  - chapter: The colony that collapsed
+    mood: mystery
+    text: "[tone serious, investigative] Nowhere has this been studied more closely than at Cape Shirreff, on Livingston Island, in the South Shetland Islands."
+    visual:
+      remotion: MapScene
+      props:
+        backdrop: abyss
+        bbox: [[-63.5, -63.2], [-58.5, -61.8]]
+        countryLabels: [{name: "Livingston Island", lon: -60.4, lat: -62.62}]
+        title: "Cape Shirreff"
+        subtitle: "Livingston Island · South Shetland Islands"
+        pulses: [{lon: -60.79, lat: -62.46, at: "Shirreff", label: "Cape Shirreff"}]
+        zoom: 1.12
+
+  - text: "These fur seals have already survived one disaster. In the eighteen hundreds, sealers hunted them for their fur until they nearly disappeared. [tone hopeful] Over the following century, they made one of the great comebacks in the Southern Ocean."
+    visual:
+      remotion: Counter
+      props:
+        backdrop: ocean
+        heading: "A first near-extinction"
+        subheading: "Commercial sealing, 1800s"
+        from: 1800
+        to: 2007
+        plain: true
+        label: "From near extinction to recovery"
+        countAt: "sealers"
+        timeline:
+          start: 1800
+          end: 2025
+          tickEvery: 25
+          events:
+            - {year: 1820, label: "Sealing boom", at: "sealers"}
+            - {year: 1950, label: "Recovery", at: "comebacks"}
+
+  - text: "Scientists have counted the fur seals here for decades. [pause 0.3] [tone grave] And what they found recently is alarming."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.5, land: rocks, landWidth: 0.9, sky: storm, floes: false}
+        actors:
+          - {creature: seaLion, x: 0.15, y: 0.4, scale: 0.3, detail: {rest: true}}
+          - {creature: seaLion, x: 0.3, y: 0.41, scale: 0.3, detail: {rest: true}, flip: true}
+          - {creature: seaLion, x: 0.45, y: 0.4, scale: 0.3, detail: {rest: true}}
+          - {creature: seaLion, x: 0.6, y: 0.41, scale: 0.24, detail: {rest: true, pup: true}}
+          - {creature: seaLion, x: 0.75, y: 0.4, scale: 0.3, detail: {rest: true}, flip: true}
+        title: "Counted for decades"
+        titleAt: "counted"
+
+  - mood: danger
+    text: "Since two thousand and seven, this colony has shrunk by around eighty six percent."
+    visual:
+      remotion: Counter
+      props:
+        backdrop: ember
+        from: 0
+        to: 86
+        suffix: "%"
+        label: "Colony decline since 2007"
+        countAt: "eighty"
+        source: "Cape Shirreff fur seal monitoring · Krause et al."
+    sfx: [{sound: thud, at: "eighty", volume: 0.4}]
+
+  - text: "Every year since twenty ten, leopard seals have eaten an estimated seventy percent of the pups born here. [pause 0.3] In the worst seasons, around eight out of ten."
+    visual:
+      remotion: DotGrid
+      props:
+        backdrop: abyss
+        value: "~70%"
+        label: "Pups eaten by leopard seals each year"
+        note: "Worst seasons: about 8 in 10 · since 2010"
+        count: 100
+        cols: 10
+        highlight: 70
+        fillAt: "seventy"
+        source: "Krause et al. · estimated from field observations"
+
+  - text: "[tone measured, fair] Food shortages may play a part, but researchers believe the leopard seals are the main driver."
+    visual:
+      remotion: BarCompare
+      props:
+        backdrop: abyss
+        heading: "What is driving the collapse?"
+        headingColor: teal
+        bars:
+          - {label: "Food shortages", value: 30, display: "A possible factor", color: "#7f8fa0", at: "Food"}
+          - {label: "Leopard seal predation", value: 100, display: "The main driver", color: "#e5372f", at: "driver"}
+
+  - mood: wonder
+    text: "[tone intrigued, revealing a twist] But here is the twist. [pause 0.6] It is not the whole leopard seal population doing this."
+    visual:
+      remotion: Statement
+      props:
+        backdrop: abyss
+        kicker2: "The twist"
+        line1: "Not the whole"
+        line2: "population"
+        footnote: "Most leopard seals here are not the problem"
+
+  - text: "By reading chemical traces stored in their whiskers, researchers found that many of the leopard seals here are specialists: large adult females that focus on fur seal pups, season after season."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.7
+        zoom: [1.0, 1.9]
+        focus: [0.7, 0.5]
+        actors:
+          - {creature: leopardSeal, x: 0.48, y: 0.52, scale: 1.4, ring: {at: "whiskers", x: 0.74, y: 0.53, r: 0.04}}
+        facts:
+          - {text: "Clues stored in whiskers", at: "whiskers"}
+          - {text: "Specialist hunters", at: "specialists"}
+          - {text: "Large adult females", at: "females", red: true}
+
+  - text: "One estimate suggests that as few as twenty of them may be behind most of the decline."
+    visual:
+      remotion: DotGrid
+      props:
+        backdrop: abyss
+        value: "~20"
+        label: "Specialist leopard seals"
+        note: "May be behind most of the decline · estimate"
+        count: 20
+        cols: 10
+        highlight: 20
+        fillAt: "twenty"
+        source: "Whisker isotope study of leopard seal diets (2025)"
+
+  - text: "[tone slow, quietly astonished] Twenty animals, [pause 0.3] reshaping the future of an entire colony."
+    duration: 6
+    visual:
+      remotion: Statement
+      props:
+        backdrop: ember
+        line1: "20 animals."
+        line2: "One colony."
+        footnote: "Reshaping the future of a population"
+
+  # ─────────────────────────────── LIVING WITH FEAR ───────────────────────────────
+  - chapter: Living with fear
+    mood: tension
+    text: "[tone reflective] Fear like this does not only change how many seals survive. It changes how they live."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: rocks, landWidth: 0.45, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.2, y: 0.31, scale: 0.36, detail: {rest: true}}
+          - {creature: seaLion, x: 0.35, y: 0.32, scale: 0.26, detail: {rest: true, pup: true}}
+        callout: "Fear changes how they live"
+        calloutAt: "live"
+
+  - text: "[tone clear, explanatory] Ecologists have a name for it: the landscape of fear. When a predator like this is around, prey animals change where they go, when they move, and how long they stay in dangerous places."
+    visual:
+      remotion: SourceList
+      props:
+        backdrop: ocean
+        tag: "The landscape of fear"
+        tagNote: "How predators change prey behaviour"
+        rows:
+          - {title: "Where they go", at: "where"}
+          - {title: "When they move", at: "when"}
+          - {title: "How long they stay", at: "long"}
+
+  - text: "For an eared seal, the water's edge becomes somewhere to cross quickly, never somewhere to linger. [pause 0.4] [tone grave] The shoreline that should be a nursery becomes a gauntlet."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: rocks, landWidth: 0.35, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.3, y: 0.46, to: [0.95, 0.5], scale: 0.5, color: "#5a4a3c"}
+          - {creature: leopardSeal, x: 0.7, y: 0.78, scale: 0.85, silhouette: "#071118", opacity: 0.75}
+        bigText: "A GAUNTLET"
+        bigAt: "gauntlet"
+
+  # ─────────────────────────────── LEOPARD SEALS AND US ───────────────────────────────
+  - chapter: Leopard seals and us
+    mood: mystery
+    text: "[tone curious] Humans have met leopard seals too. Divers and photographers often describe them as intensely curious. They follow boats, inspect cameras, and sometimes come uncomfortably close."
+    visual:
+      remotion: OceanScene
+      props:
+        footage: "pexels:antarctica boat ice"
+        callout: "Intensely curious"
+        calloutAt: "curious"
+        fallback:
+          depth: 0.3
+          actors:
+            - {creature: diver, x: 0.68, y: 0.4, scale: 0.55, flip: true}
+            - {creature: leopardSeal, x: 0.15, y: 0.6, to: [0.42, 0.55], scale: 0.9}
+
+  - text: "[tone calm, then cautious] Most encounters end peacefully. [pause 0.6] But not all."
+    duration: 5
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.6
+        actors:
+          - {creature: diver, x: 0.68, y: 0.4, scale: 0.5, flip: true}
+          - {creature: leopardSeal, x: 0.3, y: 0.62, scale: 0.9, silhouette: "#0b151c", opacity: 0.9}
+        bigText: "BUT NOT ALL."
+        bigAt: "not"
+        bigColor: "#e6edf2"
+
+  - text: "[tone respectful, quiet and serious] In two thousand and three, a British marine biologist named Kirsty Brown was snorkelling near Rothera Research Station, off the Antarctic Peninsula, when a leopard seal pulled her under. [pause 0.5] She did not survive."
+    visual:
+      remotion: Horizon
+      props:
+        mood: grey
+        silhouettes: false
+        title: "Rothera Research Station"
+        subtitle: "Antarctic Peninsula · July 2003"
+        titleAt: "Rothera"
+
+  - text: "[tone respectful] It remains the only recorded human death caused by a leopard seal. Since then, researchers there watch the water for half an hour before anyone dives in."
+    visual:
+      remotion: StatCards
+      props:
+        backdrop: abyss
+        heading: "A rare tragedy"
+        subheading: "Muir, Barnes & Reid · Antarctic Science, 2006"
+        cards:
+          - {label: "Recorded human deaths", value: "1", bar: 0.05, at: "only"}
+          - {label: "Watch before every dive", value: "30 min", bar: 0.5, at: "half"}
+
+  - text: "[tone thoughtful, balanced] It is a sobering reminder of what this animal is. [pause 0.4] Not a monster. [pause 0.3] A top predator, doing exactly what it evolved to do."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.5
+        actors:
+          - {creature: leopardSeal, x: 0.2, y: 0.55, to: [0.6, 0.5], scale: 1.2}
+        callout: "Not a monster. A top predator."
+        calloutAt: "monster"
+
+  # ─────────────────────────────── WHY THE FEAR MAKES SENSE ───────────────────────────────
+  - chapter: Why the fear makes sense
+    mood: tension
+    text: "[tone building, purposeful] So why do sea lions and fur seals fear the leopard seal?"
+    visual:
+      remotion: Statement
+      props:
+        backdrop: abyss
+        kicker2: "The answer"
+        line1: "Why the fear"
+        line2: "makes sense"
+
+  - text: "Because it hunts them where they are weakest: at the edge, in the shallows, at the very moment the young first enter the sea."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.38, land: rocks, landWidth: 0.4, sky: storm}
+        actors:
+          - {creature: seaLion, x: 0.42, y: 0.43, scale: 0.28, detail: {pup: true}, target: {at: "weakest"}}
+          - {creature: leopardSeal, x: 0.72, y: 0.66, scale: 0.85}
+        facts:
+          - {text: "At the edge", at: "edge"}
+          - {text: "In the shallows", at: "shallows"}
+          - {text: "At their first swim", at: "first", red: true}
+
+  - text: "Because it is patient, powerful and, in some places, highly specialised. [pause 0.4] [tone grave, slow] And because, for a young eared seal at the bottom of the world, the first swim can also be the last."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.8
+        actors:
+          - {creature: leopardSeal, x: 0.5, y: 0.55, scale: 1.3, detail: {jaw: 0.4}}
+        facts:
+          - {text: "Patient", at: "patient"}
+          - {text: "Powerful", at: "powerful"}
+          - {text: "Specialised", at: "specialised", red: true}
+
+  - mood: mystery
+    text: "[tone reflective, a little uneasy] The story is not finished. As Antarctica warms and its sea ice changes, the balance between hunter and hunted is shifting too, and scientists are still working out what that will mean for both."
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.45, land: ice, landWidth: 0.35, sky: dusk}
+        depth: 0.5
+        actors:
+          - {creature: leopardSeal, x: 0.65, y: 0.7, scale: 0.8}
+          - {creature: seaLion, x: 0.22, y: 0.39, scale: 0.28, detail: {rest: true, pup: true}}
+        callout: "The balance is shifting"
+        calloutAt: "balance"
+
+  - text: "[tone hushed, slow, haunting] Somewhere in the Southern Ocean right now, a pup is looking at the water. [pause 0.7] [speed 0.88] And something beneath the ice is looking back."
+    duration: 9
+    visual:
+      remotion: OceanScene
+      props:
+        split: {y: 0.4, land: ice, landWidth: 0.45, sky: dusk}
+        zoom: [1.0, 1.2]
+        focus: [0.5, 0.6]
+        actors:
+          - {creature: seaLion, x: 0.35, y: 0.34, scale: 0.28, detail: {rest: true, pup: true}}
+          - {creature: leopardSeal, x: 0.62, y: 0.68, scale: 1.0, silhouette: "#05090d", opacity: 0.95, flip: true, at: "beneath"}
+        bigText: "LOOKING BACK."
+        bigAt: "back"
+        bigColor: "#e6edf2"
+    sfx: [{sound: swell, at: "beneath", volume: 0.35}]
+
+  - chapter: Outro
+    mood: wonder
+    text: "[tone warm, inviting] If you want to meet more of the ocean's most fascinating hunters, subscribe. There is a lot more down there."
+    visual:
+      remotion: OceanScene
+      props:
+        depth: 0.4
+        depthTo: 0.9
+        actors:
+          - {creature: orca, x: 0.2, y: 0.35, to: [0.45, 0.33], scale: 0.7}
+          - {creature: spermWhale, x: 0.75, y: 0.6, to: [0.6, 0.62], scale: 0.8, flip: true}
+          - {creature: anglerfish, x: 0.5, y: 0.82, scale: 0.3}
+        title: "Subscribe for more"
+        titleAt: "subscribe"

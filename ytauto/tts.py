@@ -456,6 +456,23 @@ class _Worker:
         return res
 
 
+    def stop(self):
+        with self.lock:
+            if self.proc is not None and self.proc.poll() is None:
+                try:
+                    self.proc.stdin.close()
+                    self.proc.wait(timeout=20)
+                except Exception:  # noqa: BLE001
+                    self.proc.kill()
+            self.proc = None
+
+
+def shutdown_workers() -> None:
+    """Free the big voice models (several GB of RAM) before the video rendering starts."""
+    for w in (_qwen, _cbox):
+        w.stop()
+
+
 _WORKERS_DIR = Path(__file__).resolve().parent / "tts_workers"
 _qwen = _Worker("Qwen3-TTS", os.environ.get("YTAUTO_QWEN_PYTHON", "/opt/tts-qwen/bin/python"), str(_WORKERS_DIR / "qwen_worker.py"))
 _cbox = _Worker("Chatterbox", os.environ.get("YTAUTO_CHATTERBOX_PYTHON", "/opt/tts-chatterbox/bin/python"),

@@ -6,6 +6,8 @@ import {C, DocuFrame, DocuProps, F, fmtNum, prog, Reveal, stagger, useT} from '.
 export type CounterProps = DocuProps & {
   from?: number; to: number; prefix?: string; suffix?: string; decimals?: number;
   label?: string; countAt?: number; countDur?: number;
+  /** No thousands separators (for years). */
+  plain?: boolean;
   timeline?: {start: number; end: number; tickEvery?: number; events?: {year: number; label: string; at?: number}[]; band?: {from: number; to: number; label: string}};
 };
 
@@ -22,7 +24,7 @@ export const Counter: React.FC<CounterProps> = (p) => {
     <DocuFrame {...p}>
       <div style={{position: 'absolute', left: 110 * s, top: p.heading ? 200 * s : 90 * s, filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}}>
         <div style={{fontSize: 150.0 * s, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums'}}>
-          {p.prefix}{fmtNum(v, p.decimals ?? 0)}{p.suffix}
+          {p.prefix}{p.plain ? Math.round(v).toString() : fmtNum(v, p.decimals ?? 0)}{p.suffix}
         </div>
         {p.label ? <Reveal at={at + cd * 0.6}><div style={{fontSize: 28 * s, color: C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: 12 * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
       </div>
