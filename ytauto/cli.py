@@ -180,7 +180,7 @@ def cmd_voiceover(a) -> int:
     shutdown_workers()
     gap = cache / "scene_gap.wav"
     from .tts import _silence
-    _silence(gap, float(st.get("padding", 0.3)) + 0.25)
+    _silence(gap, float(st.get("padding", 0.3)))
     lst = cache / "voiceover_list.txt"
     lst.write_text("".join(f"file '{p.resolve()}'\n" for au in audios for p in (au.path, gap)))
     out = Path(a.out) if a.out else project.build_dir / ("voiceover-plain.mp3" if a.plain else "voiceover.mp3")

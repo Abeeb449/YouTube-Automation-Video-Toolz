@@ -100,9 +100,9 @@ PRESETS: dict[str, dict] = {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
-        "padding": 0.3, "sentence_gap": 0.4, "pause_scale": 0.8, "loudness": -16,
+        "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
         # phrasing: retake sentences that hesitate mid-phrase, then pause only at punctuation (ytauto/prosody.py)
-        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 148, "max_tempo": 1.08},
+        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
                   "instruct": "Narrate like a calm, authoritative documentary narrator: measured, clear and gripping."},
@@ -114,9 +114,9 @@ PRESETS: dict[str, dict] = {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
-        "padding": 0.3, "sentence_gap": 0.4, "pause_scale": 0.8, "loudness": -16,
+        "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
         # phrasing: retake sentences that hesitate mid-phrase, then pause only at punctuation (ytauto/prosody.py)
-        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 148, "max_tempo": 1.08},
+        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
                   "instruct": "Narrate like a calm, deep-voiced nature documentary narrator: hushed and suspenseful, with a sense of wonder."},
@@ -129,8 +129,8 @@ PRESETS: dict[str, dict] = {
         # 3D close-ups where a model exists, infographics for numbers. See .claude/skills/animal-documentary.
         "crf": 18, "preset": "medium", "tune": "film",
         "transition": "none",
-        "padding": 0.3, "sentence_gap": 0.4, "pause_scale": 0.8, "loudness": -16,
-        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 148, "max_tempo": 1.08},
+        "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
+        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
                   "instruct": "Narrate like a calm, deep-voiced wildlife documentary narrator: warm, vivid and gripping, with a sense of wonder."},
