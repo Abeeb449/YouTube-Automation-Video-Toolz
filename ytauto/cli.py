@@ -176,6 +176,13 @@ def cmd_make(a) -> int:
     return 0
 
 
+def cmd_sprites(a) -> int:
+    from .sprites import ensure_all
+
+    ensure_all(force=a.force)
+    return 0
+
+
 def cmd_voices(a) -> int:
     from .tts import list_voices
 
@@ -306,6 +313,10 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--preview", action="store_true")
             p.add_argument("--replan", action="store_true", help="re-plan even if script.yaml exists")
         p.set_defaults(fn=fn)
+
+    p = sp.add_parser("sprites", help="render the 3D creature sprite library with Blender")
+    p.add_argument("--force", nargs="*", default=[], help="re-render, e.g. leopardSeal or leopardSeal:side")
+    p.set_defaults(fn=cmd_sprites)
 
     p = sp.add_parser("voices", help="list available voices")
     p.add_argument("--engine", default="kokoro", choices=["kokoro", "edge", "piper", "espeak", "elevenlabs"])

@@ -100,24 +100,24 @@ PRESETS: dict[str, dict] = {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
-        "padding": 0.25, "sentence_gap": 0.18, "pause_scale": 0.6,
+        "padding": 0.25, "sentence_gap": 0.18, "pause_scale": 0.6, "loudness": -16,
         "voice_polish": {"enabled": True, "max_gap": 0.25, "keep_gap": 0.12, "tempo": 1.04},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "instruct": "Narrate like a calm, authoritative documentary narrator: measured, clear and gripping."},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
-        "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.8, "duck": 0.45},
+        "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "chapters", "whoosh_volume": 0.12},
     },
     "ocean": {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
-        "padding": 0.25, "sentence_gap": 0.18, "pause_scale": 0.6,
+        "padding": 0.25, "sentence_gap": 0.18, "pause_scale": 0.6, "loudness": -16,
         "voice_polish": {"enabled": True, "max_gap": 0.25, "keep_gap": 0.12, "tempo": 1.04},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "instruct": "Narrate like a calm, deep-voiced nature documentary narrator: hushed and suspenseful, with a sense of wonder."},
         "subtitles": {"burn": False},
-        "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.8, "duck": 0.45},
+        "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "chapters", "whoosh_volume": 0.12},
     },
     "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 64, "max_chars": 22, "margin_v": 520}},

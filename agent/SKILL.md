@@ -22,7 +22,8 @@ or on free GitHub Actions.
 | Music | **Kevin MacLeod / Incompetech** (CC BY 4.0) fetched by mood; built-in synth score as fallback | Credits written to the description automatically |
 | Sound effects | Built-in synthesizer (`ytauto/sound.py`) | whoosh, swell, riser, hit, thud, boom, tick(s), typing, glitch, beep, alarm |
 | Stock B-roll | **Pixabay** API (`PIXABAY_API_KEY`), Pexels if you hold a key | Pexels has paused new keys; Pixabay is free |
-| 3D (optional) | **Blender** (Cycles CPU) | `{blender: intro}` titles |
+| 3D animals | **Blender** EEVEE (Mesa software GL, no GPU needed) | `blender/creatures3d.py` builds and rigs the leopard seal, sea lion and pup procedurally and renders looping transparent sprite sheets (`ytauto sprites`). OceanScene uses them automatically |
+| 3D titles (optional) | **Blender** (Cycles CPU) | `{blender: intro}` titles |
 | Images | **rembg** (`ytauto cutout`), Inkscape, ImageMagick, potrace, librsvg | Turn any picture into a transparent cut-out actor |
 | Lottie | `@remotion/lottie` | Free LottieFiles animals: `lottie: assets/x.json` |
 | Audio tools | sox, numpy | |
@@ -137,7 +138,14 @@ leopardSeal, seaLion (= furSeal), penguin, krill**. Or use `image: assets/x.png`
 | `label: {text, at, dy}` | Name under the animal (above it for land animals) |
 | `target: {at}` | Red lock-on brackets (the prey is being watched) |
 | `waves: {at}` | Sound-wave arcs (song, echolocation) |
+| `view: side\|three_quarter`, `flat: true` | 3D sprite angle; `flat: true` forces the 2D drawing for that actor |
 | `ring: {at, local: [x, y], r}` | Spotlight ring on a point of the animal's own drawing (`local` is in creature units: leopardSeal head ≈ [248, −12], whiskers ≈ [292, 8]; resting seaLion ear ≈ [200, −166]; giantSquid eye ≈ [34, −2]) |
+
+**3D sprites:** leopardSeal (side, three_quarter, rest), seaLion/furSeal (side, rest) and pups (side, rest) are drawn as
+rendered Blender 3D models (swimming loops at 24 fps, resting poses grounded on the shore with a contact shadow).
+The renderer builds any missing set before the video, about 2 min per swim loop on CPU, and caches them in
+`remotion/public/sprites/`. Rebuild with `python -m ytauto sprites --force [creature:view …]`. Other creatures keep their
+2D drawings. Turn 3D off for a project with `settings: {render3d: false}`.
 
 `Meter`: `title, from, to, unit, note, footnote, countAt` (e.g. 0 → 236 dB).
 `Sonar`: `title, blips: [{label, x, y, creature, scale, at, color}]`.

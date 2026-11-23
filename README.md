@@ -146,6 +146,7 @@ scenes:
 | Colour / text card | `"#0f172a"` or `{color: "#000", text: "Chapter 2", subtext: "..."}` | Pure ffmpeg, very fast |
 | Remotion | `{remotion: TitleCard, props: {...}}` | Animated templates (see below) |
 | Blender | `{blender: intro, props: {text: ...}}` · `{blender: spin}` · `{blender: scenes/logo.blend}` | 3D, CPU-rendered (Cycles) |
+| 3D animals | automatic inside `OceanScene` | Blender-rendered sprite loops for leopard seal / sea lion / pup (`ytauto sprites`) |
 
 **Remotion templates** live in `remotion/src/`. Each one adapts to the scene length and the project's colours:
 

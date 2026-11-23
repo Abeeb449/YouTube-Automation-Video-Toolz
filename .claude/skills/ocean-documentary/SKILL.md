@@ -40,6 +40,13 @@ Shortcut: if the user just gives narration, save it as `projects/<slug>/script.t
    labels aren't covered, there are no empty frames, and nothing contradicts the narration.
 6. **Render and deliver**, as in the whatif-documentary skill.
 
+## 3D animals
+
+Leopard seals, sea lions / fur seals and pups render as Blender 3D models (`blender/creatures3d.py`, procedural mesh,
+spotted shader, armature swim loop) instead of flat drawings. Sprites are cached in `remotion/public/sprites/` and built
+automatically when a video needs a set that is missing (`python -m ytauto sprites` to pre-build). Per actor:
+`view: three_quarter` (leopard seal), `flat: true` for the 2D drawing. Project switch: `settings.render3d: false`.
+
 ## Voice
 
 Default: **Qwen3-TTS `ryan`** (Apache 2.0, free, commercial OK) directed with the preset's `instruct`

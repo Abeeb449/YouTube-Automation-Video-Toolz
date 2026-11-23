@@ -123,6 +123,15 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     # 2) Visual clips -----------------------------------------------------------------------
     log("Step 2/5: rendering visuals")
     renderer = ClipRenderer(project)
+    sprite_man = {}
+    if st.get("render3d", True):
+        from .sprites import manifest, render_set, SETS, used_sprites
+        for creature, view in sorted(used_sprites(project)):
+            try:
+                render_set(creature, view, SETS[creature][view])
+            except YtautoError as exc:
+                warn(f"3D sprite {creature}/{view} unavailable ({exc}); using the drawn version")
+        sprite_man = manifest()
     jobs = []
     seq = 0
     for plan in plans:
@@ -132,6 +141,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             # Remotion KineticText with no explicit text uses the narration.
             if isinstance(spec, dict) and spec.get("remotion") == "KineticText":
                 spec = {**spec, "props": {"text": strip_directives(scene.text), **(spec.get("props") or {})}}
+            # 3D creature sprites (Blender) replace the flat drawings when available.
+            if isinstance(spec, dict) and spec.get("remotion") == "OceanScene" and st.get("render3d", True) and sprite_man:
+                spec = {**spec, "props": {**(spec.get("props") or {}), "sprites": sprite_man}}
             # Word cues (at: "Hiroshima") → seconds within this clip.
             if isinstance(spec, dict) and spec.get("props"):
                 spec = {**spec, "props": resolve_cues(spec["props"], plan.audio.words, offset_frames / fps, fr / fps,
@@ -228,14 +240,14 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             generated = True
         if mfile is not None:
             inputs += ["-stream_loop", "-1", "-i", mfile]
-            vol = float(music.get("volume", 0.8))
+            vol = float(music.get("volume", 0.5))
             space = ",aecho=0.8:0.55:90|170|290:0.32|0.22|0.14" if generated else ""
             # Normalise any track to the same loudness first, so `volume` means the same for every song.
             level = "loudnorm=I=-20:TP=-2" if not music.get("source") or generated else "volume=2dB"
             filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,{level}{space},"
                            f"volume={vol},atrim=0:{total:.3f},afade=t=in:d=2,afade=t=out:st={max(0, total - 7):.3f}:d=7[mus]")
             idx += 1
-            duck = music.get("duck", 0.45)
+            duck = music.get("duck", 0.4)
             if duck is True:
                 duck = 0.45
             if duck:
@@ -249,11 +261,21 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             else:
                 mix.append("[mus]")
     lufs = st.get("loudness", -14)
-    filters.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0,"
-                   f"loudnorm=I={lufs}:TP=-1.5:LRA=11,aresample=48000[aout]")
-    mixed = work / "mix.m4a"
+    filters.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0[aout]")
+    premix = work / "premix.wav"
     run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
-         "-t", f"{total:.3f}", "-c:a", "aac", "-b:a", "192k", mixed])
+         "-t", f"{total:.3f}", "-c:a", "pcm_s16le", premix])
+    # Two-pass, linear loudness normalisation: one fixed gain for the whole video (no pumping or squashing).
+    meas = run(["ffmpeg", "-v", "info", "-i", premix, "-af", f"loudnorm=I={lufs}:TP=-1.5:LRA=11:print_format=json",
+                "-f", "null", "-"])
+    try:
+        m = json.loads(meas[meas.rindex("{"):meas.rindex("}") + 1])
+        ln = (f"loudnorm=I={lufs}:TP=-1.5:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:"
+              f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
+    except (ValueError, KeyError):
+        ln = f"loudnorm=I={lufs}:TP=-1.5:LRA=11"
+    mixed = work / "mix.m4a"
+    run(["ffmpeg", "-y", "-v", "error", "-i", premix, "-af", f"{ln},aresample=48000", "-c:a", "aac", "-b:a", "192k", mixed])
 
     # 5) Captions, watermark, chapters, final mux -----------------------------------------
     log("Step 5/5: captions + final encode")

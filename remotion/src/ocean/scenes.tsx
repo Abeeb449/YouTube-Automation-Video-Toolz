@@ -20,6 +20,10 @@ export type Actor = {
   scale?: number; scaleTo?: number; allowTiny?: boolean;
   /** Gentle idle motion when the actor has no `to` (default true). */
   idle?: boolean;
+  /** 3D sprite camera view: side (default) | three_quarter. Land animals (detail.rest) use the rest pose. */
+  view?: string;
+  /** Force the flat drawing even when a 3D sprite exists. */
+  flat?: boolean;
   flip?: boolean; rotate?: number;
   at?: number;
   enter?: 'fade' | 'left' | 'right' | 'none';
@@ -38,7 +42,12 @@ export type Actor = {
   ring?: {at?: number; x?: number; y?: number; r?: number; local?: [number, number]};
 };
 
+type SpriteMeta = {frames: number; w: number; h: number; bbox: [number, number, number, number]; fps: number};
+type SpriteManifest = Record<string, Record<string, SpriteMeta>>;
+
 export type OceanSceneProps = DocuProps & {
+  /** 3D creature sprites rendered by Blender (injected by ytauto). */
+  sprites?: SpriteManifest;
   depth?: number; depthTo?: number; surface?: boolean; rays?: boolean;
   /** Above/below the waterline: sky + ice or rocky shore on top, ocean below. y = waterline (0..1). */
   split?: {y?: number; land?: 'ice' | 'rocks' | 'none'; landWidth?: number; sky?: 'polar' | 'dusk' | 'storm'; floes?: boolean};
@@ -158,7 +167,16 @@ export const Footage: React.FC<{src: string; startFrom?: number; dim?: number}> 
   );
 };
 
-const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: OceanSceneProps['split']}> = ({a, i, maxRight, split}) => {
+const spriteFor = (a: Actor, man?: SpriteManifest): {key: string; view: string; meta: SpriteMeta} | null => {
+  if (!man || a.flat || !a.creature) return null;
+  const pup = !!a.detail?.pup;
+  const key = (a.creature === 'seaLion' || a.creature === 'furSeal') ? (pup ? 'seaLionPup' : 'seaLion') : a.creature;
+  const view = a.detail?.rest ? 'rest' : a.view ?? 'side';
+  const meta = man[key]?.[view];
+  return meta ? {key, view, meta} : null;
+};
+
+const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: OceanSceneProps['split']; sprites?: SpriteManifest}> = ({a, i, maxRight, split, sprites}) => {
   const {t, dur, s, width, height} = useT();
   const onLand = !!(a.detail && (a.detail.rest || a.detail.stand));
   const at = a.at ?? 0;
@@ -194,6 +212,40 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: Ocean
   const halfW = (UNIT / 2) * sc, halfH = UNIT * 0.2 * sc;
   const fid = `sil${i}`;
   const tp = a.target ? prog(t, a.target.at ?? at + 0.5, 0.35) : 0;
+  const spr = spriteFor(a, sprites);
+  let sprite: React.ReactNode = null;
+  let sprTop: number | null = null, sprBottom: number | null = null;   // top edge of the sprite's visible body (labels sit just above it)
+  if (spr) {
+    const {meta} = spr;
+    const [bx0, by0, bx1, by1] = meta.bbox;
+    const bw = (bx1 - bx0) / meta.w;
+    const dw = (UNIT * sc * 0.97) / Math.max(0.05, bw);           // displayed image width (creature matches drawn length)
+    const dh = dw * (meta.h / meta.w);
+    const cxF = (bx0 + bx1) / 2 / meta.w, cyF = (by0 + by1) / 2 / meta.h;
+    let top = py - cyF * dh;
+    if (onLand && split && terrainY(split, px, width, height, s) !== null) {
+      top = (terrainY(split, px, width, height, s) as number) - (by1 / meta.h) * dh + 0.035 * dh;   // flippers settle into the ground
+    }
+    const left = px - cxF * dw;
+    sprTop = top + (by0 / meta.h) * dh;
+    sprBottom = top + (by1 / meta.h) * dh;
+    const idx = meta.frames > 1 ? (Math.floor((t + i * 0.37) * meta.fps) % meta.frames) + 1 : 1;
+    const file = `sprites/${spr.key}/${spr.view}/${String(idx).padStart(4, '0')}.webp`;
+    const shadowW = (bx1 - bx0) / meta.w * dw * 0.8;
+    sprite = (
+      <>
+      {onLand && !a.silhouette ? (
+        <div style={{position: 'absolute', left: px - shadowW / 2, top: top + (by1 / meta.h) * dh - 0.035 * dh - 10 * s, width: shadowW, height: 22 * s,
+          borderRadius: '50%', background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0) 72%)', opacity: op}} />
+      ) : null}
+      <Img src={staticFile(file)} style={{position: 'absolute', left, top, width: dw, height: dh, opacity: op,
+        transformOrigin: `${cxF * 100}% ${cyF * 100}%`,
+        transform: `${a.flip ? 'scaleX(-1) ' : ''}rotate(${((a.rotate ?? 0) + sway) * (a.flip ? -1 : 1)}deg)`,
+        filter: [a.silhouette ? `brightness(0.08) drop-shadow(0 0 ${8 * s}px rgba(150,200,225,0.45))` : '',
+                 a.blur ? `blur(${a.blur * s}px)` : ''].join(' ').trim() || undefined}} />
+      </>
+    );
+  }
   return (
     <>
       <svg width={width} height={height} style={{position: 'absolute', opacity: op, overflow: 'visible',
@@ -204,7 +256,7 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: Ocean
           ) : null}
         </defs>
         <g transform={`translate(${px} ${py}) rotate(${(a.rotate ?? 0) + sway}) scale(${a.flip ? -sc : sc} ${sc})`} filter={a.silhouette ? `url(#${fid})` : undefined}>
-          {Comp ? <Comp t={t + i * 1.7} color={a.color} detail={a.detail} /> : null}
+          {Comp && !spr ? <Comp t={t + i * 1.7} color={a.color} detail={a.detail} /> : null}
         </g>
         {a.waves ? Array.from({length: 4}).map((_, j) => {
           const wt = t - (a.waves!.at ?? at) - j * 0.35;
@@ -233,6 +285,7 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: Ocean
           </g>
         ) : null}
       </svg>
+      {sprite}
       {a.image ? (
         <Img src={staticFile(a.image)} style={{position: 'absolute', left: px - halfW, top: py - halfW * 0.5, width: halfW * 2, opacity: op,
           transform: `${a.flip ? 'scaleX(-1) ' : ''}rotate(${(a.rotate ?? 0) + Math.sin(t * 1.4 + i) * 1.5}deg)`,
@@ -243,7 +296,7 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: Ocean
           transform: `${a.flip ? 'scaleX(-1) ' : ''}rotate(${a.rotate ?? 0}deg)`, filter: a.silhouette ? 'brightness(0)' : undefined}} />
       ) : null}
       {a.label ? (
-        <div style={{position: 'absolute', left: px, top: py + (a.label.dy ?? (onLand ? -0.2 : 0.16)) * height, transform: 'translateX(-50%)', fontFamily: F.sans, fontWeight: 800,
+        <div style={{position: 'absolute', left: px, top: a.label.dy === undefined && sprTop !== null ? (onLand ? sprTop - 44 * s : (sprBottom as number) + 12 * s) : py + (a.label.dy ?? (onLand ? -0.2 : 0.16)) * height, transform: 'translateX(-50%)', fontFamily: F.sans, fontWeight: 800,
           fontSize: 28 * s, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: a.label.color ?? C.text, opacity: prog(t, a.label.at ?? at + 0.4, 0.5),
           whiteSpace: 'nowrap', textShadow: '0 2px 12px rgba(0,0,0,.7)'}}>
           {a.label.text}
@@ -268,7 +321,7 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
         {p.footage ? <Footage src={p.footage} startFrom={p.footageStart} dim={p.footageDim} />
           : <OceanBackdrop depth={p.depth ?? (p.split ? 0.35 : 0.6)} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />}
         {p.split && !p.footage ? <SplitSurface cfg={p.split} /> : null}
-        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} split={p.footage ? undefined : p.split} />)}
+        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} split={p.footage ? undefined : p.split} sprites={p.sprites} />)}
       </AbsoluteFill>
       {p.title ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: 70 * s, textAlign: 'center', opacity: tp}}>
