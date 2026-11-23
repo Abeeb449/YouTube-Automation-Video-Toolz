@@ -16,8 +16,10 @@ export type Actor = {
   lottie?: string;
   /** Position as fractions of the frame (0..1). `to` moves it over the scene. */
   x?: number; y?: number; to?: XY;
-  /** 1 = about a third of the frame wide. */
-  scale?: number; scaleTo?: number;
+  /** 1 = about a third of the frame wide. Small values are raised to a readable minimum unless allowTiny. */
+  scale?: number; scaleTo?: number; allowTiny?: boolean;
+  /** Gentle idle motion when the actor has no `to` (default true). */
+  idle?: boolean;
   flip?: boolean; rotate?: number;
   at?: number;
   enter?: 'fade' | 'left' | 'right' | 'none';
@@ -33,7 +35,7 @@ export type Actor = {
   /** Expanding sound-wave arcs in front of the actor (echolocation). */
   waves?: {at?: number; color?: string};
   /** Spotlight ring: around the actor, or at x/y (frame fractions) with radius r (fraction of frame width). */
-  ring?: {at?: number; x?: number; y?: number; r?: number};
+  ring?: {at?: number; x?: number; y?: number; r?: number; local?: [number, number]};
 };
 
 export type OceanSceneProps = DocuProps & {
@@ -55,6 +57,34 @@ export type OceanSceneProps = DocuProps & {
 };
 
 const UNIT = 600; // creature drawing length in local units
+
+/** Smallest on-screen scale per creature so nothing ever reads as a speck (opt out with allowTiny). */
+const MIN_SCALE: Record<string, number> = {
+  spermWhale: 0.7, giantSquid: 0.6, orca: 0.6, shark: 0.55, anglerfish: 0.32, jellyfish: 0.3, diver: 0.38,
+  fishSchool: 0.45, octopus: 0.3, leopardSeal: 0.62, seaLion: 0.42, furSeal: 0.42, penguin: 0.22, krill: 0.4,
+};
+const PUP_MIN = 0.32;
+const STAND_PENGUIN_MIN = 0.16;
+
+/** Height of the land surface (px) at x for a split shot, or null over open water. Mirrors SplitSurface. */
+export const terrainY = (cfg: NonNullable<OceanSceneProps['split']>, x: number, width: number, height: number, s: number): number | null => {
+  const wy = (cfg.y ?? 0.34) * height;
+  const lw = (cfg.landWidth ?? 0.4) * width;
+  if (cfg.land === 'ice') {
+    if (x > lw * 0.92) return x < lw ? wy - 74 * s + ((x - lw * 0.92) / (lw * 0.08)) * 44 * s : null;
+    return wy - 74 * s - (x / (lw * 0.92)) * -6 * s - 6 * s;
+  }
+  if (cfg.land === 'rocks') {
+    const pts: [number, number][] = [[0, -70], [0.15, -95], [0.32, -60], [0.5, -85], [0.7, -40], [0.86, -22], [1, 6]];
+    const f = x / lw;
+    if (f > 1) return null;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+      if (f >= x0 && f <= x1) return wy + (y0 + ((f - x0) / (x1 - x0)) * (y1 - y0)) * s;
+    }
+  }
+  return null;
+};
 
 /** The surface world for split shots: sky, waterline, drifting ice floes, an ice shelf or a rocky shore. */
 const SplitSurface: React.FC<{cfg: NonNullable<OceanSceneProps['split']>}> = ({cfg}) => {
@@ -128,20 +158,33 @@ export const Footage: React.FC<{src: string; startFrom?: number; dim?: number}> 
   );
 };
 
-const ActorView: React.FC<{a: Actor; i: number; maxRight?: number}> = ({a, i, maxRight}) => {
+const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: OceanSceneProps['split']}> = ({a, i, maxRight, split}) => {
   const {t, dur, s, width, height} = useT();
+  const onLand = !!(a.detail && (a.detail.rest || a.detail.stand));
   const at = a.at ?? 0;
   const k = interpolate(t, [at, Math.max(at + 0.01, dur)], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   const ent = prog(t, at, 1.2, Easing.out(Easing.cubic));
-  let x = (a.x ?? 0.5) + ((a.to?.[0] ?? a.x ?? 0.5) - (a.x ?? 0.5)) * k;
-  const y = (a.y ?? 0.5) + ((a.to?.[1] ?? a.y ?? 0.5) - (a.y ?? 0.5)) * k + Math.sin(t * 0.9 + i) * 0.006;
+  // Idle life: swimmers drift forward a little and bob; land animals stay put (they breathe/nod in their drawing).
+  const idle = a.idle !== false && !a.to && !onLand && a.creature !== 'krill' && a.creature !== 'fishSchool';
+  const dir = a.flip ? -1 : 1;
+  let x = (a.x ?? 0.5) + ((a.to?.[0] ?? a.x ?? 0.5) - (a.x ?? 0.5)) * k + (idle ? dir * 0.05 * (t / Math.max(1, dur)) : 0);
+  let y = (a.y ?? 0.5) + ((a.to?.[1] ?? a.y ?? 0.5) - (a.y ?? 0.5)) * k + (onLand ? 0 : Math.sin(t * 0.9 + i) * 0.012);
   if (a.enter === 'left') x -= (1 - ent) * 0.8;
   if (a.enter === 'right') x += (1 - ent) * 0.8;
-  const sc = ((a.scale ?? 1) + ((a.scaleTo ?? a.scale ?? 1) - (a.scale ?? 1)) * k) * (width * 0.33) / UNIT;
+  const minS = a.allowTiny ? 0 : a.creature === 'penguin' && a.detail?.stand ? STAND_PENGUIN_MIN
+    : a.detail?.pup ? PUP_MIN : (a.creature ? MIN_SCALE[a.creature] ?? 0.3 : 0.3);
+  const rawS = (a.scale ?? 1) + ((a.scaleTo ?? a.scale ?? 1) - (a.scale ?? 1)) * k;
+  const sc = Math.max(minS, rawS) * (width * 0.33) / UNIT;
+  const sway = onLand ? 0 : Math.sin(t * 0.7 + i * 1.3) * 1.6; // degrees
   const op = (a.enter === 'none' ? (t >= at ? 1 : 0) : a.enter === 'left' || a.enter === 'right' ? (t >= at ? 1 : 0) : ent) * (a.opacity ?? 1);
   const Comp = a.creature ? CREATURES[a.creature] : undefined;
   let px = x * width;
-  const py = y * height;
+  let py = y * height;
+  // Land animals sit ON the shore/ice: their drawing's ground line (local y = 40, or 120 for standing penguins) meets the surface.
+  if (onLand && split) {
+    const ground = terrainY(split, px, width, height, s);
+    if (ground !== null) py = ground - (a.creature === 'penguin' ? 132 : 40) * sc;
+  }
   // Keep the drawing clear of the fact panel (right side) so text never sits on top of an animal.
   if (maxRight !== undefined) {
     const ext = a.creature ? EXTENTS[a.creature] ?? [-300, 300] : [-300, 300];
@@ -153,13 +196,14 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number}> = ({a, i, ma
   const tp = a.target ? prog(t, a.target.at ?? at + 0.5, 0.35) : 0;
   return (
     <>
-      <svg width={width} height={height} style={{position: 'absolute', opacity: op, filter: a.blur ? `blur(${a.blur * s}px)` : undefined, overflow: 'visible'}}>
+      <svg width={width} height={height} style={{position: 'absolute', opacity: op, overflow: 'visible',
+        filter: [a.blur ? `blur(${a.blur * s}px)` : '', a.silhouette ? `drop-shadow(0 0 ${7 * s}px rgba(150,200,225,0.45))` : ''].join(' ').trim() || undefined}}>
         <defs>
           {a.silhouette ? (
             <filter id={fid}><feFlood floodColor={a.silhouette} /><feComposite in2="SourceAlpha" operator="in" /></filter>
           ) : null}
         </defs>
-        <g transform={`translate(${px} ${py}) rotate(${a.rotate ?? 0}) scale(${a.flip ? -sc : sc} ${sc})`} filter={a.silhouette ? `url(#${fid})` : undefined}>
+        <g transform={`translate(${px} ${py}) rotate(${(a.rotate ?? 0) + sway}) scale(${a.flip ? -sc : sc} ${sc})`} filter={a.silhouette ? `url(#${fid})` : undefined}>
           {Comp ? <Comp t={t + i * 1.7} color={a.color} detail={a.detail} /> : null}
         </g>
         {a.waves ? Array.from({length: 4}).map((_, j) => {
@@ -173,7 +217,9 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number}> = ({a, i, ma
         }) : null}
         {a.ring ? (() => {
           const rp = prog(t, a.ring.at ?? at, 0.6);
-          const rx = a.ring.x !== undefined ? a.ring.x * width : px, ry = a.ring.y !== undefined ? a.ring.y * height : py;
+          // local: a point on the creature's own drawing (e.g. its ear) — follows the animal wherever it is placed
+          const rx = a.ring.local ? px + a.ring.local[0] * sc * (a.flip ? -1 : 1) : a.ring.x !== undefined ? a.ring.x * width : px;
+          const ry = a.ring.local ? py + a.ring.local[1] * sc : a.ring.y !== undefined ? a.ring.y * height : py;
           const rr = a.ring.r !== undefined ? a.ring.r * width : halfW * 0.55;
           return <circle cx={rx} cy={ry} r={rr * (1.4 - 0.4 * rp)} fill="none" stroke="#e6f4ff" strokeOpacity={0.6 * rp} strokeWidth={2.5 * s} />;
         })() : null}
@@ -197,7 +243,7 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number}> = ({a, i, ma
           transform: `${a.flip ? 'scaleX(-1) ' : ''}rotate(${a.rotate ?? 0}deg)`, filter: a.silhouette ? 'brightness(0)' : undefined}} />
       ) : null}
       {a.label ? (
-        <div style={{position: 'absolute', left: px, top: py + (a.label.dy ?? 0.16) * height, transform: 'translateX(-50%)', fontFamily: F.sans, fontWeight: 800,
+        <div style={{position: 'absolute', left: px, top: py + (a.label.dy ?? (onLand ? -0.2 : 0.16)) * height, transform: 'translateX(-50%)', fontFamily: F.sans, fontWeight: 800,
           fontSize: 28 * s, letterSpacing: 1.5 * s, textTransform: 'uppercase', color: a.label.color ?? C.text, opacity: prog(t, a.label.at ?? at + 0.4, 0.5),
           whiteSpace: 'nowrap', textShadow: '0 2px 12px rgba(0,0,0,.7)'}}>
           {a.label.text}
@@ -209,7 +255,8 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number}> = ({a, i, ma
 
 export const OceanScene: React.FC<OceanSceneProps> = (p) => {
   const {t, dur, s, width, height} = useT();
-  const z = p.zoom ? interpolate(t, [0, dur], p.zoom, {easing: Easing.inOut(Easing.quad)}) : 1;
+  // Camera never stands still: a slow push-in unless the scene sets its own zoom.
+  const z = interpolate(t, [0, dur], p.zoom ?? [1.0, 1.06], {easing: Easing.inOut(Easing.quad)});
   const [fx, fy] = p.focus ?? [0.5, 0.5];
   const tp = prog(t, p.titleAt ?? 0.3, 0.6);
   const bp = p.bigText ? interpolate(t, [p.bigAt ?? 0.5, (p.bigAt ?? 0.5) + 0.25], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}) : 0;
@@ -221,7 +268,7 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
         {p.footage ? <Footage src={p.footage} startFrom={p.footageStart} dim={p.footageDim} />
           : <OceanBackdrop depth={p.depth ?? (p.split ? 0.35 : 0.6)} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />}
         {p.split && !p.footage ? <SplitSurface cfg={p.split} /> : null}
-        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} />)}
+        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} split={p.footage ? undefined : p.split} />)}
       </AbsoluteFill>
       {p.title ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: 70 * s, textAlign: 'center', opacity: tp}}>

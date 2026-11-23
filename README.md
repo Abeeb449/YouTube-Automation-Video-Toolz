@@ -89,11 +89,9 @@ python -m ytauto plan projects/anglerfish/script.txt --style ocean        # only
 
 On GitHub, commit `projects/<name>/script.txt` and push, or run **Render video** with that folder. The workflow plans the scenes, renders the video, and puts the generated `script.yaml` next to the MP4, so you can tweak it and re-render.
 
-Two "directors" decide the visuals:
-- **Claude director** (best). Add an `ANTHROPIC_API_KEY` secret (from console.anthropic.com; pay-as-you-go, typically a few cents to a few tens of cents per video). Claude reads the style guide and picks templates, animals, cue words, moods, B-roll and voice tags like an editor would.
-- **Rule-based director** (free, used automatically without a key). It recognises animals, depths, numbers, danger and wonder words, and short punchy lines, and varies the shots. That's fine for drafts, but expect to edit.
-
-You can also ask Claude Code in this repo: *"Make an ocean documentary from projects/anglerfish/script.txt"*. The skill files guide it.
+**Who decides the visuals? Free options only — no paid API anywhere.**
+- **Built-in director** (automatic): recognises animals, depths, numbers, danger and wonder words and short punchy lines, and varies the shots. Good for drafts.
+- **Your AI assistant** (best results, free): give it `agent/SYSTEM_PROMPT.md` and `agent/SKILL.md` plus your script, ask it for `script.yaml`, and save that file in the project folder. Free chat assistants work fine for this.
 
 ## 4. The script format (`script.yaml`)
 

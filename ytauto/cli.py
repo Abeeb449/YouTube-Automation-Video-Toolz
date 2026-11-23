@@ -157,7 +157,7 @@ def cmd_plan(a) -> int:
 
     script = Path(a.script)
     out = Path(a.out) if a.out else (script.parent if script.parent.name not in ("", ".") else Path("projects") / script.stem)
-    write_plan(script, out, a.style, a.title, a.director, a.model)
+    write_plan(script, out, a.style, a.title)
     return 0
 
 
@@ -170,7 +170,7 @@ def cmd_make(a) -> int:
     script = Path(a.script)
     out = Path(a.out) if a.out else script.parent
     if not (out / "script.yaml").exists() or a.replan:
-        write_plan(script, out, a.style, a.title, a.director, a.model)
+        write_plan(script, out, a.style, a.title)
     overrides = {"width": 960, "height": 540, "preset": "ultrafast", "crf": 26} if a.preview else {}
     render_project(load_project(out, overrides), preview=a.preview)
     return 0
@@ -302,9 +302,6 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--style", choices=["ocean", "documentary"], default="ocean")
         p.add_argument("--title")
         p.add_argument("--out", help="project folder (default: the script's folder)")
-        p.add_argument("--director", choices=["auto", "claude", "rules"], default="auto",
-                       help="claude = Claude API (needs ANTHROPIC_API_KEY, best); rules = free offline; auto = claude if a key is set")
-        p.add_argument("--model", help="Claude model for the director (default claude-opus-5-5)")
         if name == "make":
             p.add_argument("--preview", action="store_true")
             p.add_argument("--replan", action="store_true", help="re-plan even if script.yaml exists")

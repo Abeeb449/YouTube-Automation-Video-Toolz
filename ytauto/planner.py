@@ -1,17 +1,12 @@
-"""Turn a plain narration script into a full script.yaml (scenes, visuals, moods, cues).
+"""Turn a plain narration script into a full script.yaml (scenes, visuals, moods, cues) — free and offline.
 
-Two directors:
-  claude   Uses the Claude API (ANTHROPIC_API_KEY). Reads the style guide + template reference
-           shipped in .claude/skills/<style>/ and writes a scene-by-scene plan like a human editor.
-           Best results. Costs roughly a few cents per video.
-  rules    Free, offline, rule-based: splits the script into scenes and picks templates from what the
-           text mentions (animals, depths, numbers, danger words…). Good enough to publish drafts; edit after.
-
-`auto` uses claude when a key is available, otherwise rules.
+The built-in rule-based director splits the script into beats and picks templates from what the text
+mentions (animals, depths, numbers, danger/wonder words, short punchy lines), varying the shots.
+For a hand-directed result, give agent/SYSTEM_PROMPT.md + agent/SKILL.md to any AI assistant (free ones work)
+and let it write script.yaml directly — no paid API is needed anywhere in this project.
 """
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
@@ -27,65 +22,6 @@ EXAMPLES = {
     "ocean": "projects/ocean-giant-squid/script.yaml",
     "documentary": "projects/whatif-yellowstone/script.yaml",
 }
-
-
-def _read_style(style: str) -> str:
-    base = REPO_ROOT / STYLES[style]
-    parts = []
-    for f in [base / "SKILL.md", *sorted((base / "references").glob("*.md"))]:
-        if f.exists():
-            parts.append(f"<file path=\"{f.relative_to(REPO_ROOT)}\">\n{f.read_text(encoding='utf-8')}\n</file>")
-    if style == "ocean":  # the ocean kit also uses the docu templates
-        ref = REPO_ROOT / STYLES["documentary"] / "references" / "templates.md"
-        parts.append(f"<file path=\"{ref.relative_to(REPO_ROOT)}\">\n{ref.read_text(encoding='utf-8')}\n</file>")
-    ex = REPO_ROOT / EXAMPLES[style]
-    parts.append(f"<example path=\"{EXAMPLES[style]}\">\n{ex.read_text(encoding='utf-8')}\n</example>")
-    return "\n\n".join(parts)
-
-
-SYSTEM = """You are the video director for an automated faceless YouTube channel. You turn a narration script
-into a ytauto script.yaml that renders a finished video. Follow the style guide and template reference exactly:
-only use templates, props and creatures that exist there. Output ONLY the YAML document, no commentary, no code fences.
-
-Rules:
-- Keep the narration text VERBATIM (you may split it into scenes and add voice tags like [pause 0.8] or [speed 0.88]
-  where they add drama, but never reword, add or remove narration).
-- One scene per beat (roughly one to three sentences). Change the picture every 4-8 seconds.
-- Put cue words (at: "<word from that scene's narration>") on every reveal; the word must appear in that scene's text.
-- Set `mood:` where the feeling changes. Use `chapter:` on 5-10 scenes for a long script (first at the start).
-- Every on-screen number must come from the narration. Don't invent facts, sources or quotes.
-- Mix in real B-roll (`footage: "pexels:<subject> <setting>"`) on roughly one scene in five.
-- Start with `preset: <style>` and include title, description (2-3 sentences), tags, thumbnail text and youtube privacy private.
-"""
-
-
-def plan_with_claude(script: str, style: str, title: str | None, model: str | None = None) -> str:
-    try:
-        import anthropic
-    except ImportError as exc:
-        raise YtautoError("pip install anthropic (needed for the Claude director)") from exc
-    client = anthropic.Anthropic()
-    user = (f"Style: {style}\n" + (f"Title: {title}\n" if title else "Title: (choose a strong YouTube title)\n")
-            + f"\nNarration script:\n<script>\n{script.strip()}\n</script>\n\nWrite the script.yaml now.")
-    log(f"Planning scenes with Claude ({model or 'claude-opus-5-5'}) …")
-    with client.beta.messages.stream(
-        model=model or "claude-opus-5-5",
-        max_tokens=64000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        output_config={"effort": "high"},
-        system=[
-            {"type": "text", "text": SYSTEM},
-            {"type": "text", "text": _read_style(style), "cache_control": {"type": "ephemeral"}},
-        ],
-        messages=[{"role": "user", "content": user}],
-    ) as stream:
-        msg = stream.get_final_message()
-    if msg.stop_reason == "refusal":
-        raise YtautoError("Claude declined to plan this script")
-    text = "".join(b.text for b in msg.content if b.type == "text").strip()
-    text = re.sub(r"^```(?:yaml)?\s*|\s*```$", "", text)
-    return text
 
 
 # ------------------------------------------------------------------------------------------- rules
@@ -283,23 +219,14 @@ def _rule_visual(beat: str, style: str, main: str, n: int) -> dict:
         "depth": 0.3 + (n % 6) * 0.1, "actors": [{"creature": creature, "x": 0.3, "y": 0.5, "to": [0.6, 0.52], "scale": 1.0}]}}
 
 
-def plan(script: str, style: str, title: str | None, director: str = "auto", model: str | None = None) -> str:
+def plan(script: str, style: str, title: str | None, director: str = "rules", model: str | None = None) -> str:
     if style not in STYLES:
         raise YtautoError(f"Unknown style {style!r} (use {', '.join(STYLES)})")
-    if director == "auto":
-        director = "claude" if (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")) else "rules"
-    if director == "claude":
-        try:
-            text = plan_with_claude(script, style, title, model)
-            yaml.safe_load(text)  # must parse
-            return text
-        except Exception as exc:  # noqa: BLE001 — never block a render: fall back to the free director
-            warn(f"Claude director failed ({exc}); using the rule-based director")
-    log("Planning scenes with the rule-based director (free, offline)")
+    log("Planning scenes with the built-in director (free, offline)")
     return plan_with_rules(script, style, title)
 
 
-def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "auto", model: str | None = None) -> Path:
+def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "rules", model: str | None = None) -> Path:
     text = plan(script_path.read_text(encoding="utf-8"), style, title, director, model)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "assets").mkdir(exist_ok=True)

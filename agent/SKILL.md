@@ -1,0 +1,219 @@
+---
+name: documentary-video-maker
+description: Make complete faceless YouTube documentaries (danger & wonder animal docs, ocean docs, what-if infographic docs) with the free open-source ytauto toolkit. Write the researched script, direct every scene (animated creatures, maps, data graphics, B-roll), direct the narrator's emotion line by line, pick mood music, render to 1080p MP4 and QC it. Use whenever the user wants a video made from a title, topic or script.
+---
+
+# Documentary Video Maker (ytauto)
+
+Free and open source end to end. CPU only, no GPU needed, no paid APIs. Renders locally, in GitHub Codespaces,
+or on free GitHub Actions.
+
+---------------------------------------------------------------------------------------------------------
+## 1. Software stack (all installed by the repo's Dockerfile)
+
+| Job | Tool | Notes |
+|---|---|---|
+| Orchestration | **ytauto** (Python 3.10+) | `python -m ytauto …` CLI: plan → voice → visuals → mix → MP4 |
+| Animated graphics | **Remotion** (React) + headless Chromium | All templates in `remotion/src/` (vector, sharp at any size) |
+| Video encode and mix | **ffmpeg** (x264 `tune animation`, loudnorm −14 LUFS) | |
+| Narration | **Qwen3-TTS 1.7B** (Apache 2.0) in its own venv `/opt/tts-qwen` | Default voice. Direct it in plain English |
+| Narration alternatives | **Chatterbox** (MIT, `/opt/tts-chatterbox`), **Kokoro** (Apache 2.0, fast fallback), Piper, eSpeak | |
+| Word timing | **faster-whisper** base.en | Aligns cue words to the spoken audio |
+| Music | **Kevin MacLeod / Incompetech** (CC BY 4.0) fetched by mood; built-in synth score as fallback | Credits written to the description automatically |
+| Sound effects | Built-in synthesizer (`ytauto/sound.py`) | whoosh, swell, riser, hit, thud, boom, tick(s), typing, glitch, beep, alarm |
+| Stock B-roll | **Pixabay** API (`PIXABAY_API_KEY`), Pexels if you hold a key | Pexels has paused new keys; Pixabay is free |
+| 3D (optional) | **Blender** (Cycles CPU) | `{blender: intro}` titles |
+| Images | **rembg** (`ytauto cutout`), Inkscape, ImageMagick, potrace, librsvg | Turn any picture into a transparent cut-out actor |
+| Lottie | `@remotion/lottie` | Free LottieFiles animals: `lottie: assets/x.json` |
+| Audio tools | sox, numpy | |
+
+**Setup:** `docker build -t ytauto .` then
+`docker run --rm -v "$PWD:/work" -e HF_HOME=/work/.cache/huggingface ytauto python -m ytauto render projects/<slug>`.
+Without Docker: `pip install -r requirements.txt && (cd remotion && npm install)`, then run
+`python -m ytauto doctor` to see what's installed.
+
+---------------------------------------------------------------------------------------------------------
+## 2. Workflow for one video
+
+1. **Research** 10–15 verifiable facts and note the sources: size, habitat, senses, weapons, diet, records,
+   enemies, a study with numbers, a human story, an open question.
+2. **Write `projects/<slug>/script.txt`.** About 140 wpm, so ~1,350 words for 10 minutes. `# Heading` lines
+   mark chapters. Hook first (see SYSTEM_PROMPT writing standards).
+3. **Direct `projects/<slug>/script.yaml`.** Split the identical narration into scenes and add visuals, cues,
+   moods and voice tags (sections 3–7). Quick draft: `python -m ytauto plan projects/<slug>/script.txt
+   --style ocean`, then improve it by hand.
+4. **Preview:** `python -m ytauto render projects/<slug> --preview` (540p, fast). Open
+   `build/contact_sheet.jpg` (one frame per scene) and fix tiny, empty, cluttered or mistimed scenes.
+5. **Final:** `python -m ytauto render projects/<slug>`, or push to GitHub and run **Actions → Render video**.
+   Outputs go to `build/`: `<title>.mp4`, `thumbnail.jpg`, `captions.srt`, `description.txt` (with chapters,
+   music credits and stock credits), `contact_sheet.jpg`, `manifest.json`.
+
+Voice audio is cached per passage: re-renders after visual edits take minutes. On a 4-core CPU, Qwen narration
+takes roughly 5× the audio length, and visuals about 3–4 minutes per finished minute.
+
+---------------------------------------------------------------------------------------------------------
+## 3. script.yaml format
+
+```yaml
+preset: ocean                     # ocean (animal/sea docs) | documentary (what-if infographic) | add "shorts" for 9:16
+title: "Why Do Sea Lions Fear Leopard Seals?"
+description: |
+  2-3 sentence hook. Sources: …
+tags: [leopard seal, sea lion, antarctica, wildlife documentary]
+settings:
+  voice: {engine: qwen, name: ryan, instruct: "Narrate like a calm, deep-voiced nature documentary narrator: measured, intimate and gripping."}
+  music: {source: incompetech, mood: mystery}       # real music by mood (default)
+  sound: {whoosh_on_cut: chapters, whoosh_volume: 0.1}
+thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
+youtube: {privacy: private, category_id: 15}       # 15 = Pets & Animals, 27 = Education, 28 = Science & Tech
+scenes:
+  - chapter: The hook             # optional: YouTube chapter (7-10 per video, first at the start)
+    mood: mystery                 # optional: wonder | mystery | danger | tension | calm | epic | none (holds until changed)
+    text: "[tone hushed and intimate] A young fur seal stands at the edge of the rocks."
+    visual: {remotion: OceanScene, props: {...}}   # or a list of visuals (time is split evenly)
+    sfx: [{sound: swell, at: "edge", volume: 0.3}] # optional
+    duration: 6                   # optional minimum length (silent beats, held reveals)
+    voice: {name: eric}           # optional per-scene voice override
+```
+
+**Cue words:** any `at:` or `…At:` prop accepts seconds, or a word from that scene's narration: `"jaws"`,
+`"seven"`, `"air raid"` (a phrase), `"bomb#2"` (the second time it's said), `"launch+0.5"` (with an offset).
+The element appears exactly when the narrator says it.
+
+---------------------------------------------------------------------------------------------------------
+## 4. Voice direction (makes the narrator sound human)
+
+Inline tags inside `text:` hold until the end of the scene (or `[reset]`):
+
+| Tag | Use |
+|---|---|
+| `[tone hushed and intimate]` | Describe the delivery in plain English: tense, awed, urgent, warm, respectful, quietly shocked, playful |
+| `[pause 0.4]` | A short silence before a reveal. Keep it 0.3–0.6 s, and never put one mid-thought |
+| `[speed 0.9]` | Slightly slower for menace (0.85–0.95); faster for excitement (1.05–1.1) |
+| `[emotion 0.8]` | Intensity 0.25–1.0 (calm → urgent) |
+| `[voice eric]` | Switch voice. Qwen speakers: ryan (default), eric, aiden, dylan, serena, vivian |
+| `[reset]` | Back to the scene's defaults |
+
+The engine automatically trims dead air, shortens the over-long gaps neural voices insert mid-sentence, and
+joins sentences that share a tone into one natural passage. Punctuation drives the breathing: commas give
+short breaths and full stops give longer ones. Write for the ear.
+
+Alternative voices: `name: design` + `description: "a deep warm British male narrator"` invents a voice;
+`reference: assets/myvoice.wav` clones one you own; `engine: chatterbox` is faster; `engine: kokoro` is the fastest.
+
+---------------------------------------------------------------------------------------------------------
+## 5. Ocean / animal kit (`remotion: OceanScene`, `Meter`, `Sonar`)
+
+### OceanScene props
+| Prop | Meaning |
+|---|---|
+| `depth` 0–1, `depthTo` | 0 = sunlit with light shafts, 1 = black abyss. `depthTo` animates a descent |
+| `split: {y, land: rocks\|ice\|none, landWidth, sky: polar\|storm\|dusk, floes}` | Above/below-waterline shot. Land animals with `rest`/`stand` snap onto the shore automatically |
+| `surface`, `rays` | Surface shimmer line; force light shafts on or off |
+| `zoom: [from, to]`, `focus: [x, y]` | Camera push-in toward a point (default gentle 1.0→1.06) |
+| `title`, `titleColor: white\|red`, `titleAt` | Top-centre label |
+| `bigText`, `bigAt`, `bigColor` | Huge centred reveal word ("LEOPARD SEAL", "PATIENCE.") |
+| `facts: [{text, at, red}]` | Up to 3 stacked fact chips, right side (the last one red for danger) |
+| `check: {text, at, ok}` | ✓ or ✕ chip, bottom-left |
+| `scaleBar: {x1, x2, y, label, at}` | Measuring line ("~3.5 M") |
+| `depthMeter: {from, to, max, unit}` | Right-side depth ruler with a moving marker |
+| `timer: {from, label}` | Stopwatch |
+| `footage: "pexels:<query>"`, `fallback: {…}` | Real B-roll behind the overlays, with drawn props if no clip is found |
+| `callout`, `calloutAt`, `heading`, `source`, `hud`, `stats` | Shared overlays (key-phrase box, section title, citation, clock, data panel) |
+
+### Actors (`actors: [ … ]`)
+`creature:` one of **spermWhale, giantSquid, orca, shark, anglerfish, jellyfish, diver, fishSchool, octopus,
+leopardSeal, seaLion (= furSeal), penguin, krill**. Or use `image: assets/x.png` (a transparent cut-out) or
+`lottie: assets/x.json`.
+
+| Actor prop | Meaning |
+|---|---|
+| `x, y` (0–1), `to: [x, y]` | Position and movement over the scene (swimmers drift gently by default) |
+| `scale` (1 ≈ a third of the frame wide), `scaleTo` | Small values are raised to a readable minimum (`allowTiny: true` to opt out) |
+| `flip`, `rotate` | Face left; tilt (e.g. −80 for an attack from below) |
+| `at`, `enter: fade\|left\|right\|none` | When and how it appears |
+| `silhouette: "#071118"`, `opacity`, `blur` | Looming dark shape (gets a soft rim so it stays visible) |
+| `color`, `detail` | `detail: {jaw: 0-1}` (leopard seal mouth), `{rest: true}` (seal on land), `{pup: true}`, `{stand: true}` (penguin), `{teeth, scars}` (sperm whale), `{count}` (fish, krill) |
+| `label: {text, at, dy}` | Name under the animal (above it for land animals) |
+| `target: {at}` | Red lock-on brackets (the prey is being watched) |
+| `waves: {at}` | Sound-wave arcs (song, echolocation) |
+| `ring: {at, local: [x, y], r}` | Spotlight ring on a point of the animal's own drawing (`local` is in creature units: leopardSeal head ≈ [248, −12], whiskers ≈ [292, 8]; resting seaLion ear ≈ [200, −166]; giantSquid eye ≈ [34, −2]) |
+
+`Meter`: `title, from, to, unit, note, footnote, countAt` (e.g. 0 → 236 dB).
+`Sonar`: `title, blips: [{label, x, y, creature, scale, at, color}]`.
+
+---------------------------------------------------------------------------------------------------------
+## 6. Infographic kit (works on any backdrop: `backdrop: navy | dark | ocean | abyss | ember | horizon | black`)
+
+| Template | Key props |
+|---|---|
+| `Counter` | `from, to, prefix, suffix, label, countAt, countDur, plain` (no commas, for years), `timeline: {start, end, tickEvery, events: [{year, label, at}]}` |
+| `DotGrid` | `count, highlight, cols, value, label, note, fillAt, color` ("7 in 10" = count 10, highlight 7) |
+| `BarCompare` | `bars: [{label, value, display, color, at}], unit, heading` |
+| `StatCards` | `cards: [{label, value, bar, at}], stamp: {text, at}` |
+| `SourceList` | `tag, tagNote, rows: [{title, source, at}]` (great for "three ways…" lists) |
+| `Statement` | `kicker2, line1, line2` (red), `footnote` (turning points, twists) |
+| `MapScene` | `bbox: [[west, south], [east, north]]` or `focus: [countries]`, `countryLabels`, `cities`, `pulses: [{lon, lat, label, at}]`, `arrows`, `highlight`, `title`, `subtitle` |
+| `Globe` | `from, to: [lon, lat], zoomFrom, zoomTo, marker: {label, at}, title, subtitle` |
+| `Horizon` | `mood: dusk\|night\|grey, title, subtitle, events: [{type: flash\|fireball\|shockwave\|mushroom\|sun, at}]` |
+| `Equation`, `Clock`, `SplitCompare`, `Radius` | Maths steps, doomsday clock, side by side, impact rings |
+| `TitleCard`, `KineticText`, `BulletList`, `BigNumber`, `Quote` | General templates |
+
+All of them also take `heading`, `subheading`, `kicker`, `callout`, `calloutAt`, `source`, `hud`, `stats`,
+`footage`.
+
+---------------------------------------------------------------------------------------------------------
+## 7. Editing recipe (danger & wonder style)
+
+| Beat | Recipe |
+|---|---|
+| Hook / false safety | `split` rocks or ice, prey resting on land, storm sky, slow `zoom: [1.08, 1.0]`, hushed tone |
+| Something is watching | Hunter as a `silhouette` below the waterline, `target` on the prey, a `swell` sfx, callout |
+| Shock statistic | `DotGrid` or `Counter` on `backdrop: abyss`, a `thud` sfx, source line |
+| Name reveal | Hunter large and drifting + `bigText` + a `hit` sfx, `[pause 0.4]` before the name |
+| Anatomy | Push-in on the feature (`zoom`, `focus`), `ring.local`, ≤3 facts, `jaw` open for teeth |
+| Diet or proportions | `BarCompare` (danger slice red) |
+| Behaviour (song, rest) | `waves`, `split` ice shelf with the animal on the floe |
+| The attack | Prey at the surface with `target`; the hunter rises from below (`rotate: -80`, `to` upward, jaw open) + `riser` → `hit` |
+| Study or place | `MapScene` with a `pulse`, then the data templates |
+| Twist | `Statement` on `abyss` → evidence scene → `DotGrid` |
+| Human story | `Horizon` grey with a respectful title, then `StatCards` |
+| Closing callback | The opening image again at dusk, a silhouette below, `bigText` callback, slow tempo |
+| Outro | Three creatures from other episodes, "Subscribe for more" |
+
+Rules: change something every 3–6 s; keep text off animals; one reveal word per scene; use red only for
+danger; mood changes no more often than every 15 s; at most one sfx every 20–30 s.
+
+---------------------------------------------------------------------------------------------------------
+## 8. Music and sound
+
+- `music: {source: incompetech}` (default) picks Kevin MacLeod tracks by mood, without drums, loops and
+  crossfades them, holds steady levels with a limiter, and ducks the music about 18 dB under speech. Credits go
+  in `description.txt` automatically. Other sources: `{source: library, library: assets/music}` (mood
+  sub-folders you fill once, e.g. from the YouTube Audio Library), `{source: openverse}`, `{generate: true}`
+  (synth score), or `{file: assets/track.mp3}`.
+- `volume` sets the music level in pauses (default 0.8), and `duck` sets its level while speaking (0.45).
+- Whooshes on chapter changes only (`whoosh_on_cut: chapters`).
+
+---------------------------------------------------------------------------------------------------------
+## 9. Render and QC checklist
+
+- [ ] `python -m ytauto render projects/<slug> --preview` runs with no `cue word … not found` warnings.
+- [ ] Contact sheet: every scene has a clear subject filling at least a third of the frame, no text over
+      animals, nothing empty.
+- [ ] Watch the hook, every reveal and the ending at full speed: is the motion continuous, do cues land on
+      their words, is the music under the voice, are there no loud spikes?
+- [ ] `description.txt` has chapters, sources, music credits and stock credits.
+- [ ] Final render, then upload: `python -m ytauto upload projects/<slug> --privacy private` (YouTube OAuth
+      secrets), or download the GitHub Actions artifact.
+
+**GitHub Actions:** commit `projects/<slug>/script.txt` (and optionally `script.yaml`) and push, or run
+**Actions → Render video** with `project: projects/<slug>`. Secrets: `PIXABAY_API_KEY` (free B-roll) and
+optionally `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` (upload).
+
+## 10. Licences
+
+Qwen3-TTS (Apache 2.0), Chatterbox (MIT), Kokoro (Apache 2.0) and Incompetech music (CC BY 4.0, credited)
+are all allowed in monetised videos. For Pixabay footage, credit Pixabay (done automatically). Remotion is
+free for individuals and companies of up to 3 people. Write original scripts for every video, because
+YouTube demonetises mass-produced, repetitive content.

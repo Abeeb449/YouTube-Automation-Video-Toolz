@@ -20,7 +20,7 @@ settings:
     name: ryan
     instruct: "Narrate like a calm, deep-voiced nature documentary narrator: measured, intimate and gripping, with a sense of wonder."
   music: {source: incompetech, mood: mystery}
-  sound: {whoosh_on_cut: true, whoosh_volume: 0.12}
+  sound: {whoosh_on_cut: chapters, whoosh_volume: 0.1}
 
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
 youtube: {privacy: private, category_id: 15}
@@ -36,7 +36,7 @@ scenes:
         split: {y: 0.42, land: rocks, landWidth: 0.55, sky: storm}
         zoom: [1.08, 1.0]
         actors:
-          - {creature: seaLion, x: 0.42, y: 0.33, scale: 0.32, detail: {pup: true, rest: true}, label: {text: "Fur seal pup", at: "young", dy: 0.1}}
+          - {creature: seaLion, x: 0.42, y: 0.33, scale: 0.32, detail: {pup: true, rest: true}, label: {text: "Fur seal pup", at: "young"}}
           - {creature: seaLion, x: 0.12, y: 0.3, scale: 0.42, detail: {rest: true}, at: "colony"}
           - {creature: seaLion, x: 0.26, y: 0.28, scale: 0.38, detail: {rest: true}, flip: true, at: "colony"}
     sfx: [{sound: swell, at: 0.2, volume: 0.25}]
@@ -132,7 +132,7 @@ scenes:
       props:
         split: {y: 0.62, land: rocks, landWidth: 0.95, sky: polar, floes: false}
         actors:
-          - {creature: seaLion, x: 0.45, y: 0.47, scale: 0.85, detail: {rest: true}, ring: {at: "ears", x: 0.565, y: 0.29, r: 0.03}}
+          - {creature: seaLion, x: 0.45, y: 0.47, scale: 0.85, detail: {rest: true}, ring: {at: "ears", local: [200, -166], r: 0.03}}
         facts:
           - {text: "Tiny external ears", at: "ears"}
           - {text: "Walk on front flippers", at: "propping"}
@@ -224,7 +224,7 @@ scenes:
         zoom: [1.0, 1.6]
         focus: [0.62, 0.5]
         actors:
-          - {creature: leopardSeal, x: 0.45, y: 0.5, scale: 1.4, ring: {at: "head", x: 0.705, y: 0.47, r: 0.06}}
+          - {creature: leopardSeal, x: 0.45, y: 0.5, scale: 1.4, ring: {at: "head", local: [248, -12], r: 0.06}}
         facts:
           - {text: "Long and sleek", at: "sleek"}
           - {text: "Spotted coat", at: "spotted"}
@@ -567,7 +567,7 @@ scenes:
         zoom: [1.0, 1.9]
         focus: [0.7, 0.5]
         actors:
-          - {creature: leopardSeal, x: 0.48, y: 0.52, scale: 1.4, ring: {at: "whiskers", x: 0.74, y: 0.53, r: 0.04}}
+          - {creature: leopardSeal, x: 0.48, y: 0.52, scale: 1.4, ring: {at: "whiskers", local: [292, 8], r: 0.04}}
         facts:
           - {text: "Clues stored in whiskers", at: "whiskers"}
           - {text: "Specialist hunters", at: "specialists"}

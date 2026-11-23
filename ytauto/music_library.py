@@ -134,7 +134,15 @@ def library_tracks(folder: Path, mood: str) -> list[Track]:
     return []
 
 
-def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: Path, xfade: float = 3.0) -> tuple[Path, list[Track]]:
+def _mean_db(path: Path) -> float:
+    out = run(["ffmpeg", "-v", "info", "-i", path, "-af", "volumedetect", "-f", "null", "-"])
+    for line in out.splitlines():
+        if "mean_volume:" in line:
+            return float(line.split("mean_volume:")[1].split("dB")[0])
+    return -20.0
+
+
+def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: Path, xfade: float = 4.0) -> tuple[Path, list[Track]]:
     """Build one bed: each mood section gets a track (looped/trimmed), sections crossfade into each other.
     `pick(mood, occurrence)` returns a Track or None (→ silence for that section)."""
     work = out.parent / f".{out.stem}_parts"
@@ -152,13 +160,19 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
         else:
             if tr not in used:
                 used.append(tr)
-            # start a little into the track (skip silent intros), normalise each track to the same loudness
+            # Steady level per track: one static gain from the track's average loudness (a dynamic normaliser
+            # "pumps" quiet intros and makes sudden loud entries), then soft fades so sections never jump in.
+            tmp = part.with_suffix(".raw.wav")
             run(["ffmpeg", "-y", "-v", "error", "-stream_loop", "-1", "-ss", "2", "-i", tr.path, "-t", f"{dur:.3f}",
-                 "-af", "aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-20:TP=-2,afade=t=in:d=1.5",
-                 "-ar", "48000", part])
+                 "-af", "aresample=48000,aformat=channel_layouts=stereo", "-ar", "48000", tmp])
+            gain = max(-12.0, min(12.0, -22.0 - _mean_db(tmp)))
+            run(["ffmpeg", "-y", "-v", "error", "-i", tmp, "-af",
+                 f"volume={gain:.2f}dB,afade=t=in:d=2.5,afade=t=out:st={max(0.0, dur - 2.5):.3f}:d=2.5", part])
+            tmp.unlink(missing_ok=True)
         parts.append(part)
     if len(parts) == 1:
-        run(["ffmpeg", "-y", "-v", "error", "-i", parts[0], "-c", "copy", out])
+        run(["ffmpeg", "-y", "-v", "error", "-i", parts[0], "-af",
+             "acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35", out])
     else:
         inputs, chain = [], ""
         for p in parts:
@@ -168,7 +182,9 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
             lab = f"[x{i}]"
             chain += f"{prev}[{i}:a]acrossfade=d={xfade}:c1=tri:c2=tri{lab};"
             prev = lab
-        run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", chain.rstrip(";"), "-map", prev, "-t", f"{total + 1:.3f}", out])
+        # glue: gentle compression + a limiter so no hit or swell ever jumps out from under the narration
+        chain += f"{prev}acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35:attack=20:release=400[bed]"
+        run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", chain, "-map", "[bed]", "-t", f"{total + 1:.3f}", out])
     for p in parts:
         p.unlink(missing_ok=True)
     work.rmdir()
@@ -190,6 +206,8 @@ INCOMPETECH_RULES = {
 }
 # Documentary beds shouldn't sound cheerful, folksy or comedic.
 INCOMPETECH_AVOID = {"grooving", "bouncy", "humorous", "ren faire", "medieval", "aggressive", "bright", "driving", "action"}
+# Beds sit under narration: no drum kits, booms or vocals that punch through the voice.
+PERCUSSION = ("drum", "percussion", "timpani", "taiko", "cymbal", "snare", "kick", "vocal", "choir", "beat")
 TITLE_AVOID = ("funeral", "porch", "sunny", "happy", "christmas", "party", "wedding", "comedy", "circus", "carnival",
                "dance", "disco", "jazz", "blues", "rock", "polka", "waltz", "march", "lullaby", "kids", "cartoon")
 
@@ -216,7 +234,7 @@ def incompetech_tracks(mood: str, cache: Path, want: int = 2, seed: int = 0, avo
     avoid_feels = INCOMPETECH_AVOID - ({"intense", "action", "driving"} & want_feels)
     cands = [p for p in pieces if len(_feels(p) & want_feels) >= k and _feels(p) & must and not _feels(p) & avoid_feels
              and not any(w in (p.get("title") or "").lower() for w in TITLE_AVOID)
-             and 90 <= _secs(p) <= 600 and "vocal" not in (p.get("instruments") or "").lower()
+             and 90 <= _secs(p) <= 600 and not any(w in (p.get("instruments") or "").lower() for w in PERCUSSION)
              and p.get("filename", "").lower().endswith(".mp3") and p.get("title") not in (avoid or set())]
     if not cands:
         raise YtautoError(f"no Incompetech pieces match mood '{mood}'")

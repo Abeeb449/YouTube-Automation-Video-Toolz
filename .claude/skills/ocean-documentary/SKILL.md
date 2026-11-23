@@ -18,7 +18,7 @@ Template props: `references/templates.md`, plus `.claude/skills/whatif-documenta
 ## Workflow
 
 Shortcut: if the user just gives narration, save it as `projects/<slug>/script.txt` and run
-`python -m ytauto plan … --style ocean` (or write the script.yaml yourself following this guide; that's better than the rule-based director).
+`python -m ytauto plan … --style ocean` (or, better, write script.yaml yourself following this guide).
 
 1. **Pick the animal and the angle.** Use the title formula: *"Why You'd Never Want To Meet A ___"*, *"What Happens If You Meet A ___"*
    or *"The ___ Is Scarier Than You Think"*. The deep-ocean series is the first season.

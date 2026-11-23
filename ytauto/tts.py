@@ -126,6 +126,27 @@ def parse_directives(text: str) -> list[tuple]:
     return items
 
 
+def polish(raw: Path, cfg: dict) -> Path:
+    """Make generated speech flow like a person talking: trim the silence neural voices leave at the start/end,
+    shorten long gaps inside a line (models often pause 0.8-1.3 s mid-sentence) to a natural breath, and
+    optionally nudge the tempo. Cached next to the raw take, so re-tuning never re-voices anything."""
+    if cfg.get("enabled") is False:
+        return raw
+    keep = float(cfg.get("keep_gap", 0.12))     # silence kept when a long gap is shortened
+    longest = float(cfg.get("max_gap", 0.25))   # gaps longer than this get shortened
+    tempo = float(cfg.get("tempo", 1.0))
+    out = raw.with_name(f"{raw.stem}.p{stable_hash(keep, longest, tempo)[:6]}.wav")
+    if out.exists():
+        return out
+    af = ("silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.03,areverse,"
+          "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.08,areverse,"
+          f"silenceremove=stop_periods=-1:stop_threshold=-40dB:stop_duration={longest}:stop_silence={keep}")
+    if abs(tempo - 1.0) > 0.005:
+        af += f",atempo={tempo}"
+    run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-af", af, "-ar", str(SAMPLE_RATE), "-ac", "1", "-sample_fmt", "s16", out])
+    return out
+
+
 def merge_passages(items: list[tuple], max_chars: int = 320) -> list[tuple]:
     """Join consecutive sentences that share the same voice direction into one passage.
     Neural engines sound more natural across sentence boundaries, and each call has a fixed cost,
@@ -581,7 +602,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     items = parse_directives(text)
     if voice.get("engine") in ("qwen", "chatterbox", "elevenlabs"):
         items = merge_passages(items)
-    key = stable_hash("scene-audio-v5", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"))
+    key = stable_hash("scene-audio-v6", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"),
+                      settings.get("voice_polish"), settings.get("pause_scale"))
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
     if out.exists() and meta.exists():
@@ -599,10 +621,12 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
             _silence(f, sec)
         return f
 
+    pause_scale = float(settings.get("pause_scale", 1.0))
     for i, item in enumerate(items):
         if item[0] == "pause":
-            pieces.append(silence(item[1]))
-            t += item[1]
+            dur = max(0.12, item[1] * pause_scale)
+            pieces.append(silence(dur))
+            t += dur
             continue
         _, sent, over = item
         v = {**voice, **over}
@@ -610,9 +634,10 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                          v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
                          v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), v.get("tone"),
                          v.get("instruct"), v.get("description"), v.get("model"), sent)
-        wav = cache / f"sent_{sk}.wav"
-        if not wav.exists():
-            synthesize(sent, v, wav)
+        raw = cache / f"sent_{sk}.wav"
+        if not raw.exists():
+            synthesize(sent, v, raw)
+        wav = polish(raw, settings.get("voice_polish") or {})
         d = ffprobe_duration(wav)
         if settings.get("align", "auto") != "off":
             align_words(sent, wav, settings.get("align", "auto"))

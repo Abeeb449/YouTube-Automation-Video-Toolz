@@ -242,7 +242,7 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
 /** Wrap every documentary template: backdrop → content (fades) → overlays → vignette. */
 export const DocuFrame: React.FC<DocuProps & {children: React.ReactNode; defaultBackdrop?: Backdrop}> = ({children, defaultBackdrop = 'navy', ...p}) => {
   const o = useContentOpacity();
-  const {fps} = useT();
+  const {fps, t, dur} = useT();
   return (
     <AbsoluteFill style={{fontFamily: F.sans, color: C.text, background: '#000'}}>
       {p.footage ? (
@@ -254,7 +254,7 @@ export const DocuFrame: React.FC<DocuProps & {children: React.ReactNode; default
         <BackdropLayer kind={p.backdrop ?? defaultBackdrop} />
       )}
       <AbsoluteFill style={{opacity: o}}>
-        {children}
+        <AbsoluteFill style={{transform: `scale(${1 + 0.035 * (t / Math.max(1, dur))})`}}>{children}</AbsoluteFill>
         <DocuOverlays {...p} />
       </AbsoluteFill>
       <Vignette />
