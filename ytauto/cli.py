@@ -345,7 +345,8 @@ def main(argv: list[str] | None = None) -> int:
                           ("make", cmd_make, "plain script → planned scenes → finished video, in one step")):
         p = sp.add_parser(name, help=hlp)
         p.add_argument("script", help="plain text narration; blank lines between paragraphs, optional '# Chapter' lines")
-        p.add_argument("--style", choices=["ocean", "documentary"], default="ocean")
+        p.add_argument("--style", choices=["nature", "ocean", "documentary"], default="nature",
+                       help="nature = any animal (real photos/video + 3D close-ups); ocean = drawn deep-sea look; documentary = what-if infographics")
         p.add_argument("--title")
         p.add_argument("--out", help="project folder (default: the script's folder)")
         if name == "make":

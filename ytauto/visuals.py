@@ -181,6 +181,10 @@ class ClipRenderer:
                 local, kind = fetch_stock(query, kind, self.cache, self.W, nth=seq)
                 spec[kind] = str(local)
             except Exception as exc:  # noqa: BLE001
+                fb = spec.get("fallback_visual")
+                if isinstance(fb, (dict, str)):
+                    warn(f"Stock '{query}': {exc}. Using the fallback visual instead.")
+                    return self._resolve_sources(normalize_spec(fb), seq)
                 warn(f"Stock '{query}': {exc}. Using a text card instead.")
                 spec = {"color": self.p.settings["default_visual"].get("color", "#0f172a"), "text": query.title()}
         for k in ("image", "video"):

@@ -124,6 +124,20 @@ PRESETS: dict[str, dict] = {
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "chapters", "whoosh_volume": 0.12},
     },
+    "nature": {
+        # Any animal, anywhere (land, air, rivers, insects, ocean): real photos and video B-roll from free sources,
+        # 3D close-ups where a model exists, infographics for numbers. See .claude/skills/animal-documentary.
+        "crf": 18, "preset": "medium", "tune": "film",
+        "transition": "none",
+        "padding": 0.3, "sentence_gap": 0.4, "pause_scale": 0.8, "loudness": -16,
+        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 148, "max_tempo": 1.08},
+        "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
+                  "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
+                  "instruct": "Narrate like a calm, deep-voiced wildlife documentary narrator: warm, vivid and gripping, with a sense of wonder."},
+        "subtitles": {"burn": False},
+        "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
+        "sound": {"drone": 0.0, "whoosh_on_cut": "chapters", "whoosh_volume": 0.12},
+    },
     "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 64, "max_chars": 22, "margin_v": 520}},
 }
 

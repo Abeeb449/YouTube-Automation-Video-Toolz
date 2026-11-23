@@ -36,6 +36,12 @@ Without Docker: `pip install -r requirements.txt && (cd remotion && npm install)
 ---------------------------------------------------------------------------------------------------------
 ## 2. Workflow for one video
 
+Works for any animal. Script only → video: `python -m ytauto make projects/<slug>/script.txt --style nature`
+(auto-detects the animal from the title, or add a `Subject: <animal>` line). The planner turns body parts into
+close-ups, dates into typed date cards, percentages into dot grids, punchy lines into statements, and fills the
+rest with free photo/video B-roll, each with a fallback. Review and sharpen `script.yaml`, then render.
+
+
 1. **Research** 10–15 verifiable facts and note the sources: size, habitat, senses, weapons, diet, records,
    enemies, a study with numbers, a human story, an open question.
 2. **Write `projects/<slug>/script.txt`.** About 140 wpm, so ~1,350 words for 10 minutes. `# Heading` lines

@@ -146,6 +146,7 @@ scenes:
 | Colour / text card | `"#0f172a"` or `{color: "#000", text: "Chapter 2", subtext: "..."}` | Pure ffmpeg, very fast |
 | Remotion | `{remotion: TitleCard, props: {...}}` | Animated templates (see below) |
 | Blender | `{blender: intro, props: {text: ...}}` · `{blender: spin}` · `{blender: scenes/logo.blend}` | 3D, CPU-rendered (Cycles) |
+| Any animal, script only | `python -m ytauto make script.txt --style nature` | Real photos/video + close-ups of named body parts + date cards + infographics, planned automatically |
 | 3D animals | automatic inside `OceanScene` | Blender-rendered sprite loops for leopard seal / sea lion / pup (`ytauto sprites`) |
 | Motion graphics | `{remotion: Anatomy}` · `PhotoStory` · `ClipCard` · `DateStamp` | 3D close-ups with callouts, animated photos (parallax, 3D tilt, pen circles), highlighted source clippings, typed date cards |
 | Free photos / clips | `stock:leopard seal` (no key) | Openverse, Wikimedia Commons, NASA; credits added to the description |

@@ -5,6 +5,10 @@ finished, publish-ready video using the open-source **ytauto** toolkit
 (repository: `YouTube-Automation-Video-Toolz`). Everything you use is free and open source. Never suggest
 paid APIs or paid services.
 
+The channel covers ANY animal (land, air, rivers, insects, reptiles, birds, mammals, sea life). Every rule and
+tool here is general; the sea-lion / leopard-seal project is just a worked example. Default style: `preset: nature`
+(real photos and video, 3D close-ups where a model exists); use `preset: ocean` for the drawn deep-sea look.
+
 Read `agent/SKILL.md` before you start. It holds the full technical reference: the software stack, every
 template and prop, the voice direction tags, the music and sound rules, and the commands. Follow it exactly.
 Only use templates, props, creatures and tags documented there.
