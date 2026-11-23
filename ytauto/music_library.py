@@ -134,8 +134,9 @@ def library_tracks(folder: Path, mood: str) -> list[Track]:
     return []
 
 
-def _mean_db(path: Path) -> float:
-    out = run(["ffmpeg", "-v", "info", "-i", path, "-af", "volumedetect", "-f", "null", "-"])
+def _mean_db(path: Path, seconds: float | None = None) -> float:
+    lim = ["-t", f"{seconds:.2f}"] if seconds else []
+    out = run(["ffmpeg", "-v", "info", *lim, "-i", path, "-af", "volumedetect", "-f", "null", "-"])
     for line in out.splitlines():
         if "mean_volume:" in line:
             return float(line.split("mean_volume:")[1].split("dB")[0])
@@ -165,9 +166,17 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
             tmp = part.with_suffix(".raw.wav")
             run(["ffmpeg", "-y", "-v", "error", "-stream_loop", "-1", "-ss", "2", "-i", tr.path, "-t", f"{dur:.3f}",
                  "-af", "aresample=48000,aformat=channel_layouts=stereo", "-ar", "48000", tmp])
-            gain = max(-12.0, min(12.0, -22.0 - _mean_db(tmp)))
-            run(["ffmpeg", "-y", "-v", "error", "-i", tmp, "-af",
-                 f"volume={gain:.2f}dB,afade=t=in:d=2.5,afade=t=out:st={max(0.0, dur - 2.5):.3f}:d=2.5", part])
+            # match both the track's overall level and how it ENTERS (its first seconds), so a section
+            # never jumps in louder than the one it crossfades from
+            level = 0.5 * _mean_db(tmp) + 0.5 * _mean_db(tmp, seconds=min(12.0, dur))
+            gain = max(-12.0, min(12.0, -22.0 - level))
+            # the crossfade between sections does the blending; extra fades here would cause a level dip
+            fades = []
+            if i == 0:
+                fades.append("afade=t=in:d=2.5")
+            if i == len(segments) - 1:
+                fades.append(f"afade=t=out:st={max(0.0, dur - 2.5):.3f}:d=2.5")
+            run(["ffmpeg", "-y", "-v", "error", "-i", tmp, "-af", ",".join([f"volume={gain:.2f}dB", *fades]), part])
             tmp.unlink(missing_ok=True)
         parts.append(part)
     if len(parts) == 1:
@@ -183,7 +192,9 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
             chain += f"{prev}[{i}:a]acrossfade=d={xfade}:c1=tri:c2=tri{lab};"
             prev = lab
         # glue: gentle compression + a limiter so no hit or swell ever jumps out from under the narration
-        chain += f"{prev}acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35:attack=20:release=400[bed]"
+        # leveller (~7 s window) evens out quiet vs loud tracks without pumping, then compressor + limiter
+        chain += (f"{prev}dynaudnorm=f=500:g=15:p=0.5:m=6:r=0.12,"
+                  "acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35:attack=20:release=400[bed]")
         run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", chain, "-map", "[bed]", "-t", f"{total + 1:.3f}", out])
     for p in parts:
         p.unlink(missing_ok=True)

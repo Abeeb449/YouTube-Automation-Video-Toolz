@@ -233,7 +233,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             # Normalise any track to the same loudness first, so `volume` means the same for every song.
             level = "loudnorm=I=-20:TP=-2" if not music.get("source") or generated else "volume=2dB"
             filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,{level}{space},"
-                           f"volume={vol},atrim=0:{total:.3f},afade=t=in:d=2,afade=t=out:st={max(0, total - 4):.3f}:d=4[mus]")
+                           f"volume={vol},atrim=0:{total:.3f},afade=t=in:d=2,afade=t=out:st={max(0, total - 7):.3f}:d=7[mus]")
             idx += 1
             duck = music.get("duck", 0.45)
             if duck is True:
@@ -377,7 +377,7 @@ def real_music_bed(project: Project, segs, total: float, music: dict, source: st
         merged[1] = (0.0, merged[1][1], merged[1][2])
         merged.pop(0)
     segs = merged
-    key = stable_hash("bed-v4", source, segs, round(total, 2), seed, queries, music.get("library"))
+    key = stable_hash("bed-v8", source, segs, round(total, 2), seed, queries, music.get("library"))
     out = cache / "music" / f"bed_{key}.wav"
     meta = out.with_suffix(".json")
     if out.exists() and meta.exists():

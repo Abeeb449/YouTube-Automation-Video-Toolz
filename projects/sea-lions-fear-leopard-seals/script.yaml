@@ -760,8 +760,7 @@ scenes:
         bigColor: "#e6edf2"
     sfx: [{sound: swell, at: "beneath", volume: 0.35}]
 
-  - chapter: Outro
-    mood: wonder
+  - mood: wonder
     text: "[tone warm, inviting] If you want to meet more of the ocean's most fascinating hunters, subscribe. There is a lot more down there."
     visual:
       remotion: OceanScene
