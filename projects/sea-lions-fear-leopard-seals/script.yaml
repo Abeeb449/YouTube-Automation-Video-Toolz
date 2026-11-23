@@ -136,10 +136,10 @@ scenes:
         title: "How to spot one"
         titleAt: 0.2
         callouts:
-          - {x: 0.855, y: 0.06, label: "Tiny external ears", sub: "true seals have none", at: "ears", side: right}
+          - {x: 0.84, y: 0.08, label: "Tiny external ears", sub: "true seals have none", at: "ears", side: right}
           - {x: 0.8, y: 0.8, label: "Walks on its front flippers", sub: "propped up, chest raised", at: "propping", side: right}
         zoom:
-          - {at: "ears", x: 0.8, y: 0.3, scale: 1.35}
+          - {at: "ears", x: 0.82, y: 0.2, scale: 1.35}
           - {at: "propping", x: 0.7, y: 0.6, scale: 1.2}
   - text: "On land, they are loud, social and surprisingly agile. [tone lively, fascinated] In the water, they are fast, playful swimmers that chase fish and squid through the kelp."
     visual:

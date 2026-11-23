@@ -51,7 +51,7 @@ ANATOMY_3D = {
         "canine": (0.86, 0.55, "Long canines"), "fang": (0.86, 0.55, "Long canines"),
         "jaw": (0.33, 0.46, "A huge gape"), "bite": (0.86, 0.55, "Built to grip")}},
     "seaLion": {"sprite": {"creature": "seaLion", "view": "rest"}, "parts": {
-        "ear": (0.83, 0.18, "Small external ears"), "flipper": (0.8, 0.8, "Long front flippers"),
+        "ear": (0.84, 0.08, "Small external ears"), "flipper": (0.8, 0.8, "Long front flippers"),
         "whisker": (0.95, 0.3, "Whiskers")}},
 }
 _STOPW = set("why do does did how what when where who the a an is are was were of in on at to and or for with from "

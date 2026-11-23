@@ -303,9 +303,11 @@ def build_sea_lion(pup=False):
     ear = mat_plain("ear", hexcol("#2c1f16"), rough=0.6)
     for side in (1, -1):
         # small pinna that lies back along the head (a cone points up +Z; tip it ~68 deg toward the tail)
-        bpy.ops.mesh.primitive_cone_add(radius1=0.034 * k, depth=0.095 * k, location=(0.96 * k, 0.17 * k * side, 0.30 * k))
+        # on land the head is lifted ~24 deg (REST_LIFT), which tips the ears further back, so start them more upright
+        rest = args.view == "rest"
+        bpy.ops.mesh.primitive_cone_add(radius1=0.034 * k, depth=0.095 * k, location=(0.96 * k, 0.17 * k * side, (0.315 if rest else 0.30) * k))
         c = bpy.context.active_object
-        c.rotation_euler = (math.radians(-25 * side), math.radians(-68), 0)
+        c.rotation_euler = (math.radians(-25 * side), math.radians(-30 if rest else -68), 0)
         c.data.materials.append(ear)
     return body, [(-1.9 * k, 1.5 * k)]
 
