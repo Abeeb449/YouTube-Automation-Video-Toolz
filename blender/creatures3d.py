@@ -302,9 +302,9 @@ def build_sea_lion(pup=False):
     sphere("nose", (1.47 * k, 0, 0.11 * k), 0.035 * k, nose)
     ear = mat_plain("ear", hexcol("#2c1f16"), rough=0.6)
     for side in (1, -1):
-        bpy.ops.mesh.primitive_cone_add(radius1=0.024 * k, depth=0.06 * k, location=(0.99 * k, 0.15 * k * side, 0.27 * k))
+        bpy.ops.mesh.primitive_cone_add(radius1=0.034 * k, depth=0.11 * k, location=(0.98 * k, 0.17 * k * side, 0.315 * k))
         c = bpy.context.active_object
-        c.rotation_euler = (math.radians(-50 * side), math.radians(-70), 0)
+        c.rotation_euler = (math.radians(-30 * side), math.radians(-40), 0)
         c.data.materials.append(ear)
     return body, [(-1.9 * k, 1.5 * k)]
 
