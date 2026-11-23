@@ -21,7 +21,7 @@ or on free GitHub Actions.
 | Word timing | **faster-whisper** base.en | Aligns cue words to the spoken audio |
 | Music | **Kevin MacLeod / Incompetech** (CC BY 4.0) fetched by mood; built-in synth score as fallback | Credits written to the description automatically |
 | Sound effects | Built-in synthesizer (`ytauto/sound.py`) | whoosh, swell, riser, hit, thud, boom, tick(s), typing, glitch, beep, alarm |
-| Stock B-roll | **Pixabay** API (`PIXABAY_API_KEY`), Pexels if you hold a key | Pexels has paused new keys; Pixabay is free |
+| Stock B-roll (photos + video) | **No key needed:** Openverse (CC0/CC BY/BY-SA photos), Wikimedia Commons (photos + clips), NASA Image & Video Library (public domain). Pexels/Pixabay are used first if you hold a key | Every credited item is listed in the description automatically; NC/ND licences are never used |
 | 3D animals | **Blender** EEVEE (Mesa software GL, no GPU needed) | `blender/creatures3d.py` builds and rigs the leopard seal, sea lion and pup procedurally and renders looping transparent sprite sheets (`ytauto sprites`). OceanScene uses them automatically |
 | 3D titles (optional) | **Blender** (Cycles CPU) | `{blender: intro}` titles |
 | Images | **rembg** (`ytauto cutout`), Inkscape, ImageMagick, potrace, librsvg | Turn any picture into a transparent cut-out actor |
@@ -95,9 +95,14 @@ Inline tags inside `text:` hold until the end of the scene (or `[reset]`):
 | `[voice eric]` | Switch voice. Qwen speakers: ryan (default), eric, aiden, dylan, serena, vivian |
 | `[reset]` | Back to the scene's defaults |
 
-The engine automatically trims dead air, shortens the over-long gaps neural voices insert mid-sentence, and
-joins sentences that share a tone into one natural passage. Punctuation drives the breathing: commas give
-short breaths and full stops give longer ones. Write for the ear.
+**Natural phrasing (automatic, `voice_polish.mode: phrasing`):** every sentence is voiced on its own, then
+listened back with faster-whisper. A take with a word broken in the middle ("leop… ard") or a misread word is
+re-voiced (up to 2 retakes, best take kept). Then the pauses are re-timed so the narrator only breathes where the
+meaning allows: gaps between words inside a phrase shrink to a normal word gap (< 0.08 s), commas get a short
+breath (≤ 0.42 s), full stops 0.3–0.65 s, and sentences are separated by `sentence_gap` (0.4 s). Cuts happen only
+inside silence, never through a sound. A pace target (`target_wpm: 148`, max +8 %) keeps it from dragging.
+So: put `[pause]` only after a complete thought (after `.` `?` or a comma), never mid-phrase.
+Preview the narration alone with `python -m ytauto voiceover <project>` (MP3, no video; `--plain` = the raw read).
 
 Alternative voices: `name: design` + `description: "a deep warm British male narrator"` invents a voice;
 `reference: assets/myvoice.wav` clones one you own; `engine: chatterbox` is faster; `engine: kokoro` is the fastest.
@@ -124,7 +129,7 @@ Alternative voices: `name: design` + `description: "a deep warm British male nar
 
 ### Actors (`actors: [ … ]`)
 `creature:` one of **spermWhale, giantSquid, orca, shark, anglerfish, jellyfish, diver, fishSchool, octopus,
-leopardSeal, seaLion (= furSeal), penguin, krill**. Or use `image: assets/x.png` (a transparent cut-out) or
+leopardSeal, seaLion (= furSeal), penguin, krill** (`view: jaw` on leopardSeal = the 3D open-jaw close-up). Or use `image: assets/x.png` (a transparent cut-out) or
 `lottie: assets/x.json`.
 
 | Actor prop | Meaning |
@@ -146,6 +151,21 @@ rendered Blender 3D models (swimming loops at 24 fps, resting poses grounded on 
 The renderer builds any missing set before the video, about 2 min per swim loop on CPU, and caches them in
 `remotion/public/sprites/`. Rebuild with `python -m ytauto sprites --force [creature:view …]`. Other creatures keep their
 2D drawings. Turn 3D off for a project with `settings: {render3d: false}`.
+
+### Motion-graphics kit (show exactly what the narrator says)
+
+| Template | Use it when the line… | Key props |
+|---|---|---|
+| `Anatomy` | names a body part (teeth, jaws, ears, flippers, whiskers) | `sprite: {creature: leopardSealHead, view: jaw}` (3D jaw that opens: canines + three-pointed cheek teeth) or `{creature: seaLion, view: rest}`, or `image:`; `callouts: [{x, y, label, sub, at, side}]` (x, y = 0–1 inside the animal); `zoom: [{at, x, y, scale}]` camera push-ins; `title`, `kicker`, `backdrop` |
+| `PhotoStory` | describes a real animal, place or event | `layout: full` (full-bleed, 2.5D parallax with `parallax: true`) · `print` (framed photo that drops in and tilts in 3D) · `pile` (several prints land one by one); `photos: [{photo: "stock:leopard seal" or assets/x.jpg, caption, credit, at, focus: [x, y], zoom: [a, b], mark: {x, y, r, at, label}, mono: true, colorAt}]`. Grain, light leaks, vignette and the credit chip are automatic. Give a `fallback_visual:` for stock searches |
+| `ClipCard` | quotes a study, a term or an article | `publication, title, date, lines: [...]`, `highlight: [{text, at}]` (marker sweeps on the word), `source` |
+| `DateStamp` | gives a date, time or place | `date: "JULY 2003"`, `time`, `place`, `at` (typed on; pair with `sfx: ticks`) |
+
+Rules: never show a closed mouth while the narrator talks about teeth; never a swimming animal while the line says
+it rests on the ice; every named thing (an ear, a whisker, a place, a year) gets a callout, mark or stamp *at that word*.
+Only `mark` a stock photo you have looked at (pin it under `assets/` with its `credit`), because a search can return a
+different photo next time. A scene may hold two visuals (`visuals: [ … , … ]`), which split its time in half; use it
+when a scene has two ideas (the teeth, then the krill).
 
 `Meter`: `title, from, to, unit, note, footnote, countAt` (e.g. 0 → 236 dB).
 `Sonar`: `title, blips: [{label, x, y, creature, scale, at, color}]`.

@@ -53,7 +53,7 @@ give both files in full so the human can commit them. The GitHub workflow render
 - **Show what is said.** If the narration says "jaws", show the open jaw (`detail: {jaw: 0.9}`) with a
   push-in. If it says "seven in ten", show a `DotGrid` with 7 of 10 highlighted.
 - **Mix it up:** drawn ocean scenes, split above/below-waterline shots, maps for places, data templates for
-  numbers, and real B-roll (`footage: "pexels:…"`, served by Pixabay when Pexels has no key) about one scene
+  numbers, and real B-roll and photos (`footage: "stock:…"`, `PhotoStory` photos `"stock:…"`, from Openverse / Wikimedia Commons / NASA with no key, or Pexels/Pixabay with one) about one scene
   in six, always with a drawn `fallback`.
 - **Voice that sounds human.** Direct each line with `[tone …]` in plain English: hushed, tense, awed,
   urgent, warm, respectful. Use `[pause 0.3–0.6]` only before a real reveal, never in the middle of a
@@ -63,6 +63,13 @@ give both files in full so the human can commit them. The GitHub workflow render
   voice, and contains no drums.
 - **Sound effects:** sparing. A `swell` when something appears in the dark, a `hit` on a name reveal, a
   `thud` for a stamp or a shocking number. No more than one effect every 20–30 seconds.
+
+## Picture must match the words
+
+At every line, ask "what is the narrator naming right now?" and show exactly that: teeth → the 3D open jaw
+(`Anatomy`, `sprite: {creature: leopardSealHead, view: jaw}`) with a callout on the teeth named; a place → a map or
+`DateStamp`; a study → `ClipCard` with the phrase highlighted; a real animal → `PhotoStory`. Pauses in the
+voice belong after complete thoughts only.
 
 ## Quality bar before you hand over
 

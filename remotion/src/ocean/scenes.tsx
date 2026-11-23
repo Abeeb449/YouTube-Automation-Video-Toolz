@@ -42,8 +42,8 @@ export type Actor = {
   ring?: {at?: number; x?: number; y?: number; r?: number; local?: [number, number]};
 };
 
-type SpriteMeta = {frames: number; w: number; h: number; bbox: [number, number, number, number]; fps: number};
-type SpriteManifest = Record<string, Record<string, SpriteMeta>>;
+export type SpriteMeta = {frames: number; w: number; h: number; bbox: [number, number, number, number]; fps: number; loop?: boolean};
+export type SpriteManifest = Record<string, Record<string, SpriteMeta>>;
 
 export type OceanSceneProps = DocuProps & {
   /** 3D creature sprites rendered by Blender (injected by ytauto). */
@@ -167,10 +167,18 @@ export const Footage: React.FC<{src: string; startFrom?: number; dim?: number}> 
   );
 };
 
+/** Frame number of a sprite at time t: loops cycle (offset per actor); one-shot sets play once and hold. */
+export const spriteFrame = (meta: SpriteMeta, t: number, i = 0): number => {
+  if (meta.frames <= 1) return 1;
+  if (meta.loop === false) return Math.min(meta.frames, Math.max(1, Math.floor(Math.max(0, t) * meta.fps) + 1));
+  return (Math.floor((t + i * 0.37) * meta.fps) % meta.frames + meta.frames) % meta.frames + 1;
+};
+
 const spriteFor = (a: Actor, man?: SpriteManifest): {key: string; view: string; meta: SpriteMeta} | null => {
   if (!man || a.flat || !a.creature) return null;
   const pup = !!a.detail?.pup;
-  const key = (a.creature === 'seaLion' || a.creature === 'furSeal') ? (pup ? 'seaLionPup' : 'seaLion') : a.creature;
+  let key = (a.creature === 'seaLion' || a.creature === 'furSeal') ? (pup ? 'seaLionPup' : 'seaLion') : a.creature;
+  if (a.creature === 'leopardSeal' && a.view === 'jaw') key = 'leopardSealHead';
   const view = a.detail?.rest ? 'rest' : a.view ?? 'side';
   const meta = man[key]?.[view];
   return meta ? {key, view, meta} : null;
@@ -229,7 +237,7 @@ const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: Ocean
     const left = px - cxF * dw;
     sprTop = top + (by0 / meta.h) * dh;
     sprBottom = top + (by1 / meta.h) * dh;
-    const idx = meta.frames > 1 ? (Math.floor((t + i * 0.37) * meta.fps) % meta.frames) + 1 : 1;
+    const idx = spriteFrame(meta, t - at, i);
     const file = `sprites/${spr.key}/${spr.view}/${String(idx).padStart(4, '0')}.webp`;
     const shadowW = (bx1 - bx0) / meta.w * dw * 0.8;
     sprite = (

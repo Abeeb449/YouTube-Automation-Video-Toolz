@@ -152,6 +152,45 @@ def cmd_render(a) -> int:
     return 0
 
 
+def cmd_voiceover(a) -> int:
+    """Narration only, as an MP3 (no video): to review the voice before rendering."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .config import load_project
+    from .tts import build_scene_audio, shutdown_workers, strip_directives
+    from .utils import log, run
+
+    project = load_project(a.project, {})
+    st = dict(project.settings)
+    voice = dict(st["voice"])
+    if a.plain:  # the voice as it naturally reads the script: no direction tags, no retakes or pause editing
+        st["voice_polish"] = {"enabled": False}
+        st["sentence_gap"] = 0.0
+        voice.pop("sampling", None)
+        voice["fluent"] = False
+    cache = project.cache_dir / "tts"
+
+    def one(scene):
+        text = strip_directives(scene.text) if a.plain else scene.text
+        v = {**voice, **(scene.voice or {})}
+        return build_scene_audio(text, v, cache, st, None) if text.strip() else None
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        audios = [x for x in ex.map(one, project.scenes) if x]
+    shutdown_workers()
+    gap = cache / "scene_gap.wav"
+    from .tts import _silence
+    _silence(gap, float(st.get("padding", 0.3)) + 0.25)
+    lst = cache / "voiceover_list.txt"
+    lst.write_text("".join(f"file '{p.resolve()}'\n" for au in audios for p in (au.path, gap)))
+    out = Path(a.out) if a.out else project.build_dir / ("voiceover-plain.mp3" if a.plain else "voiceover.mp3")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst,
+         "-af", f"loudnorm=I={st.get('loudness', -16)}:TP=-1.5:LRA=11", "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "192k", out])
+    log(f"Voiceover → {out}")
+    return 0
+
+
 def cmd_plan(a) -> int:
     from .planner import write_plan
 
@@ -313,6 +352,12 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--preview", action="store_true")
             p.add_argument("--replan", action="store_true", help="re-plan even if script.yaml exists")
         p.set_defaults(fn=fn)
+
+    p = sp.add_parser("voiceover", help="export only the narration as an MP3 (no video)")
+    p.add_argument("project")
+    p.add_argument("--plain", action="store_true", help="the voice's natural read: no direction tags or pause editing")
+    p.add_argument("--out")
+    p.set_defaults(fn=cmd_voiceover)
 
     p = sp.add_parser("sprites", help="render the 3D creature sprite library with Blender")
     p.add_argument("--force", nargs="*", default=[], help="re-render, e.g. leopardSeal or leopardSeal:side")

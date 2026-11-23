@@ -1,6 +1,7 @@
 """Qwen3-TTS worker (Apache 2.0). Run with the qwen venv's python; reads JSON jobs on stdin:
 {"text": ..., "out": "/path.wav", "model": "CustomVoice"|"VoiceDesign"|"Base", "speaker": "ryan",
- "instruct": "how to say it", "language": "English", "reference": "/ref.wav", "ref_text": "..."}
+ "instruct": "how to say it", "language": "English", "reference": "/ref.wav", "ref_text": "...",
+ "sampling": {"temperature": 0.8, "top_p": 0.95, ...}, "seed": 7}
 and answers {"ok": true, "seconds": d} or {"ok": false, "error": "..."} per line."""
 import json
 import os
@@ -41,14 +42,20 @@ def main():
             kind = job.get("model") or ("Base" if job.get("reference") else "CustomVoice")
             m = model(kind)
             lang = job.get("language", "English")
+            gen = {k: v for k, v in (job.get("sampling") or {}).items() if v is not None}
+            # 12 codec frames per second of audio; ~14 characters per spoken second. A generous cap stops the rare
+            # runaway take (no end token) from generating minutes of audio.
+            gen.setdefault("max_new_tokens", int(12 * (len(job["text"]) / 9 + 6)))
+            if job.get("seed") is not None:
+                torch.manual_seed(int(job["seed"]))
             if kind == "VoiceDesign":
-                wavs, sr = m.generate_voice_design(text=job["text"], language=lang, instruct=job.get("instruct") or "")
+                wavs, sr = m.generate_voice_design(text=job["text"], language=lang, instruct=job.get("instruct") or "", **gen)
             elif kind == "Base":
                 wavs, sr = m.generate_voice_clone(text=job["text"], language=lang, ref_audio=job["reference"],
-                                                  ref_text=job.get("ref_text"), x_vector_only_mode=not job.get("ref_text"))
+                                                  ref_text=job.get("ref_text"), x_vector_only_mode=not job.get("ref_text"), **gen)
             else:
                 wavs, sr = m.generate_custom_voice(text=job["text"], speaker=job.get("speaker") or "ryan",
-                                                   language=lang, instruct=job.get("instruct") or None)
+                                                   language=lang, instruct=job.get("instruct") or None, **gen)
             sf.write(job["out"], wavs[0], sr)
             print(json.dumps({"ok": True, "seconds": round(len(wavs[0]) / sr, 3), "took": round(time.time() - t, 2)}), flush=True)
         except Exception as exc:  # noqa: BLE001

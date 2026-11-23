@@ -100,9 +100,11 @@ PRESETS: dict[str, dict] = {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
-        "padding": 0.25, "sentence_gap": 0.18, "pause_scale": 0.6, "loudness": -16,
-        "voice_polish": {"enabled": True, "max_gap": 0.25, "keep_gap": 0.12, "tempo": 1.04},
+        "padding": 0.3, "sentence_gap": 0.4, "pause_scale": 0.8, "loudness": -16,
+        # phrasing: retake sentences that hesitate mid-phrase, then pause only at punctuation (ytauto/prosody.py)
+        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 148, "max_tempo": 1.08},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
+                  "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
                   "instruct": "Narrate like a calm, authoritative documentary narrator: measured, clear and gripping."},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
         "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.5, "duck": 0.4},
@@ -112,9 +114,11 @@ PRESETS: dict[str, dict] = {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
         # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
-        "padding": 0.25, "sentence_gap": 0.18, "pause_scale": 0.6, "loudness": -16,
-        "voice_polish": {"enabled": True, "max_gap": 0.25, "keep_gap": 0.12, "tempo": 1.04},
+        "padding": 0.3, "sentence_gap": 0.4, "pause_scale": 0.8, "loudness": -16,
+        # phrasing: retake sentences that hesitate mid-phrase, then pause only at punctuation (ytauto/prosody.py)
+        "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 148, "max_tempo": 1.08},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
+                  "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
                   "instruct": "Narrate like a calm, deep-voiced nature documentary narrator: hushed and suspenseful, with a sense of wonder."},
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},

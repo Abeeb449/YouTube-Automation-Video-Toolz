@@ -18,8 +18,11 @@ SETS: dict[str, dict[str, int]] = {
     "leopardSeal": {"side": 48, "three_quarter": 48, "rest": 1},
     "seaLion": {"side": 48, "rest": 1},
     "seaLionPup": {"side": 48, "rest": 1},
+    "leopardSealHead": {"jaw": 36},          # close-up: the jaw opens to show canines + tricuspid cheek teeth
 }
 SIZE = "1280x640"
+SIZES = {"leopardSealHead": "1280x720"}
+ONCE = {"leopardSealHead"}                   # plays once and holds the last frame (not a loop)
 
 
 def sprite_ready(creature: str, view: str) -> bool:
@@ -40,7 +43,7 @@ def render_set(creature: str, view: str, frames: int, force: bool = False) -> Pa
     tmp.mkdir(parents=True)
     log(f"Rendering 3D sprite {creature}/{view} ({frames} frame{'s' if frames > 1 else ''}) with Blender …")
     cmd = [blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "creatures3d.py", "--",
-           "--creature", creature, "--view", view, "--out", tmp, "--frames", str(max(frames, 1)), "--size", SIZE]
+           "--creature", creature, "--view", view, "--out", tmp, "--frames", str(max(frames, 1)), "--size", SIZES.get(creature, SIZE)]
     if frames <= 1:
         cmd.append("--still")
     run(cmd)
@@ -56,9 +59,13 @@ def render_set(creature: str, view: str, frames: int, force: bool = False) -> Pa
     import json
 
     from PIL import Image
-    im = Image.open(pngs[0])
-    bbox = im.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox() or (0, 0, im.width, im.height)
-    (out / "meta.json").write_text(json.dumps({"frames": len(pngs), "w": im.width, "h": im.height, "bbox": bbox, "fps": 24}))
+    boxes = []
+    for p in {pngs[0], pngs[len(pngs) // 2], pngs[-1]}:   # union over the motion (a jaw opening changes the bounds)
+        im = Image.open(p)
+        boxes.append(im.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox() or (0, 0, im.width, im.height))
+    bbox = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+    (out / "meta.json").write_text(json.dumps({"frames": len(pngs), "w": im.width, "h": im.height, "bbox": bbox, "fps": 24,
+                                               "loop": creature not in ONCE}))
     shutil.rmtree(tmp, ignore_errors=True)
     return out
 
@@ -86,13 +93,25 @@ def ensure_all(force: list[str] | None = None) -> None:
 def used_sprites(project) -> set[tuple[str, str]]:
     """Which sprite sets a project needs (OceanScene actors with render3d on)."""
     need: set[tuple[str, str]] = set()
+    def walk(vs):
+        for v in vs:
+            yield v
+            if isinstance(v, dict) and isinstance(v.get("fallback_visual"), dict):
+                yield from walk([v["fallback_visual"]])
+
     for sc in project.scenes:
-        for v in sc.visuals:
+        for v in walk(sc.visuals):
+            if isinstance(v, dict) and v.get("remotion") == "Anatomy":
+                sp = (v.get("props") or {}).get("sprite") or {}
+                if sp.get("creature") in SETS and sp.get("view") in SETS[sp["creature"]]:
+                    need.add((sp["creature"], sp["view"]))
             if isinstance(v, dict) and v.get("remotion") == "OceanScene":
                 for a in (v.get("props") or {}).get("actors", []) or []:
                     c = a.get("creature")
                     det = a.get("detail") or {}
                     key = "seaLionPup" if c in ("seaLion", "furSeal") and det.get("pup") else ("seaLion" if c == "furSeal" else c)
+                    if c == "leopardSeal" and a.get("view") == "jaw":
+                        key = "leopardSealHead"
                     if key in SETS:
                         view = "rest" if det.get("rest") else a.get("view", "side")
                         if view in SETS[key]:

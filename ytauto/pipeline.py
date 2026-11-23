@@ -82,6 +82,16 @@ def chapters(project: Project, plans: list[ScenePlan]) -> list[tuple[float, str]
     return marks
 
 
+def _with_sprites(spec: dict, man: dict) -> dict:
+    """Hand the 3D sprite manifest to templates that draw creatures (including a scene's fallback visual)."""
+    if spec.get("remotion") in ("OceanScene", "Anatomy"):
+        spec = {**spec, "props": {**(spec.get("props") or {}), "sprites": man}}
+    fb = spec.get("fallback_visual")
+    if isinstance(fb, dict):
+        spec = {**spec, "fallback_visual": _with_sprites(fb, man)}
+    return spec
+
+
 def render_project(project: Project, preview: bool = False, keep_cache: bool = True) -> Path:
     t0 = time.time()
     st = project.settings
@@ -142,8 +152,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             if isinstance(spec, dict) and spec.get("remotion") == "KineticText":
                 spec = {**spec, "props": {"text": strip_directives(scene.text), **(spec.get("props") or {})}}
             # 3D creature sprites (Blender) replace the flat drawings when available.
-            if isinstance(spec, dict) and spec.get("remotion") == "OceanScene" and st.get("render3d", True) and sprite_man:
-                spec = {**spec, "props": {**(spec.get("props") or {}), "sprites": sprite_man}}
+            if isinstance(spec, dict) and st.get("render3d", True) and sprite_man:
+                spec = _with_sprites(spec, sprite_man)
             # Word cues (at: "Hiroshima") → seconds within this clip.
             if isinstance(spec, dict) and spec.get("props"):
                 spec = {**spec, "props": resolve_cues(spec["props"], plan.audio.words, offset_frames / fps, fr / fps,
@@ -333,9 +343,11 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         warn(f"YouTube ignores chapters when any is under 10s: {', '.join(short)}")
     if music_credits:
         desc += "\n\nMusic:\n" + "\n".join(music_credits)
-    from .stock import providers_used
+    from .stock import credits, providers_used
     if providers_used():
-        desc += "\n\nStock footage: " + ", ".join(providers_used())
+        desc += "\n\nStock footage and photos: " + ", ".join(providers_used())
+    if credits():
+        desc += "\nPhoto/video credits:\n" + "\n".join(f"- {c}" for c in credits())
     if len(marks) >= 3:
         desc += "\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)
     (build / "description.txt").write_text(desc + "\n", encoding="utf-8")

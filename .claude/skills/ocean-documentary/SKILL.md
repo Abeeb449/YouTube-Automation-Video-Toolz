@@ -47,6 +47,15 @@ spotted shader, armature swim loop) instead of flat drawings. Sprites are cached
 automatically when a video needs a set that is missing (`python -m ytauto sprites` to pre-build). Per actor:
 `view: three_quarter` (leopard seal), `flat: true` for the 2D drawing. Project switch: `settings.render3d: false`.
 
+## Show what is said
+
+Use `Anatomy` (3D jaw / body with callout lines and push-ins) for body parts, `PhotoStory` (real photos from
+Openverse / Wikimedia Commons / NASA, no key needed, with parallax, tilt, pen circles and credits) for real
+animals and places, `ClipCard` (highlighted source clipping) for studies and terms, `DateStamp` for dates.
+Editing tips from the documentary-explainer skill: a new shot every 3–6 s; Ken Burns on every still; source
+clippings with a marker that draws on in sync; date cards typed on with ticks; monochrome-to-colour for a
+reveal; cuts on phrase boundaries; music 18–22 dB under the voice. See agent/SKILL.md § motion-graphics kit.
+
 ## Voice
 
 Default: **Qwen3-TTS `ryan`** (Apache 2.0, free, commercial OK) directed with the preset's `instruct`
@@ -55,6 +64,8 @@ Default: **Qwen3-TTS `ryan`** (Apache 2.0, free, commercial OK) directed with th
 Alternatives: other Qwen speakers (`eric`, `aiden`, `dylan`), an invented voice (`name: design`, `description: "deep, warm
 British narrator"`), a cloned voice the user owns (`reference: assets/voice.wav`), or `engine: chatterbox` (faster).
 Kokoro is the automatic fallback. Exact word timings come from faster-whisper alignment, so cue words land precisely.
+Natural phrasing is automatic: broken or misread takes are re-voiced, and pauses are moved to punctuation only
+(ytauto/prosody.py). Check the narration alone first: `python -m ytauto voiceover <project>` → build/voiceover.mp3.
 Qwen on CPU is about 6× slower than real time; voice audio is cached per sentence.
 
 ## Sound

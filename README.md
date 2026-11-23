@@ -147,6 +147,8 @@ scenes:
 | Remotion | `{remotion: TitleCard, props: {...}}` | Animated templates (see below) |
 | Blender | `{blender: intro, props: {text: ...}}` · `{blender: spin}` · `{blender: scenes/logo.blend}` | 3D, CPU-rendered (Cycles) |
 | 3D animals | automatic inside `OceanScene` | Blender-rendered sprite loops for leopard seal / sea lion / pup (`ytauto sprites`) |
+| Motion graphics | `{remotion: Anatomy}` · `PhotoStory` · `ClipCard` · `DateStamp` | 3D close-ups with callouts, animated photos (parallax, 3D tilt, pen circles), highlighted source clippings, typed date cards |
+| Free photos / clips | `stock:leopard seal` (no key) | Openverse, Wikimedia Commons, NASA; credits added to the description |
 
 **Remotion templates** live in `remotion/src/`. Each one adapts to the scene length and the project's colours:
 

@@ -272,7 +272,14 @@ class ClipRenderer:
         if not (rdir / "node_modules").exists():
             raise YtautoError(f"Remotion not installed. Run: cd {rdir} && npm install")
         comp = spec["remotion"]
-        props = self._stage_assets(spec.get("props") or {}, rdir)
+        try:
+            props = self._stage_assets(spec.get("props") or {}, rdir)
+        except YtautoError as exc:
+            fb = spec.get("fallback_visual")
+            if not isinstance(fb, dict) or "remotion" not in fb:
+                raise
+            warn(f"{comp}: {exc}. Using the fallback visual instead.")
+            return self._remotion(fb, duration, out, fade_in, fade_out)
         theme = {**(self.p.settings.get("theme") or {}), **(props.get("theme") or {})}
         props.update({"durationInSeconds": duration, "width": self.W, "height": self.H, "fps": self.fps, "theme": theme})
         props_file = out.with_suffix(".props.json")
@@ -292,10 +299,49 @@ class ClipRenderer:
         raw.unlink(missing_ok=True)
         props_file.unlink(missing_ok=True)
 
+    def _publish(self, src: Path, rdir: Path) -> str:
+        pub = rdir / "public" / "ytauto"
+        pub.mkdir(parents=True, exist_ok=True)
+        name = f"{stable_hash(file_fingerprint(src))}{src.suffix.lower()}"
+        if not (pub / name).exists():
+            shutil.copyfile(src, pub / name)
+        return f"ytauto/{name}"
+
+    def _cutout(self, src: Path) -> Path | None:
+        """Subject cut-out (rembg) for 2.5D parallax; None when rembg isn't available."""
+        out = self.cache / "cutouts" / f"{stable_hash(file_fingerprint(src))}.png"
+        if out.exists():
+            return out
+        try:
+            from rembg import remove
+            from PIL import Image
+        except ImportError:
+            return None
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            from rembg import new_session
+            sess = new_session(os.environ.get("YTAUTO_REMBG_MODEL", "isnet-general-use"))
+            remove(Image.open(src).convert("RGB"), session=sess).save(out)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            warn(f"cut-out failed for {src.name}: {exc}")
+            return None
+
     def _stage_assets(self, obj, rdir: Path):
         """Copy local files referenced by `image:` props into remotion/public so templates can load them."""
         if isinstance(obj, list):
-            return [self._stage_assets(v, rdir) for v in obj]
+            out_list, errors = [], []
+            for v in obj:
+                try:
+                    out_list.append(self._stage_assets(v, rdir))
+                except YtautoError as exc:
+                    if not (isinstance(v, dict) and "photo" in v):
+                        raise
+                    errors.append(str(exc))      # one photo of several missing: show the others
+                    warn(str(exc)[:200])
+            if errors and not out_list:
+                raise YtautoError("; ".join(errors))
+            return out_list
         if not isinstance(obj, dict):
             return obj
         out = {}
@@ -321,6 +367,28 @@ class ClipRenderer:
                 if not (pub / name).exists():
                     shutil.copyfile(src, pub / name)
                 out[k] = f"ytauto/{name}"
+            elif k == "photo" and isinstance(v, str):
+                # PhotoStory: local file or a free stock photo ("stock:leopard seal"), credited automatically
+                low = v.lower()
+                if low.startswith(("stock:", "photo:", "pexels-photo:")):
+                    query = v.split(":", 1)[1].strip()
+                    try:
+                        src, _ = fetch_stock(query, "image", self.cache, self.W, nth=int(obj.get("pick", 0)))
+                    except Exception as exc:  # noqa: BLE001
+                        raise YtautoError(f"photo '{query}': {exc}") from exc
+                    from .stock import credit_for
+                    cr = credit_for(src)
+                    if cr and not obj.get("credit"):
+                        out["credit"] = cr
+                else:
+                    src = self.p.resolve(v)
+                if not src.exists():
+                    raise YtautoError(f"photo file not found: {src}")
+                out[k] = self._publish(src, rdir)
+                if obj.get("parallax"):
+                    cut = self._cutout(src)
+                    if cut:
+                        out["cutout"] = self._publish(cut, rdir)
             elif k == "fallback":
                 continue  # only used when footage can't be fetched
             else:

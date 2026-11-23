@@ -10,6 +10,9 @@ import {MapScene} from './docu/MapScene';
 import {Meter, OceanScene, Sonar} from './ocean/scenes';
 import {Globe} from './docu/Globe';
 import {Horizon} from './docu/Horizon';
+import {PhotoStory} from './motion/PhotoStory';
+import {Anatomy} from './motion/Anatomy';
+import {ClipCard, DateStamp} from './motion/ClipCard';
 import {BarCompare, Clock, Counter, DotGrid, Equation, Radius, SourceList, SplitCompare, Statement, StatCards} from './docu/data';
 
 // ytauto passes durationInSeconds/width/height/fps as input props, so every
@@ -45,6 +48,10 @@ const SAFE: Record<string, Record<string, unknown>> = {
   SplitCompare: {left: {title: ''}, right: {title: ''}},
   Statement: {line1: ''},
   Radius: {rings: []},
+  PhotoStory: {photos: []},
+  Anatomy: {},
+  ClipCard: {lines: []},
+  DateStamp: {date: ''},
 };
 
 const DEMOS: Record<string, Record<string, unknown>> = {
@@ -107,6 +114,10 @@ export const Root: React.FC = () => (
     <Composition id="OceanScene" component={OceanScene as React.FC<any>} {...common} defaultProps={SAFE.OceanScene} />
     <Composition id="Meter" component={Meter as React.FC<any>} {...common} defaultProps={SAFE.Meter} />
     <Composition id="Sonar" component={Sonar as React.FC<any>} {...common} defaultProps={SAFE.Sonar} />
+    <Composition id="PhotoStory" component={PhotoStory as React.FC<any>} {...common} defaultProps={SAFE.PhotoStory} />
+    <Composition id="Anatomy" component={Anatomy as React.FC<any>} {...common} defaultProps={SAFE.Anatomy} />
+    <Composition id="ClipCard" component={ClipCard as React.FC<any>} {...common} defaultProps={SAFE.ClipCard} />
+    <Composition id="DateStamp" component={DateStamp as React.FC<any>} {...common} defaultProps={SAFE.DateStamp} />
     <Folder name="Demos">
       <Composition id="Demo-OceanScene" component={OceanScene as React.FC<any>} {...common} defaultProps={DEMOS.OceanScene} />
       <Composition id="Demo-Polar" component={OceanScene as React.FC<any>} {...common} defaultProps={DEMOS.Polar} />

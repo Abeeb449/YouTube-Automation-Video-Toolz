@@ -302,7 +302,7 @@ def build_sea_lion(pup=False):
     sphere("nose", (1.47 * k, 0, 0.11 * k), 0.035 * k, nose)
     ear = mat_plain("ear", hexcol("#2c1f16"), rough=0.6)
     for side in (1, -1):
-        bpy.ops.mesh.primitive_cone_add(radius1=0.02 * k, depth=0.05 * k, location=(1.0 * k, 0.19 * k * side, 0.28 * k))
+        bpy.ops.mesh.primitive_cone_add(radius1=0.024 * k, depth=0.06 * k, location=(0.99 * k, 0.15 * k * side, 0.27 * k))
         c = bpy.context.active_object
         c.rotation_euler = (math.radians(-50 * side), math.radians(-70), 0)
         c.data.materials.append(ear)
@@ -355,6 +355,143 @@ REST_LIFT = {"seaLion": -0.42, "furSeal": -0.42, "seaLionPup": -0.35, "leopardSe
 BUILDERS = {"leopardSeal": build_leopard_seal, "seaLion": build_sea_lion, "furSeal": build_sea_lion,
             "seaLionPup": lambda: build_sea_lion(pup=True), "penguin": build_penguin}
 
+
+# ------------------------------------------------------------------------------------------ head close-up
+def _tooth_blade(name, length, width, cusps, mat, thick=0.014):
+    """A tooth as a thin blade: one cusp = a curved canine; three = the leopard seal's tricuspid cheek tooth
+    (tall middle point, smaller points front and back). Built pointing down -Z from its root at the origin."""
+    import bmesh
+    if cusps == 1:
+        outline = [(-width / 2, 0), (-width * 0.35, -length * 0.55), (-width * 0.05, -length), (width * 0.18, -length * 0.6),
+                   (width / 2, 0)]
+    else:
+        h = length
+        outline = [(-width / 2, 0), (-width * 0.48, -h * 0.35), (-width * 0.36, -h * 0.55), (-width * 0.22, -h * 0.38),
+                   (-width * 0.08, -h * 0.62), (0, -h), (width * 0.08, -h * 0.62), (width * 0.22, -h * 0.38),
+                   (width * 0.36, -h * 0.55), (width * 0.48, -h * 0.35), (width / 2, 0)]
+    bm = bmesh.new()
+    vs = [bm.verts.new((x, 0, z)) for x, z in outline]
+    bm.faces.new(vs)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    sol = ob.modifiers.new("sol", "SOLIDIFY")
+    sol.thickness = thick
+    sol.offset = 0
+    bev = ob.modifiers.new("bev", "BEVEL")
+    bev.width = thick * 0.45
+    bev.segments = 3
+    ob.data.materials.append(mat)
+    for poly in ob.data.polygons:
+        poly.use_smooth = True
+    return ob
+
+
+def build_leopard_head():
+    """Leopard seal head and neck with a separate, hinged lower jaw, mouth interior, gums, long canines and
+    tricuspid cheek teeth. Returns (objects, jaw_pivot)."""
+    skin = mat_spotted("lh_skin", hexcol("#4a545c"), hexcol("#22272b"), hexcol("#b7c1c7"), spot_scale=7.0)
+    # upper head: flat-bottomed (palate at z≈0), wide reptilian skull, long snout
+    upper = [(0.35, 0, 0.10, 0.30, 0.30), (0.75, 0, 0.12, 0.25, 0.24), (1.05, 0, 0.22, 0.34, 0.24),
+             (1.38, 0, 0.21, 0.33, 0.21), (1.68, 0, 0.16, 0.26, 0.16), (1.95, 0, 0.12, 0.17, 0.12), (2.13, 0, 0.09, 0.08, 0.08)]
+    head = skin_body("head", upper)
+    apply_all(head)
+    head.data.materials.append(skin)
+    jawmat = mat_spotted("lh_jaw", hexcol("#8d979e"), hexcol("#3a4248"), hexcol("#c9d1d6"), spot_scale=7.0)
+    lower = [(1.08, 0, -0.09, 0.24, 0.08), (1.45, 0, -0.10, 0.22, 0.075), (1.80, 0, -0.09, 0.16, 0.065), (2.04, 0, -0.08, 0.08, 0.045)]
+    jaw = skin_body("jaw", lower)
+    apply_all(jaw)
+    jaw.data.materials.append(jawmat)
+    # throat joins head and jaw so the opening reads as one animal
+    throat = skin_body("throat", [(0.35, 0, -0.02, 0.28, 0.26), (0.85, 0, -0.04, 0.26, 0.16), (1.12, 0, -0.04, 0.2, 0.08)])
+    apply_all(throat)
+    throat.data.materials.append(jawmat)
+    mouth = mat_plain("mouth", hexcol("#3b0d12"), rough=0.5)
+    gum = mat_plain("gum", hexcol("#7a2e35"), rough=0.35)
+    tooth = mat_plain("tooth", hexcol("#e9e2cf"), rough=0.25)
+    tongue = mat_plain("tongue", hexcol("#9c4a55"), rough=0.45)
+    cav = sphere("cavity", (1.55, 0, 0.0), 1.0, mouth)
+    cav.scale = (0.55, 0.15, 0.09)
+    floor = sphere("mouthfloor", (1.55, 0, -0.035), 1.0, mouth)      # the inside of the lower jaw
+    floor.scale = (0.5, 0.17, 0.03)
+    tg = sphere("tongue", (1.45, 0, -0.012), 1.0, tongue)
+    tg.scale = (0.36, 0.1, 0.03)
+    eye = mat_plain("eye", hexcol("#030405"), rough=0.04)
+    for side in (1, -1):
+        sphere(f"eye{side}", (1.5, 0.235 * side, 0.315), 0.042, eye)
+        sphere(f"nost{side}", (2.12, 0.035 * side, 0.15), 0.018, mat_plain("n", hexcol("#0c0e10"), rough=0.6))
+    # tooth rows follow the U of the jaws; x positions from the back of the gape to the front
+    def row_y(x):
+        return max(0.035, 0.2 - (x - 1.4) * 0.27)
+    uppers, lowers = [], []
+    for side in (1, -1):
+        for j, x in enumerate((1.40, 1.52, 1.64, 1.76)):                       # tricuspid cheek teeth
+            for top in (True, False):
+                t = _tooth_blade(f"pc{side}{j}{top}", 0.085, 0.09, 3, tooth)
+                t.location = (x + (0.05 if top else 0.0), row_y(x) * side * (1.0 if top else 0.82), -0.005 if top else -0.03)
+                t.rotation_euler = (0, 0, math.atan2(-0.27 * side, 1))
+                if not top:
+                    t.rotation_euler = (math.pi, 0, -math.atan2(-0.27 * side, 1))
+                (uppers if top else lowers).append(t)
+        for top in (True, False):                                               # long canines
+            c = _tooth_blade(f"can{side}{top}", 0.15 if top else 0.12, 0.05, 1, tooth, thick=0.03)
+            x = 1.98 if top else 1.93
+            c.location = (x, row_y(x) * side * (0.9 if top else 0.75), -0.005 if top else -0.03)
+            c.rotation_euler = (0, 0, math.pi / 2) if top else (math.pi, 0, math.pi / 2)
+            (uppers if top else lowers).append(c)
+    for i, x in enumerate((2.06, 2.08)):                                        # small incisors
+        for side in (1, -1):
+            for top in (True, False):
+                c = _tooth_blade(f"inc{i}{side}{top}", 0.04, 0.025, 1, tooth, thick=0.015)
+                c.location = (x - (0.04 if not top else 0), 0.02 * side + 0.012 * i * side, -0.005 if top else -0.03)
+                c.rotation_euler = (0, 0, math.pi / 2) if top else (math.pi, 0, math.pi / 2)
+                (uppers if top else lowers).append(c)
+    for top in (True, False):                                                   # gum ridges
+        g = skin_body(f"gum{top}", [(1.33, 0.2, 0, 0.025, 0.02), (1.7, 0.1, 0, 0.022, 0.018), (2.02, 0.03, 0, 0.02, 0.016),
+                                    (2.02, -0.03, 0, 0.02, 0.016), (1.7, -0.1, 0, 0.022, 0.018), (1.33, -0.2, 0, 0.025, 0.02)])
+        apply_all(g)
+        g.location.z = -0.0 if top else -0.035
+        if not top:
+            g.scale = (1.0, 0.82, 1.0)
+        g.data.materials.append(gum)
+        (uppers if top else lowers).append(g)
+    pivot = bpy.data.objects.new("jaw_pivot", None)
+    bpy.context.scene.collection.objects.link(pivot)
+    pivot.location = (1.0, 0, -0.02)
+    bpy.context.view_layer.update()
+    for o in [jaw, tg, floor] + lowers:
+        mw = o.matrix_world.copy()
+        o.parent = pivot
+        o.matrix_parent_inverse = pivot.matrix_world.inverted()
+        o.matrix_world = mw
+    return pivot
+
+
+def render_head(view):
+    """view 'jaw': the jaw opens wide (then holds) — for lines about teeth, the bite, the gape."""
+    pivot = build_leopard_head()
+    n = args.frames
+    for f in range(1, n + 1):
+        k = min(1.0, (f - 1) / max(1, n * 0.6))
+        k = k * k * (3 - 2 * k)                                  # ease in-out
+        pivot.rotation_euler = (0, math.radians(3 + 25 * k), 0)  # lower jaw swings down
+        pivot.keyframe_insert("rotation_euler", frame=f)
+    sc = bpy.context.scene
+    cam = setup_scene("three_quarter")
+    cam.data.lens = 55
+    cam.location = Vector((3.25, -2.35, 0.25))
+    target = Vector((1.55, 0, -0.05))
+    cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
+    sc.frame_set(n)
+    meshes = [o for o in sc.objects if o.type == "MESH"]
+    fit_camera_to_bounds(cam, meshes, margin=1.22)
+    sc.render.filepath = f"{args.out}/" + ("still" if args.still else "f_####")
+    if args.still:
+        bpy.ops.render.render(write_still=True)
+    else:
+        bpy.ops.render.render(animation=True)
 
 # ------------------------------------------------------------------------------------------ rig + swim cycle
 def rig_and_animate(body, extent, frames, mode):
@@ -530,6 +667,9 @@ def fit_camera_to_bounds(cam, objs, margin=1.1):
 
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    if args.creature == "leopardSealHead":
+        render_head(args.view)
+        return
     build = BUILDERS[args.creature]
     body, ext = build()
     extent = ext[0]

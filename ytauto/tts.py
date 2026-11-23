@@ -147,6 +147,51 @@ def polish(raw: Path, cfg: dict) -> Path:
     return out
 
 
+_take_lock = threading.Lock()
+
+
+def best_take(sent: str, voice: dict, raw: Path, pol: dict) -> Path:
+    """Voice a sentence, listen back (prosody.analyse) and ask for another take while it hesitates mid-phrase or
+    misreads words; keep the best take, then re-time its pauses so it only breathes at punctuation."""
+    from . import prosody
+    choice = raw.with_suffix(".take.json")
+    best: Path | None = None
+    if choice.exists():
+        try:
+            best = raw.with_name(json.loads(choice.read_text())["file"])
+        except (ValueError, KeyError):
+            best = None
+    if best is None or not best.exists():
+        retakes = int(pol.get("retakes", 2))
+        prior = sorted(raw.parent.glob(f"{raw.stem}.t*.wav"))   # takes already made by an earlier run
+        base = int(voice.get("seed") or pol.get("seed", 1234))
+        cands = []
+        for k in range(max(retakes, len(prior)) + 1):
+            f = raw if k == 0 else raw.with_name(f"{raw.stem}.t{k}.wav")
+            if not f.exists():
+                if k > retakes:
+                    break
+                synthesize(sent, {**voice, "seed": base + 101 * k}, f)
+            try:
+                with _take_lock:
+                    an = prosody.analyse(f, sent)
+            except Exception as exc:  # noqa: BLE001 — no whisper: keep the first take
+                warn(f"take check unavailable ({str(exc)[:100]})")
+                cands.append((0.0, k, f, None))
+                break
+            cands.append((an.score(), k, f, an))
+            if an.ok():
+                break
+        sc, k, best, an = min(cands, key=lambda c: (c[0], c[1]))
+        if an is not None and not an.ok():
+            warn(f"best of {len(cands)} takes still imperfect ({an.summary()}): {sent[:60]}")
+        log(f"   voiced ({len(cands)} take{'s' if len(cands) > 1 else ''}): {sent[:70]}")
+        choice.write_text(json.dumps({"file": best.name, "score": sc, "takes": len(cands),
+                                      "summary": an.summary() if an else ""}))
+    with _take_lock:
+        return prosody.retime(best, sent, pol)
+
+
 def merge_passages(items: list[tuple], max_chars: int = 320) -> list[tuple]:
     """Join consecutive sentences that share the same voice direction into one passage.
     Neural engines sound more natural across sentence boundaries, and each call has a fixed cost,
@@ -532,8 +577,12 @@ def _qwen_tts(text: str, voice: dict, out: Path) -> None:
         style.append("slow, deliberate pace")
     elif sp and float(sp) > 1.05:
         style.append("brisk pace")
+    if voice.get("fluent", True):  # neural voices hesitate mid-phrase unless told not to
+        style.append("Speak each phrase in one smooth, continuous flow, never hesitating inside a phrase; "
+                     "pause only at commas and full stops")
     instruct = ". ".join(x.strip().rstrip(".") for x in style if x and x.strip())
-    job = {"text": text, "out": str(out.with_suffix(".raw.wav")), "language": voice.get("language", "English")}
+    job = {"text": text, "out": str(out.with_suffix(".raw.wav")), "language": voice.get("language", "English"),
+           "sampling": voice.get("sampling"), "seed": voice.get("seed")}
     if voice.get("reference"):
         job.update(model="Base", reference=str(voice["reference"]), ref_text=voice.get("ref_text"))
     elif name == "design" or voice.get("description"):
@@ -600,9 +649,11 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     sub = settings["subtitles"]
     gap = float(settings["sentence_gap"])
     items = parse_directives(text)
-    if voice.get("engine") in ("qwen", "chatterbox", "elevenlabs"):
+    pol = settings.get("voice_polish") or {}
+    phrasing = pol.get("mode") == "phrasing" and pol.get("enabled", True) is not False
+    if voice.get("engine") in ("qwen", "chatterbox", "elevenlabs") and (not phrasing or pol.get("merge")):
         items = merge_passages(items)
-    key = stable_hash("scene-audio-v6", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"),
+    key = stable_hash("scene-audio-v7", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"),
                       settings.get("voice_polish"), settings.get("pause_scale"))
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
@@ -624,20 +675,28 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     pause_scale = float(settings.get("pause_scale", 1.0))
     for i, item in enumerate(items):
         if item[0] == "pause":
-            dur = max(0.12, item[1] * pause_scale)
+            prev = items[i - 1] if i else None
+            ends = bool(prev and prev[0] == "say" and re.search(r"[.!?][\"'”’)]*$", prev[1].strip()))
+            dur = max(0.12, item[1] * pause_scale, gap if (phrasing and ends) else 0.0)
             pieces.append(silence(dur))
             t += dur
             continue
         _, sent, over = item
         v = {**voice, **over}
-        sk = stable_hash("sent-v1", v.get("engine"), v.get("name"), v.get("rate"),
-                         v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
-                         v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), v.get("tone"),
-                         v.get("instruct"), v.get("description"), v.get("model"), sent)
+        parts = [v.get("engine"), v.get("name"), v.get("rate"),
+                 v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
+                 v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), v.get("tone"),
+                 v.get("instruct"), v.get("description"), v.get("model"), sent]
+        if v.get("sampling") or v.get("fluent") is not None or v.get("engine") == "qwen":
+            parts += [v.get("sampling"), v.get("fluent", True), "sent-v2"]
+        sk = stable_hash("sent-v1", *parts)
         raw = cache / f"sent_{sk}.wav"
-        if not raw.exists():
-            synthesize(sent, v, raw)
-        wav = polish(raw, settings.get("voice_polish") or {})
+        if phrasing:
+            wav = best_take(sent, v, raw, pol)
+        else:
+            if not raw.exists():
+                synthesize(sent, v, raw)
+            wav = polish(raw, pol)
         d = ffprobe_duration(wav)
         if settings.get("align", "auto") != "off":
             align_words(sent, wav, settings.get("align", "auto"))
