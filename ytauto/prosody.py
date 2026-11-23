@@ -84,8 +84,27 @@ def silences(audio, min_len: float = 0.06) -> list[tuple[float, float]]:
     return out
 
 
+_NUMWORDS = set("""zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen
+seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand million billion half
+quarter percent per cent and a point""".split())
+_UK = {"metres": "meters", "metre": "meter", "kilometres": "kilometers", "kilometre": "kilometer", "litres": "liters",
+       "centre": "center", "colour": "color", "behaviour": "behavior", "favourite": "favorite", "grey": "gray"}
+
+
 def _norm(w: str) -> str:
-    return re.sub(r"[^a-z0-9%]", "", w.lower())
+    w = re.sub(r"[^a-z0-9%]", "", w.lower())
+    return _UK.get(w, w)
+
+
+def _words_only(tokens: list[str]) -> list[str]:
+    """Drop numbers in any spelling ("three and a half" vs "3.5") so they never count as misreads."""
+    out = []
+    for t in tokens:
+        for part in re.split(r"-", t):
+            n = _norm(part)
+            if n and not re.search(r"\d", n) and n not in _NUMWORDS and n != "%":
+                out.append(n)
+    return out
 
 
 def _boundary(tok: str) -> str:
@@ -159,8 +178,9 @@ def analyse(path: Path, text: str) -> Analysis:
     nt = [_norm(t) for t in toks]
     nh = [_norm(w) for _, _, w in heard]
     sm = difflib.SequenceMatcher(a=nt, b=nh, autojunk=False)
-    match = sum(b.size for b in sm.get_matching_blocks())
-    wer = 1 - match / max(1, len(nt))
+    wa, wb = _words_only(toks), _words_only([w for _, _, w in heard])
+    sw = difflib.SequenceMatcher(a=wa, b=wb, autojunk=False)
+    wer = 1 - sum(b.size for b in sw.get_matching_blocks()) / max(1, len(wa))
     # heard word index -> script token index (for punctuation)
     h2t: dict[int, int] = {}
     for op, a0, a1, b0, b1 in sm.get_opcodes():
