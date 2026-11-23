@@ -665,13 +665,14 @@ scenes:
 
   - text: "[tone respectful, quiet and serious] In two thousand and three, a British marine biologist named Kirsty Brown was snorkelling near Rothera Research Station, off the Antarctic Peninsula, when a leopard seal pulled her under. [pause 0.5] She did not survive."
     visual:
-      remotion: Horizon
+      remotion: OceanScene
       props:
-        mood: grey
-        silhouettes: false
-        title: "Rothera Research Station"
-        subtitle: "Antarctic Peninsula · July 2003"
-        titleAt: "Rothera"
+        split: {y: 0.42, land: ice, landWidth: 0.45, sky: storm, floes: true}
+        zoom: [1.0, 1.08]
+        actors:
+          - {creature: leopardSeal, x: 0.25, y: 0.72, to: [0.55, 0.7], scale: 0.8, silhouette: "#071118", opacity: 0.8}
+        callout: "Rothera Research Station · Antarctic Peninsula, 2003"
+        calloutAt: "Rothera"
 
   - text: "[tone respectful] It remains the only recorded human death caused by a leopard seal. Since then, researchers there watch the water for half an hour before anyone dives in."
     visual:
