@@ -8,3 +8,4 @@ projects/*/.cache/
 client_secret*.json
 /.cache/
 remotion/public/ytauto/
+remotion/public/sprites/*/*.tmp/
