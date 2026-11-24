@@ -219,15 +219,9 @@ This kit makes "danger & wonder" deep-sea animal documentaries in the style of `
 
 ## 5. Voices
 
-**Named narrators** (use in any project): `settings: {voice: ryan}` or `settings: {voice: deep-british}`, or pick
-one in the GitHub Action's **voice** box. Try one on the opening first:
-`python -m ytauto voiceover projects/<name> --voice deep-british --scenes 8`.
-
-| Profile | Engine | Sound |
-|---|---|---|
-| `ryan` (default) | Qwen3-TTS speaker Ryan | warm, measured male narrator |
-| `deep-british` | Chatterbox cloning `voices/narrator-deep-british.wav` | deep, gravelly British narrator (an invented voice) |
-| `american-baritone`, `female-british` | Chatterbox, invented voices in `voices/` | |
+**Channel narrator:** `ryan` (Qwen3-TTS speaker Ryan, natural read, no audio watermark) is the default for every
+project. Chatterbox voices are no longer offered because Chatterbox watermarks everything it speaks; the engine and
+the invented reference voices in `voices/` remain available if you set `engine: chatterbox` yourself.
 
 Narration style: `narration: natural` (default) reads the script as written; `narration: polished` re-records
 sentences with broken words and moves pauses to punctuation.

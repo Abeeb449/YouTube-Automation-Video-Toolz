@@ -15,9 +15,9 @@ on:
         options: [auto, nature, ocean, documentary]
         default: auto
       voice:
-        description: "Narrator: project = as set in script.yaml, ryan = Qwen Ryan natural, deep-british = Chatterbox deep British"
+        description: "Narrator: project = as set in script.yaml, ryan = Qwen Ryan, natural read"
         type: choice
-        options: [project, ryan, deep-british, american-baritone, female-british]
+        options: [project, ryan]
         default: project
       replan:
         description: "Re-plan scenes from script.txt even if script.yaml exists"

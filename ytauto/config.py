@@ -166,14 +166,8 @@ _REPO = Path(__file__).resolve().parents[1]
 VOICE_PROFILES: dict[str, dict] = {
     # Qwen3-TTS (Apache 2.0), built-in speaker; no audio watermark
     "ryan": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george"},
-    # Chatterbox (MIT) cloning an invented voice (voices/narrator-deep-british.wav, Qwen VoiceDesign, not a real
-    # person). Chatterbox adds Resemble's inaudible PerTh watermark to everything it speaks.
-    "deep-british": {"engine": "chatterbox", "model": "turbo", "reference": str(_REPO / "voices/narrator-deep-british.wav"),
-                     "fallback": "qwen", "fallback_name": "ryan"},
-    "american-baritone": {"engine": "chatterbox", "model": "turbo",
-                          "reference": str(_REPO / "voices/narrator-american-baritone.wav"), "fallback": "qwen", "fallback_name": "ryan"},
-    "female-british": {"engine": "chatterbox", "model": "turbo",
-                       "reference": str(_REPO / "voices/narrator-female-british.wav"), "fallback": "qwen", "fallback_name": "ryan"},
+    # Chatterbox voices were removed from the menu on purpose: Chatterbox stamps every output with Resemble's PerTh
+    # audio watermark. The engine still works if you set it explicitly (engine: chatterbox, reference: voices/…).
 }
 
 

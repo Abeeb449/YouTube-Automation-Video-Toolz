@@ -67,9 +67,7 @@ Two narration styles (`settings.narration`):
 - `polished`: each sentence is listened back, re-voiced if a word breaks or is misread, its pauses moved to
   punctuation, and `[tone …]` / `[pause 0.4]` tags are performed.
 
-Narrator: `settings: {voice: ryan}` (Qwen Ryan, default) or `settings: {voice: deep-british}` (Chatterbox, deep
-British narrator; invented voice in `voices/`). Both work for any topic. Check the narration alone before
-rendering: `python -m ytauto voiceover projects/<slug>` → `build/voiceover.mp3`; compare on the opening with
-`--voice deep-british --scenes 8` (or any Qwen speaker: aiden, eric, dylan, serena, vivian, uncle_fu, ono_anna, sohee).
+Narrator: Qwen Ryan, natural read (the channel voice; no audio watermark). Check the narration alone before
+rendering: `python -m ytauto voiceover projects/<slug>` → `build/voiceover.mp3`.
 
 Full reference for every template and prop: `agent/SKILL.md`.
