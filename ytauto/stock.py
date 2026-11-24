@@ -474,7 +474,44 @@ def _pick(candidates: list[tuple[str, str]]) -> tuple[str, str]:
     return candidates[0]
 
 
+_tl = threading.local()
+
+
+class track:
+    """`with track() as ids:` collects the stock ids fetched in this thread (to cache credits with a clip)."""
+    def __enter__(self) -> list[str]:
+        self.prev = getattr(_tl, "ids", None)
+        _tl.ids = []
+        return _tl.ids
+
+    def __exit__(self, *exc) -> None:
+        if self.prev is not None:
+            self.prev.extend(_tl.ids)
+        _tl.ids = self.prev
+
+
+def records_for(ids: list[str]) -> list[dict]:
+    with _lock:
+        return [{k: v for k, v in _credits[c].items() if k != "download_location"} for c in dict.fromkeys(ids) if c in _credits]
+
+
+def register(records: list[dict]) -> None:
+    """Re-register the credits of a clip taken from the cache (its photos were not searched again)."""
+    with _lock:
+        for r in records:
+            if r.get("id"):
+                _credits.setdefault(r["id"], r)
+                _used.add(r["id"])
+
+
 def _fetch(cid: str, url: str, kind: str, query: str, cache: Path) -> Path:
+    path = _fetch_file(cid, url, kind, query, cache)
+    if getattr(_tl, "ids", None) is not None:
+        _tl.ids.append(cid)
+    return path
+
+
+def _fetch_file(cid: str, url: str, kind: str, query: str, cache: Path) -> Path:
     ext = ".mp4" if kind == "video" else ".jpg"
     src_ext = Path(urllib.parse.urlparse(url).path).suffix.lower()
     dst = cache / "stock" / f"{cid}_{stable_hash(url)}{ext}"

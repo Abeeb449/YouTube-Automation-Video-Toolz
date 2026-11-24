@@ -344,24 +344,24 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     if music_credits:
         desc += "\n\nMusic:\n" + "\n".join(music_credits)
     from .stock import credits, providers_used, write_credits
-    chapters = ("\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)) if len(marks) >= 3 else ""
+    chapter_block = ("\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)) if len(marks) >= 3 else ""
     if providers_used():
         desc += "\n\nStock footage and photos: " + ", ".join(providers_used())
     # Credits: every photo/clip with author, licence and source link. YouTube allows 5000 characters, so if they
     # don't all fit, the legally required ones (CC BY / BY-SA) stay and optional ones (CC0, public domain) go.
     for lines in (credits(), credits(required_only=True)):
         block = ("\nPhoto/video credits:\n" + "\n".join(f"- {c}" for c in lines)) if lines else ""
-        if len(desc + block + chapters) <= 4900:
+        if len(desc + block + chapter_block) <= 4900:
             break
     else:
         warn("Not all photo credits fit in the YouTube description (5000 characters); see build/credits.json")
         keep = []
         for c in credits(required_only=True):
-            if len(desc + chapters) + sum(len(x) + 3 for x in keep) + len(c) + 30 > 4900:
+            if len(desc + chapter_block) + sum(len(x) + 3 for x in keep) + len(c) + 30 > 4900:
                 break
             keep.append(c)
         block = "\nPhoto/video credits:\n" + "\n".join(f"- {c}" for c in keep)
-    desc += block + chapters
+    desc += block + chapter_block
     write_credits(build / "credits.json")
     (build / "description.txt").write_text(desc + "\n", encoding="utf-8")
     thumb = make_thumbnail(project, clips, build)

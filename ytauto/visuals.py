@@ -24,6 +24,7 @@ Visual spec forms (string or mapping):
 from __future__ import annotations
 
 import json
+import re
 import os
 import shutil
 import threading
@@ -131,6 +132,14 @@ class ClipRenderer:
 
     # ------------------------------------------------------------------ public
     def render(self, spec: Any, duration: float, seq: int, fade_in: bool, fade_out: bool) -> Path:
+        """Render one clip; the credits of any stock photos/clips in it are kept next to the cached clip."""
+        from . import stock
+        with stock.track() as ids:
+            out = self._render(spec, duration, seq, fade_in, fade_out, ids)
+        return out
+
+    def _render(self, spec: Any, duration: float, seq: int, fade_in: bool, fade_out: bool, ids: list) -> Path:
+        from . import stock
         spec = normalize_spec(spec)
         spec = self._resolve_sources(spec, seq)
         fingerprint = None
@@ -146,8 +155,16 @@ class ClipRenderer:
                           self.p.settings["fade_duration"], fade_in, fade_out, seq % len(ZOOMS),
                           self.p.settings.get("theme"))
         out = self.clip_dir / f"clip_{key}.mp4"
+        side = out.with_suffix(".credits.json")
+        stock_inside = "remotion" in spec and re.search(r'"(?:stock|photo|pexels-photo|pexels|pixabay):',
+                                                         json.dumps(spec.get("props") or {}))
         if out.exists() and out.stat().st_size > 0:
-            return out
+            if side.exists():
+                stock.register(json.loads(side.read_text()))
+                return out
+            if not stock_inside:   # older cached clip without stock photos inside: nothing to credit
+                return out
+            # older cached clip with stock photos but no credit record: render once more to record its credits
         tmp = out.with_suffix(".tmp.mp4")
         if "image" in spec:
             self._image(spec, duration, seq, tmp, fade_in, fade_out)
@@ -164,6 +181,7 @@ class ClipRenderer:
         else:
             raise YtautoError(f"Unknown visual spec {spec}")
         tmp.rename(out)
+        side.write_text(json.dumps(stock.records_for(ids)))
         return out
 
     # ------------------------------------------------------------------ sources
