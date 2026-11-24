@@ -23,6 +23,12 @@ def model(kind: str):
         else:
             from chatterbox.tts_turbo import ChatterboxTurboTTS
             _models[kind] = ChatterboxTurboTTS.from_pretrained(device=dev)
+        m = _models[kind]
+        if hasattr(m, "norm_loudness"):
+            # upstream bug: loudness normalisation returns float64, which breaks voice cloning
+            # ("expected scalar type Double but found Float"); keep the reference clip float32
+            orig = m.norm_loudness
+            m.norm_loudness = lambda wav, sr, *a, **k: orig(wav, sr, *a, **k).astype("float32")
     return _models[kind]
 
 

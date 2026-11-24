@@ -178,14 +178,14 @@ def best_take(sent: str, voice: dict, raw: Path, pol: dict) -> Path:
             best = raw.with_name(json.loads(choice.read_text())["file"])
         except (ValueError, KeyError):
             best = None
-    if best is None or not best.exists():
+    if best is None or not _fresh(best) or any(raw.parent.glob(f"{raw.stem}*.fallback")):
         retakes = int(pol.get("retakes", 2))
         prior = sorted(raw.parent.glob(f"{raw.stem}.t*.wav"))   # takes already made by an earlier run
         base = int(voice.get("seed") or pol.get("seed", 1234))
         cands = []
         for k in range(max(retakes, len(prior)) + 1):
             f = raw if k == 0 else raw.with_name(f"{raw.stem}.t{k}.wav")
-            if not f.exists():
+            if not _fresh(f):
                 if k > retakes:
                     break
                 synthesize(sent, {**voice, "seed": base + 101 * k}, f)
@@ -628,6 +628,11 @@ ENGINES = {"edge": _edge, "kokoro": _kokoro, "qwen": _qwen_tts, "chatterbox": _c
            "elevenlabs": _elevenlabs, "espeak": _espeak}
 
 
+def _fresh(path: Path) -> bool:
+    """A cached voice file that the requested engine really made (not a fallback stand-in)."""
+    return path.exists() and not path.with_suffix(".fallback").exists()
+
+
 def synthesize(text: str, voice: dict, out: Path) -> str:
     """Synthesize `text` into `out` (wav). Returns the engine actually used."""
     engine = voice.get("engine", "edge")
@@ -645,6 +650,11 @@ def synthesize(text: str, voice: dict, out: Path) -> str:
         try:
             v = voice if eng == engine else {**voice, "name": voice.get("fallback_name")}
             fn(text, v, out)
+            marker = out.with_suffix(".fallback")
+            if eng != engine:   # cached under the primary engine's key: mark it so a later run retries the real engine
+                marker.write_text(eng)
+            else:
+                marker.unlink(missing_ok=True)
             return eng
         except Exception as exc:  # noqa: BLE001 — fall through to the fallback engine
             last = exc
@@ -674,8 +684,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                       settings.get("voice_polish"), settings.get("pause_scale"))
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
-    if out.exists() and meta.exists():
-        m = json.loads(meta.read_text())
+    m = json.loads(meta.read_text()) if out.exists() and meta.exists() else {}
+    if m and not m.get("fallback"):
         return SceneAudio(out, m["duration"], [Cue(**c) for c in m["cues"]], [Cue(**w) for w in m.get("words", [])])
 
     pieces: list[Path] = []
@@ -690,6 +700,7 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         return f
 
     pause_scale = float(settings.get("pause_scale", 1.0))
+    used_fallback = False
     for i, item in enumerate(items):
         if item[0] == "pause":
             prev = items[i - 1] if i else None
@@ -711,9 +722,10 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         if phrasing:
             wav = best_take(sent, v, raw, pol)
         else:
-            if not raw.exists():
+            if not _fresh(raw):
                 synthesize(sent, v, raw)
             wav = polish(raw, pol)
+        used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))
         d = ffprobe_duration(wav)
         if settings.get("align", "auto") != "off":
             align_words(sent, wav, settings.get("align", "auto"))
@@ -757,7 +769,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         lst.unlink(missing_ok=True)
         t = ffprobe_duration(out)
 
-    meta.write_text(json.dumps({"duration": t, "cues": [c.__dict__ for c in cues], "words": [w.__dict__ for w in words]}))
+    meta.write_text(json.dumps({"duration": t, "cues": [c.__dict__ for c in cues], "words": [w.__dict__ for w in words],
+                                "fallback": used_fallback}))
     return SceneAudio(out, t, cues, words)
 
 

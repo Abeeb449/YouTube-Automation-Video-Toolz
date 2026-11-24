@@ -168,8 +168,8 @@ def cmd_voiceover(a) -> int:
         st["narration"] = "polished"
     voice = dict(st["voice"])
     over = {}
-    if a.engine:  # e.g. --engine chatterbox
-        over["engine"] = a.engine
+    if a.engine:  # e.g. --engine chatterbox; no silent fallback to another voice when you asked for this one
+        over.update(engine=a.engine, fallback=None)
     if a.voice:  # try another speaker, e.g. --voice aiden (Qwen: ryan aiden eric dylan serena vivian uncle_fu ono_anna sohee)
         over["name"] = a.voice
     if a.reference:  # clone the voice in this 5-10 s clip (Chatterbox / Qwen Base); use only voices you have rights to
