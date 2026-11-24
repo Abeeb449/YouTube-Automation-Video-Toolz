@@ -170,7 +170,10 @@ def cmd_voiceover(a) -> int:
     over = {}
     if a.engine:  # e.g. --engine chatterbox; no silent fallback to another voice when you asked for this one
         over.update(engine=a.engine, fallback=None)
-    if a.voice:  # try another speaker, e.g. --voice aiden (Qwen: ryan aiden eric dylan serena vivian uncle_fu ono_anna sohee)
+    from .config import VOICE_PROFILES, resolve_voice
+    if a.voice in VOICE_PROFILES:  # a named narrator, e.g. --voice deep-british
+        over.update(resolve_voice(a.voice))
+    elif a.voice:  # try another speaker, e.g. --voice aiden (Qwen: ryan aiden eric dylan serena vivian uncle_fu ono_anna sohee)
         over["name"] = a.voice
     if a.reference:  # clone the voice in this 5-10 s clip (Chatterbox / Qwen Base); use only voices you have rights to
         over["reference"] = str(Path(a.reference).resolve())
@@ -352,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
                           ("make", cmd_make, "plain script → planned scenes → finished video, in one step")):
         p = sp.add_parser(name, help=hlp)
         p.add_argument("script", help="plain text narration; blank lines between paragraphs, optional '# Chapter' lines")
-        p.add_argument("--style", choices=["nature", "ocean", "documentary"], default="nature",
+        p.add_argument("--style", choices=["auto", "nature", "ocean", "documentary"], default="auto",
                        help="nature = any animal (real photos/video + 3D close-ups); ocean = drawn deep-sea look; documentary = what-if infographics")
         p.add_argument("--title")
         p.add_argument("--out", help="project folder (default: the script's folder)")
@@ -365,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project")
     p.add_argument("--plain", action="store_true", help="force the natural read (settings.narration: natural)")
     p.add_argument("--polished", action="store_true", help="force retakes + pause editing (settings.narration: polished)")
-    p.add_argument("--voice", help="speaker to use instead of the project's, e.g. aiden")
+    p.add_argument("--voice", help="voice profile (ryan, deep-british, american-baritone, female-british) or a Qwen speaker, e.g. aiden")
     p.add_argument("--engine", help="TTS engine instead of the project's: qwen | chatterbox | kokoro | piper | edge")
     p.add_argument("--reference", help="5-10 s WAV of a voice to clone (chatterbox, qwen)")
     p.add_argument("--scenes", type=int, help="only the first N scenes (quick voice samples)")

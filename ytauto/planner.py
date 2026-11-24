@@ -348,8 +348,31 @@ def plan(script: str, style: str, title: str | None, director: str = "rules", mo
     return plan_with_rules(script, style, title)
 
 
+def auto_style(script: str, title: str | None = None) -> str:
+    """Pick the look from the topic: an animal → nature (real photos, 3D close-ups); anything else (history, science,
+    space, places, what-if scenarios) → documentary (maps, globes, counters, timelines)."""
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()]
+    title = title or (blocks[0].lstrip("#").strip() if blocks and blocks[0].startswith("#") else "")
+    subject = find_subject(script, title)
+    if re.search(r"^\s*subject\s*:", script, re.I | re.M) or _creature(subject) or _creature(title):
+        return "nature"
+    try:  # is the subject a living species? (iNaturalist knows every named animal)
+        from .stock import _inat_taxon
+        tx, _ = _inat_taxon(subject)
+        if tx and tx.get("iconic_taxon_name") in ("Animalia", "Mammalia", "Aves", "Reptilia", "Amphibia", "Actinopterygii",
+                                                  "Mollusca", "Arachnida", "Insecta"):
+            return "nature"
+    except Exception:  # noqa: BLE001 — offline: fall through
+        pass
+    return "documentary"
+
+
 def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "rules", model: str | None = None) -> Path:
-    text = plan(script_path.read_text(encoding="utf-8"), style, title, director, model)
+    raw = script_path.read_text(encoding="utf-8")
+    if style == "auto":
+        style = auto_style(raw, title)
+        log(f"Style: {style} (picked from the topic; use --style to choose)")
+    text = plan(raw, style, title, director, model)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "assets").mkdir(exist_ok=True)
     out = out_dir / "script.yaml"

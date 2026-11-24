@@ -10,10 +10,15 @@ on:
         default: projects/example
         required: true
       style:
-        description: "If the folder only has script.txt: nature = any animal (real photos/video + 3D), ocean = drawn deep sea, documentary = what-if"
+        description: "If the folder only has script.txt: auto = picked from the topic, nature = any animal (real photos/video + 3D), ocean = drawn deep sea, documentary = history/science/what-if"
         type: choice
-        options: [nature, ocean, documentary]
-        default: nature
+        options: [auto, nature, ocean, documentary]
+        default: auto
+      voice:
+        description: "Narrator: project = as set in script.yaml, ryan = Qwen Ryan natural, deep-british = Chatterbox deep British"
+        type: choice
+        options: [project, ryan, deep-british, american-baritone, female-british]
+        default: project
       replan:
         description: "Re-plan scenes from script.txt even if script.yaml exists"
         type: boolean
@@ -112,6 +117,7 @@ jobs:
       - name: Render
         env:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+          YTAUTO_VOICE: ${{ inputs.voice || 'project' }}
           YTAUTO_STOCK_LICENSES: ${{ vars.YTAUTO_STOCK_LICENSES }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -119,13 +125,13 @@ jobs:
         run: |
           mkdir -p "${{ matrix.project }}/.cache" .cache/huggingface
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work -e HF_HOME=/work/.cache/huggingface \
-            -e UNSPLASH_ACCESS_KEY -e YTAUTO_STOCK_LICENSES -e PEXELS_API_KEY -e PIXABAY_API_KEY -e ELEVENLABS_API_KEY \
+            -e UNSPLASH_ACCESS_KEY -e YTAUTO_VOICE -e YTAUTO_STOCK_LICENSES -e PEXELS_API_KEY -e PIXABAY_API_KEY -e ELEVENLABS_API_KEY \
             ytauto:latest bash -c '
               set -e
               P="${{ matrix.project }}"
               # Plain script only? Plan the scenes first with the free built-in director.
               if [ -f "$P/script.txt" ] && { [ ! -f "$P/script.yaml" ] || [ "${{ inputs.replan }}" = "true" ]; }; then
-                python -m ytauto plan "$P/script.txt" --out "$P" --style "${{ inputs.style || 'nature' }}"
+                python -m ytauto plan "$P/script.txt" --out "$P" --style "${{ inputs.style || 'auto' }}"
               fi
               python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
               cp "$P/script.yaml" "$P/build/script.yaml"   # the plan travels with the video, so you can tweak and re-render

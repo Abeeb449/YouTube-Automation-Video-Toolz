@@ -89,9 +89,16 @@ python -m ytauto doctor        # shows what's installed / missing
 Write plain narration in a text file. Leave a blank line between paragraphs; `# Heading` lines become chapters. Then:
 
 ```bash
-python -m ytauto make projects/anglerfish/script.txt --style ocean        # plan scenes + render
-python -m ytauto plan projects/anglerfish/script.txt --style ocean        # only write script.yaml (to review/edit)
+python -m ytauto make projects/<name>/script.txt                          # plan scenes + render (style picked from the topic)
+python -m ytauto plan projects/<name>/script.txt                          # only write script.yaml (to review/edit)
+python -m ytauto make projects/anglerfish/script.txt --style ocean        # or choose the look yourself
 ```
+
+**Works for any topic.** `--style auto` (the default) looks at what the script is about: any animal → `nature`
+(real photos/video of that species, 3D close-ups, date cards); anything else (history, science, space, places,
+what-if scenarios) → `documentary` (maps, globe, counters, timelines, stock photos). Everything else is shared by
+every video: the natural narration, the voice you pick, licence-checked stock photos and clips with automatic
+credits, moving photos, music ducking and chapters.
 
 On GitHub, commit `projects/<name>/script.txt` and push, or run **Render video** with that folder. The workflow plans the scenes, renders the video, and puts the generated `script.yaml` next to the MP4, so you can tweak it and re-render.
 
@@ -204,6 +211,19 @@ This kit makes "danger & wonder" deep-sea animal documentaries in the style of `
 **Blender templates** live in `blender/render.py` and are built from Python code, so no binary files are needed. Props: `text`, `subtext`, `color`, `accent`, `bg`, `font`, `resolution_percentage` (default 50 for speed; use 100 for full quality). Your own `.blend` file renders its animation for the scene's duration.
 
 ## 5. Voices
+
+**Named narrators** (use in any project): `settings: {voice: ryan}` or `settings: {voice: deep-british}`, or pick
+one in the GitHub Action's **voice** box. Try one on the opening first:
+`python -m ytauto voiceover projects/<name> --voice deep-british --scenes 8`.
+
+| Profile | Engine | Sound |
+|---|---|---|
+| `ryan` (default) | Qwen3-TTS speaker Ryan | warm, measured male narrator |
+| `deep-british` | Chatterbox cloning `voices/narrator-deep-british.wav` | deep, gravelly British narrator (an invented voice) |
+| `american-baritone`, `female-british` | Chatterbox, invented voices in `voices/` | |
+
+Narration style: `narration: natural` (default) reads the script as written; `narration: polished` re-records
+sentences with broken words and moves pauses to punctuation.
 
 | Engine | Licence | Quality / speed on a 4-core CPU | Example |
 |---|---|---|---|
@@ -328,9 +348,17 @@ Notes: the API's default quota allows about 6 uploads per day. Custom thumbnails
 ## 10. Licences and YouTube policies
 
 - **Remotion** is free for individuals and companies with up to 3 employees. Larger companies need a [company licence](https://www.remotion.dev/license).
-- **Pexels/Pixabay** content is free to use, including commercially, without attribution.
+- **Stock photos and clips** are licence-checked automatically: only CC0, public domain and CC BY (plus the
+  Unsplash, Pexels and Pixabay licences); never NC or ND. Credits go into the description and `credits.json`.
+- **AI labels:** the toolkit adds no AI tag or metadata to the MP4 (only the title and the ffmpeg encoder name).
+  Qwen voices carry no watermark. **Chatterbox voices carry Resemble's inaudible PerTh watermark**, which marks
+  the audio as AI speech for anyone with Resemble's detector.
 - Use only **royalty-free music** you're allowed to use, e.g. the YouTube Audio Library.
-- YouTube monetisation rejects "mass-produced / repetitive" content. Make sure each video adds original value: your own research, script and perspective. Disclose realistic synthetic media when required (`youtube: {synthetic_media: true}`).
+- YouTube monetisation rejects "inauthentic" (mass-produced, repetitive, template-only) content; faceless channels
+  are fine when each video adds original value: your own research, script and perspective.
+- YouTube asks you to tick **Altered or synthetic content** for realistic content that viewers could mistake for
+  real; its examples include a synthetically generated voice used for narration. Ticking it doesn't reduce reach or
+  monetisation (`youtube: {synthetic_media: true}` sets it on upload).
 
 ## Project layout
 

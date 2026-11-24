@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "fade_duration": 0.3,
     "workers": 0,           # parallel ffmpeg clip renders; 0 = auto
     "loudness": -14,        # target integrated loudness (LUFS). YouTube normalises to -14.
+    "narration": "natural", # natural = the voice reads the script as written | polished = retakes + pause editing
     "voice": {
         "engine": "edge",               # edge | piper | elevenlabs | espeak
         "name": "en-US-AndrewNeural",   # engine specific voice id
@@ -158,6 +160,37 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
+# Named narrator voices, usable in any project: `settings: {voice: deep-british}` or
+# `voice: {profile: deep-british, ...overrides}`, the `voice` input of the GitHub Action, or env YTAUTO_VOICE.
+_REPO = Path(__file__).resolve().parents[1]
+VOICE_PROFILES: dict[str, dict] = {
+    # Qwen3-TTS (Apache 2.0), built-in speaker; no audio watermark
+    "ryan": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george"},
+    # Chatterbox (MIT) cloning an invented voice (voices/narrator-deep-british.wav, Qwen VoiceDesign, not a real
+    # person). Chatterbox adds Resemble's inaudible PerTh watermark to everything it speaks.
+    "deep-british": {"engine": "chatterbox", "model": "turbo", "reference": str(_REPO / "voices/narrator-deep-british.wav"),
+                     "fallback": "qwen", "fallback_name": "ryan"},
+    "american-baritone": {"engine": "chatterbox", "model": "turbo",
+                          "reference": str(_REPO / "voices/narrator-american-baritone.wav"), "fallback": "qwen", "fallback_name": "ryan"},
+    "female-british": {"engine": "chatterbox", "model": "turbo",
+                       "reference": str(_REPO / "voices/narrator-female-british.wav"), "fallback": "qwen", "fallback_name": "ryan"},
+}
+
+
+def resolve_voice(voice) -> dict:
+    """Expand a voice profile name into full engine settings (other keys given alongside it win)."""
+    if isinstance(voice, str):
+        voice = {"profile": voice}
+    voice = dict(voice or {})
+    prof = voice.pop("profile", None)
+    if not prof:
+        return voice
+    if prof not in VOICE_PROFILES:
+        raise YtautoError(f"Unknown voice profile {prof!r}. Available: {', '.join(VOICE_PROFILES)}")
+    keep = {k: v for k, v in voice.items() if k in ("instruct", "speed", "exaggeration", "cfg_weight", "tone")}
+    return {**VOICE_PROFILES[prof], **keep} if VOICE_PROFILES[prof]["engine"] != voice.get("engine") else {**voice, **VOICE_PROFILES[prof]}
+
+
 def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     path = Path(path)
     script = path / "script.yaml" if path.is_dir() else path
@@ -170,9 +203,17 @@ def load_project(path: str | Path, overrides: dict | None = None) -> Project:
         if name not in PRESETS:
             raise YtautoError(f"Unknown preset {name!r}. Available: {', '.join(PRESETS)}")
         base = _deep_merge(base, PRESETS[name])
-    settings = _deep_merge(base, data.get("settings") or {})
+    user = dict(data.get("settings") or {})
+    if isinstance(user.get("voice"), str):          # settings: {voice: deep-british}
+        user["voice"] = {"profile": user["voice"]}
+    settings = _deep_merge(base, user)
     if overrides:
         settings = _deep_merge(settings, overrides)
+    env_voice = os.environ.get("YTAUTO_VOICE", "").strip()
+    if env_voice and env_voice != "project":       # GitHub Action "voice" input
+        settings["voice"] = {**settings["voice"], "profile": env_voice}
+    if (settings.get("voice") or {}).get("profile"):
+        settings["voice"] = resolve_voice(settings["voice"])
 
     raw_scenes = data.get("scenes") or []
     if not raw_scenes:

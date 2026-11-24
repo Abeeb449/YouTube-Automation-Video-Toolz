@@ -86,7 +86,7 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
       polished each sentence is listened back, re-voiced when a word breaks, pauses moved to punctuation
                (voice_polish mode "phrasing", ytauto/prosody.py), and [tone …] / [pause] tags are performed.
     """
-    if str(st.get("narration", "polished")).lower() != "natural":
+    if str(st.get("narration", "natural")).lower() != "natural":
         return text, voice, st
     st = {**st, "voice_polish": {"enabled": False}, "sentence_gap": 0.0}
     voice = {k: v for k, v in voice.items() if k != "sampling"}
