@@ -115,21 +115,29 @@ def _retry_json(url: str, tries: int = 4, headers: dict | None = None) -> dict:
     return {}
 
 
+_wm_lock = threading.Lock()   # Wikimedia asks bots for few concurrent requests: one download at a time
+
+
 def download(url: str, dst: Path, tries: int = 3) -> Path:
+    import contextlib
     import time
     import urllib.error
     if dst.exists() and dst.stat().st_size > 0:
         return dst
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_suffix(dst.suffix + ".part")
+    wikimedia = "upload.wikimedia.org" in url
     for k in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA)
-            with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
-                while chunk := r.read(1 << 20):
-                    f.write(chunk)
+            with (_wm_lock if wikimedia else contextlib.nullcontext()):
+                with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
+                    while chunk := r.read(1 << 20):
+                        f.write(chunk)
             break
         except urllib.error.HTTPError as exc:
+            if exc.code == 429 and wikimedia:
+                raise   # rate-limited: move on to the next photo/source now instead of waiting
             if exc.code in (429, 500, 502, 503, 504) and k < tries - 1:
                 time.sleep(4 * (k + 1) ** 2)
                 continue
@@ -310,7 +318,7 @@ def _commons(query: str, kind: str, width: int) -> list[tuple[str, str]]:
     q = urllib.parse.urlencode({
         "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6, "gsrlimit": 20,
         "gsrsearch": f"{query} filetype:{ft}", "prop": "imageinfo|videoinfo",
-        "iiprop": "url|extmetadata|size", "iiurlwidth": min(width, 2560),
+        "iiprop": "url|extmetadata|size", "iiurlwidth": 1920,
         "viprop": "url|derivatives|extmetadata|size",
         "iiextmetadatafilter": meta_keys, "viextmetadatafilter": meta_keys})
     data = _retry_json(f"https://commons.wikimedia.org/w/api.php?{q}")
@@ -329,9 +337,10 @@ def _commons(query: str, kind: str, width: int) -> list[tuple[str, str]]:
             if not url or (info.get("height") or 0) < 480:
                 continue
         else:
-            if (info.get("width") or 0) < 1200 or (info.get("width") or 1) < (info.get("height") or 1):
+            w0 = info.get("width") or 0
+            if w0 < 1200 or w0 < (info.get("height") or 1):
                 continue
-            url = info.get("thumburl") or info.get("url")
+            url = _wm_thumb(info.get("url") or "", w0) or info.get("thumburl") or info.get("url")
         if not _relevant(query, pg.get("title", "") + " " + (meta.get("ObjectName") or {}).get("value", "")):
             continue
         cid = f"commons-{pg['pageid']}"
@@ -341,6 +350,19 @@ def _commons(query: str, kind: str, width: int) -> list[tuple[str, str]]:
                 (meta.get("LicenseUrl") or {}).get("value", "") or _cc_url(code))
         out.append((cid, url))
     return out
+
+
+def _wm_thumb(original: str, width: int) -> str | None:
+    """A thumbnail in one of Wikimedia's standard widths (others are refused or rate-limited): 1920, else 1280."""
+    m = re.match(r"(https://upload\.wikimedia\.org/wikipedia/commons)/(\w/\w\w)/([^/]+)$", original)
+    if not m:
+        return None
+    step = 1920 if width > 1920 else 1280 if width > 1280 else None
+    if not step:
+        return original
+    name = m.group(3)
+    tail = name + (".jpg" if name.lower().endswith((".tif", ".tiff")) else ".png" if name.lower().endswith(".svg") else "")
+    return f"{m.group(1)}/thumb/{m.group(2)}/{name}/{step}px-{tail}"
 
 
 _NASA_NOT_PD = re.compile(r"©|\(c\)\s|copyright|all rights reserved|courtesy of|used with permission", re.I)
