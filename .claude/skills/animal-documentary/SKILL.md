@@ -47,13 +47,16 @@ detail being described, add `ClipCard`s for studies you actually cite, add maps 
 
 | Need | Free option |
 |---|---|
-| Photos | automatic (`stock:<query>`: Openverse, Wikimedia Commons, NASA; Pexels/Pixabay with a key) or your own files in `assets/` |
+| Photos | automatic (`stock:<query>`: iNaturalist for the exact species, then Unsplash with a key, Openverse, Wikimedia Commons, NASA; Pexels/Pixabay with a key) or your own files in `assets/` |
 | Video clips | automatic (`stock:<query>` as a visual; Commons / NASA; Pexels/Pixabay with a key) |
 | Cut-out for parallax | automatic with `parallax: true` (rembg) or `python -m ytauto cutout photo.jpg` |
 | 3D close-up | add a builder to `blender/creatures3d.py` + an entry in `ytauto/sprites.py` SETS and `ANATOMY_3D` |
 | Drawn animal | `image: assets/x.png` (transparent PNG) on any OceanScene actor, or a LottieFiles `lottie:` |
 
-Credits for CC BY / BY-SA photos are added to the video description automatically.
+Licences are checked automatically: only CC0, public domain and CC BY (plus the Unsplash/Pexels/Pixabay licences);
+never NC or ND. Each photo's author, licence and link go into the video description automatically, and
+`build/credits.json` keeps the full licence record. Use a species' common name in `stock:` queries ("stock:honey
+badger") so iNaturalist can match the exact animal.
 
 ## Voice
 

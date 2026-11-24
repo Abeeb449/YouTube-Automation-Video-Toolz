@@ -21,7 +21,7 @@ or on free GitHub Actions.
 | Word timing | **faster-whisper** base.en | Aligns cue words to the spoken audio |
 | Music | **Kevin MacLeod / Incompetech** (CC BY 4.0) fetched by mood; built-in synth score as fallback | Credits written to the description automatically |
 | Sound effects | Built-in synthesizer (`ytauto/sound.py`) | whoosh, swell, riser, hit, thud, boom, tick(s), typing, glitch, beep, alarm |
-| Stock B-roll (photos + video) | **No key needed:** Openverse (CC0/CC BY/BY-SA photos), Wikimedia Commons (photos + clips), NASA Image & Video Library (public domain). Pexels/Pixabay are used first if you hold a key | Every credited item is listed in the description automatically; NC/ND licences are never used |
+| Stock B-roll (photos + video) | **No key needed:** iNaturalist (research-grade photos of the exact species), Openverse, Wikimedia Commons (photos + clips), NASA Image & Video Library. **Free key:** Unsplash (`UNSPLASH_ACCESS_KEY`), Pexels, Pixabay | Only CC0 / public domain / CC BY by default (`YTAUTO_STOCK_LICENSES`, add `by-sa` to allow share-alike); NC/ND never. Credits (author, licence, link) go into the description automatically and `build/credits.json` keeps the licence record |
 | 3D animals | **Blender** EEVEE (Mesa software GL, no GPU needed) | `blender/creatures3d.py` builds and rigs the leopard seal, sea lion and pup procedurally and renders looping transparent sprite sheets (`ytauto sprites`). OceanScene uses them automatically |
 | 3D titles (optional) | **Blender** (Cycles CPU) | `{blender: intro}` titles |
 | Images | **rembg** (`ytauto cutout`), Inkscape, ImageMagick, potrace, librsvg | Turn any picture into a transparent cut-out actor |
@@ -242,7 +242,7 @@ danger; mood changes no more often than every 15 s; at most one sfx every 20–3
       animals, nothing empty.
 - [ ] Watch the hook, every reveal and the ending at full speed: is the motion continuous, do cues land on
       their words, is the music under the voice, are there no loud spikes?
-- [ ] `description.txt` has chapters, sources, music credits and stock credits.
+- [ ] `description.txt` has chapters, sources, music credits and stock credits; `credits.json` lists every stock item's licence.
 - [ ] Final render, then upload: `python -m ytauto upload projects/<slug> --privacy private` (YouTube OAuth
       secrets), or download the GitHub Actions artifact.
 

@@ -681,7 +681,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
     if voice.get("engine") in ("qwen", "chatterbox", "elevenlabs") and (not phrasing or pol.get("merge")):
         items = merge_passages(items)
     key = stable_hash("scene-audio-v7", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"),
-                      settings.get("voice_polish"), settings.get("pause_scale"))
+                      settings.get("voice_polish"), settings.get("pause_scale"),
+                      *(["cbox-v2"] if voice.get("engine") == "chatterbox" else []))
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
     m = json.loads(meta.read_text()) if out.exists() and meta.exists() else {}
@@ -717,6 +718,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                  v.get("instruct"), v.get("description"), v.get("model"), sent]
         if v.get("sampling") or v.get("fluent") is not None or v.get("engine") == "qwen":
             parts += [v.get("sampling"), v.get("fluent", True), "sent-v2"]
+        if v.get("engine") == "chatterbox":
+            parts.append("cbox-v2")   # earlier Chatterbox clone takes were silently Kokoro fallbacks
         sk = stable_hash("sent-v1", *parts)
         raw = cache / f"sent_{sk}.wav"
         if phrasing:

@@ -36,9 +36,15 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
 2. *(Optional)* Add secrets under **Settings → Secrets and variables → Actions**:
    | Secret | Why | Where |
    |---|---|---|
-   | `PIXABAY_API_KEY` | free stock videos/photos (recommended: Pexels has paused new keys) | https://pixabay.com/api/docs/ (log in, the key is shown on that page) |
+   | `UNSPLASH_ACCESS_KEY` | free high-quality photos (Unsplash License, commercial use OK) | https://unsplash.com/developers → New Application → *Access Key* |
+   | `PIXABAY_API_KEY` | free stock videos/photos | https://pixabay.com/api/docs/ (log in, the key is shown on that page) |
    | `PEXELS_API_KEY` | optional second stock source, if you already have a key | https://www.pexels.com/api/ |
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
+
+   Stock photos and clips also come **without any key** from iNaturalist (wildlife photos of the exact species),
+   Openverse, Wikimedia Commons and NASA. Only CC0, public-domain and CC BY items are used (add the Actions
+   *variable* `YTAUTO_STOCK_LICENSES` = `cc0,pdm,by,by-sa` to also allow CC BY-SA). Every item is credited
+   in `description.txt` automatically, and `credits.json` keeps the licence record of each one.
    | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#8-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.
 4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 14 days. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.

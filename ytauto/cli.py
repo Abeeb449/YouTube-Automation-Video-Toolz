@@ -273,7 +273,7 @@ def cmd_doctor(_a) -> int:
         except ImportError:
             check(f"python: {mod}", False, f"optional: {hint}")
     import os
-    for key in ("PEXELS_API_KEY", "PIXABAY_API_KEY", "ELEVENLABS_API_KEY", "YT_REFRESH_TOKEN"):
+    for key in ("UNSPLASH_ACCESS_KEY", "PEXELS_API_KEY", "PIXABAY_API_KEY", "ELEVENLABS_API_KEY", "YT_REFRESH_TOKEN"):
         check(f"env {key}", os.environ.get(key), "optional")
     return 0 if ok else 1
 
