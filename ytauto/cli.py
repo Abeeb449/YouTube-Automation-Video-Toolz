@@ -167,13 +167,19 @@ def cmd_voiceover(a) -> int:
     elif a.polished:
         st["narration"] = "polished"
     voice = dict(st["voice"])
+    over = {}
+    if a.engine:  # e.g. --engine chatterbox
+        over["engine"] = a.engine
     if a.voice:  # try another speaker, e.g. --voice aiden (Qwen: ryan aiden eric dylan serena vivian uncle_fu ono_anna sohee)
-        voice["name"] = a.voice
+        over["name"] = a.voice
+    if a.reference:  # clone the voice in this 5-10 s clip (Chatterbox / Qwen Base); use only voices you have rights to
+        over["reference"] = str(Path(a.reference).resolve())
+    voice.update(over)
     cache = project.cache_dir / "tts"
     scenes = project.scenes[: a.scenes] if a.scenes else project.scenes
 
     def one(scene):
-        text, v, sst = narration_inputs(scene.text, {**voice, **(scene.voice or {}), **({"name": a.voice} if a.voice else {})}, st)
+        text, v, sst = narration_inputs(scene.text, {**voice, **(scene.voice or {}), **over}, st)
         return build_scene_audio(text, v, cache, sst, None) if text.strip() else None
 
     with ThreadPoolExecutor(max_workers=2) as ex:
@@ -360,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--plain", action="store_true", help="force the natural read (settings.narration: natural)")
     p.add_argument("--polished", action="store_true", help="force retakes + pause editing (settings.narration: polished)")
     p.add_argument("--voice", help="speaker to use instead of the project's, e.g. aiden")
+    p.add_argument("--engine", help="TTS engine instead of the project's: qwen | chatterbox | kokoro | piper | edge")
+    p.add_argument("--reference", help="5-10 s WAV of a voice to clone (chatterbox, qwen)")
     p.add_argument("--scenes", type=int, help="only the first N scenes (quick voice samples)")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_voiceover)
