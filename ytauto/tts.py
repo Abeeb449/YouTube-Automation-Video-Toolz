@@ -77,6 +77,23 @@ def strip_directives(text: str) -> str:
     return re.sub(r"\s+", " ", _TAG_RE.sub(" ", text)).strip()
 
 
+def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]:
+    """Apply the project's narration style before voicing a scene.
+
+    settings.narration:
+      natural  (default) the voice reads the script as written, the way it naturally speaks: [tone]/[pause] tags
+               are dropped, no retakes, no pause editing, default model sampling.
+      polished each sentence is listened back, re-voiced when a word breaks, pauses moved to punctuation
+               (voice_polish mode "phrasing", ytauto/prosody.py), and [tone …] / [pause] tags are performed.
+    """
+    if str(st.get("narration", "polished")).lower() != "natural":
+        return text, voice, st
+    st = {**st, "voice_polish": {"enabled": False}, "sentence_gap": 0.0}
+    voice = {k: v for k, v in voice.items() if k != "sampling"}
+    voice["fluent"] = False
+    return strip_directives(text), voice, st
+
+
 def parse_directives(text: str) -> list[tuple]:
     """Split narration into ("say", sentence, voice_overrides) and ("pause", seconds) items.
 

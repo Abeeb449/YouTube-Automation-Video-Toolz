@@ -101,6 +101,8 @@ PRESETS: dict[str, dict] = {
         # The "what-if" infographic documentary look (see .claude/skills/whatif-documentary).
         "transition": "none",          # templates fade their own content over a shared backdrop
         "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
+        # narration: "natural" = the voice reads the script as written; "polished" = retakes + pause editing below
+        "narration": "natural",
         # phrasing: retake sentences that hesitate mid-phrase, then pause only at punctuation (ytauto/prosody.py)
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
@@ -115,6 +117,8 @@ PRESETS: dict[str, dict] = {
         # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
         "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
+        # narration: "natural" = the voice reads the script as written; "polished" = retakes + pause editing below
+        "narration": "natural",
         # phrasing: retake sentences that hesitate mid-phrase, then pause only at punctuation (ytauto/prosody.py)
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
@@ -130,6 +134,8 @@ PRESETS: dict[str, dict] = {
         "crf": 18, "preset": "medium", "tune": "film",
         "transition": "none",
         "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
+        # narration: "natural" = the voice reads the script as written; "polished" = retakes + pause editing below
+        "narration": "natural",
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},

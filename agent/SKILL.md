@@ -98,17 +98,22 @@ Inline tags inside `text:` hold until the end of the scene (or `[reset]`):
 | `[pause 0.4]` | A short silence before a reveal. Keep it 0.3–0.6 s, and never put one mid-thought |
 | `[speed 0.9]` | Slightly slower for menace (0.85–0.95); faster for excitement (1.05–1.1) |
 | `[emotion 0.8]` | Intensity 0.25–1.0 (calm → urgent) |
-| `[voice eric]` | Switch voice. Qwen speakers: ryan (default), eric, aiden, dylan, serena, vivian |
+| `[voice eric]` | Switch voice. Qwen speakers: ryan (default), aiden, eric, dylan, serena, vivian, uncle_fu, ono_anna, sohee |
 | `[reset]` | Back to the scene's defaults |
 
-**Natural phrasing (automatic, `voice_polish.mode: phrasing`):** every sentence is voiced on its own, then
+**Narration style (`settings.narration`).** `natural` (default in the nature/ocean/documentary presets): the voice
+reads the script as written; tags in `[…]` are ignored and nothing is edited. `polished`: the phrasing pass below,
+with tags performed.
+
+**Polished phrasing (`narration: polished`, `voice_polish.mode: phrasing`):** every sentence is voiced on its own, then
 listened back with faster-whisper. A take with a word broken in the middle ("leop… ard") or a misread word is
 re-voiced (up to 2 retakes, best take kept). Then the pauses are re-timed so the narrator only breathes where the
 meaning allows: gaps between words inside a phrase shrink to a normal word gap (< 0.08 s), commas get a short
 breath (≤ 0.42 s), full stops 0.3–0.65 s, and sentences are separated by `sentence_gap` (0.4 s). Cuts happen only
 inside silence, never through a sound. A pace target (`target_wpm: 148`, max +8 %) keeps it from dragging.
 So: put `[pause]` only after a complete thought (after `.` `?` or a comma), never mid-phrase.
-Preview the narration alone with `python -m ytauto voiceover <project>` (MP3, no video; `--plain` = the raw read).
+Preview the narration alone with `python -m ytauto voiceover <project>` (MP3, no video; `--plain` / `--polished` force a
+style; `--voice aiden --scenes 8` voices just the opening in another speaker to compare).
 
 Alternative voices: `name: design` + `description: "a deep warm British male narrator"` invents a voice;
 `reference: assets/myvoice.wav` clones one you own; `engine: chatterbox` is faster; `engine: kokoro` is the fastest.

@@ -13,7 +13,7 @@ from .config import Project
 from .cues import find_word_time, resolve_cues
 from .music import MOODS, build_duck_envelope, build_score, speech_from_audio
 from .sound import BUILTIN, build_track
-from .tts import Cue, SceneAudio, build_scene_audio, shutdown_workers, strip_directives
+from .tts import Cue, SceneAudio, build_scene_audio, narration_inputs, shutdown_workers, strip_directives
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
 
@@ -107,8 +107,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     voice_cache = cache / "tts"
 
     def do_audio(scene):
-        voice = {**st["voice"], **(scene.voice or {})}
-        return build_scene_audio(scene.text, voice, voice_cache, st, scene.duration)
+        text, voice, sst = narration_inputs(scene.text, {**st["voice"], **(scene.voice or {})}, st)
+        return build_scene_audio(text, voice, voice_cache, sst, scene.duration)
 
     with ThreadPoolExecutor(max_workers=4) as ex:
         audios = list(ex.map(do_audio, project.scenes))

@@ -157,33 +157,34 @@ def cmd_voiceover(a) -> int:
     from concurrent.futures import ThreadPoolExecutor
 
     from .config import load_project
-    from .tts import build_scene_audio, shutdown_workers, strip_directives
+    from .tts import build_scene_audio, narration_inputs, shutdown_workers
     from .utils import log, run
 
     project = load_project(a.project, {})
     st = dict(project.settings)
+    if a.plain:
+        st["narration"] = "natural"
+    elif a.polished:
+        st["narration"] = "polished"
     voice = dict(st["voice"])
-    if a.plain:  # the voice as it naturally reads the script: no direction tags, no retakes or pause editing
-        st["voice_polish"] = {"enabled": False}
-        st["sentence_gap"] = 0.0
-        voice.pop("sampling", None)
-        voice["fluent"] = False
+    if a.voice:  # try another speaker, e.g. --voice aiden (Qwen: ryan aiden eric dylan serena vivian uncle_fu ono_anna sohee)
+        voice["name"] = a.voice
     cache = project.cache_dir / "tts"
+    scenes = project.scenes[: a.scenes] if a.scenes else project.scenes
 
     def one(scene):
-        text = strip_directives(scene.text) if a.plain else scene.text
-        v = {**voice, **(scene.voice or {})}
-        return build_scene_audio(text, v, cache, st, None) if text.strip() else None
+        text, v, sst = narration_inputs(scene.text, {**voice, **(scene.voice or {}), **({"name": a.voice} if a.voice else {})}, st)
+        return build_scene_audio(text, v, cache, sst, None) if text.strip() else None
 
     with ThreadPoolExecutor(max_workers=2) as ex:
-        audios = [x for x in ex.map(one, project.scenes) if x]
+        audios = [x for x in ex.map(one, scenes) if x]
     shutdown_workers()
     gap = cache / "scene_gap.wav"
     from .tts import _silence
     _silence(gap, float(st.get("padding", 0.3)))
     lst = cache / "voiceover_list.txt"
     lst.write_text("".join(f"file '{p.resolve()}'\n" for au in audios for p in (au.path, gap)))
-    out = Path(a.out) if a.out else project.build_dir / ("voiceover-plain.mp3" if a.plain else "voiceover.mp3")
+    out = Path(a.out) if a.out else project.build_dir / f"voiceover{'-' + a.voice if a.voice else ''}.mp3"
     out.parent.mkdir(parents=True, exist_ok=True)
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst,
          "-af", f"loudnorm=I={st.get('loudness', -16)}:TP=-1.5:LRA=11", "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "192k", out])
@@ -356,7 +357,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sp.add_parser("voiceover", help="export only the narration as an MP3 (no video)")
     p.add_argument("project")
-    p.add_argument("--plain", action="store_true", help="the voice's natural read: no direction tags or pause editing")
+    p.add_argument("--plain", action="store_true", help="force the natural read (settings.narration: natural)")
+    p.add_argument("--polished", action="store_true", help="force retakes + pause editing (settings.narration: polished)")
+    p.add_argument("--voice", help="speaker to use instead of the project's, e.g. aiden")
+    p.add_argument("--scenes", type=int, help="only the first N scenes (quick voice samples)")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_voiceover)
 

@@ -57,9 +57,15 @@ Credits for CC BY / BY-SA photos are added to the video description automaticall
 
 ## Voice
 
-Natural phrasing is automatic for every script: each sentence is voiced, listened back, re-voiced if a word
-breaks or is misread, and its pauses moved to punctuation. Direct emotion per line with `[tone …]`, use
-`[pause 0.4]` only after a complete thought. Check the narration alone first:
-`python -m ytauto voiceover projects/<slug>` → `build/voiceover.mp3`.
+Two narration styles (`settings.narration`):
+- `natural` (default): the voice reads the script as written, the way it naturally speaks. `[tone …]` and
+  `[pause]` tags are ignored.
+- `polished`: each sentence is listened back, re-voiced if a word breaks or is misread, its pauses moved to
+  punctuation, and `[tone …]` / `[pause 0.4]` tags are performed.
+
+Check the narration alone before rendering: `python -m ytauto voiceover projects/<slug>` → `build/voiceover.mp3`.
+Compare speakers on the opening: `python -m ytauto voiceover projects/<slug> --voice aiden --scenes 8`
+(Qwen speakers: ryan, aiden, eric, dylan, serena, vivian, uncle_fu, ono_anna, sohee). Set the chosen one as
+`settings.voice.name`.
 
 Full reference for every template and prop: `agent/SKILL.md`.
