@@ -26,7 +26,8 @@ The planner then, for every beat:
   light leaks, credit chip) and free video clips, alternating so no two shots look the same.
 Every stock shot has a fallback, so a failed search never leaves a blank or broken frame.
 
-Then **review `script.yaml` before rendering** and sharpen it by hand (or ask any AI assistant with
+Then run `python -m ytauto check projects/<slug>` (originality against your other videos, unsourced facts, shot
+variety, YouTube readiness) and **review `script.yaml` before rendering** and sharpen it by hand (or ask any AI assistant with
 `agent/SYSTEM_PROMPT.md` + `agent/SKILL.md`): pin the best photos under `assets/`, add `mark:` circles on the
 detail being described, add `ClipCard`s for studies you actually cite, add maps for places.
 

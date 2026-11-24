@@ -102,6 +102,13 @@ credits, moving photos, music ducking and chapters.
 
 On GitHub, commit `projects/<name>/script.txt` and push, or run **Render video** with that folder. The workflow plans the scenes, renders the video, and puts the generated `script.yaml` next to the MP4, so you can tweak it and re-render.
 
+**Check before rendering:** `python -m ytauto check projects/<name>` reviews the script the way YouTube's
+monetisation review looks at channels. It flags narration, openings or shot order repeated from your other
+projects, facts (numbers, years, percentages) with no listed source, source clippings without a source, one template
+or plain stock footage carrying most of the video, and YouTube basics (title length, 8-minute mid-roll threshold, AI
+disclosure). List your research with `sources:` (a list) in `script.yaml`; it is added to the description. The
+GitHub Action runs the check before every render and saves the report as `build/check.txt`.
+
 **Who decides the visuals? Free options only — no paid API anywhere.**
 - **Built-in director** (automatic): recognises animals, depths, numbers, danger and wonder words and short punchy lines, and varies the shots. Good for drafts.
 - **Your AI assistant** (best results, free): give it `agent/SYSTEM_PROMPT.md` and `agent/SKILL.md` plus your script, ask it for `script.yaml`, and save that file in the project folder. Free chat assistants work fine for this.

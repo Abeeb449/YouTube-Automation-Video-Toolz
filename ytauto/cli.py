@@ -201,6 +201,17 @@ def cmd_voiceover(a) -> int:
     return 0
 
 
+def cmd_check(a) -> int:
+    """Pre-render review: originality vs your other projects, sourced facts, shot variety, YouTube readiness."""
+    from .check import check
+    rep = check(Path(a.project), [Path(x) for x in a.against or []])
+    print(f"Checking {a.project}")
+    print(rep.render())
+    if rep.fails or (a.strict and rep.warns):
+        return 1
+    return 0
+
+
 def cmd_plan(a) -> int:
     from .planner import write_plan
 
@@ -383,6 +394,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--engine", default="kokoro", choices=["kokoro", "edge", "piper", "espeak", "elevenlabs"])
     p.add_argument("--locale", help="e.g. en, en-GB, es")
     p.set_defaults(fn=cmd_voices)
+
+    p = sp.add_parser("check", help="review a script before rendering: originality, sources, variety, YouTube readiness")
+    p.add_argument("project", help="project folder (script.yaml or script.txt)")
+    p.add_argument("--against", nargs="*", help="more folders of past projects to compare with (default: projects/)")
+    p.add_argument("--strict", action="store_true", help="also fail on warnings")
+    p.set_defaults(fn=cmd_check)
 
     p = sp.add_parser("doctor", help="check installed tools")
     p.set_defaults(fn=cmd_doctor)

@@ -191,6 +191,16 @@ def resolve_voice(voice) -> dict:
     return {**VOICE_PROFILES[prof], **keep} if VOICE_PROFILES[prof]["engine"] != voice.get("engine") else {**voice, **VOICE_PROFILES[prof]}
 
 
+def _with_sources(desc: str, sources) -> str:
+    """`sources:` in script.yaml (a list) is added to the description unless it already lists them."""
+    if not sources:
+        return desc
+    items = [str(s).strip() for s in (sources if isinstance(sources, list) else [sources]) if str(s).strip()]
+    if not items or all(s[:30] in desc for s in items):
+        return desc
+    return (desc.rstrip() + "\n\nSources:\n" + "\n".join(f"- {s}" for s in items)).strip()
+
+
 def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     path = Path(path)
     script = path / "script.yaml" if path.is_dir() else path
@@ -247,7 +257,7 @@ def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     return Project(
         root=script.parent.resolve(),
         title=data.get("title") or script.parent.name,
-        description=data.get("description") or "",
+        description=_with_sources(data.get("description") or "", data.get("sources")),
         tags=list(data.get("tags") or []),
         settings=settings,
         scenes=scenes,

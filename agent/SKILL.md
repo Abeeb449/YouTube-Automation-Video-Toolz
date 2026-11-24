@@ -242,6 +242,7 @@ danger; mood changes no more often than every 15 s; at most one sfx every 20–3
       animals, nothing empty.
 - [ ] Watch the hook, every reveal and the ending at full speed: is the motion continuous, do cues land on
       their words, is the music under the voice, are there no loud spikes?
+- [ ] `python -m ytauto check <project>` shows 0 to fix (sources listed with `sources:`, no repeated passages, varied shots).
 - [ ] `description.txt` has chapters, sources, music credits and stock credits; `credits.json` lists every stock item's licence.
 - [ ] Final render, then upload: `python -m ytauto upload projects/<slug> --privacy private` (YouTube OAuth
       secrets), or download the GitHub Actions artifact.
