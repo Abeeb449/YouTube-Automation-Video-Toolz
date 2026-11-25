@@ -71,11 +71,14 @@ ARG INSTALL_QWEN=true
 ARG INSTALL_CHATTERBOX=true
 RUN if [ "$INSTALL_QWEN" = "true" ]; then \
       python3 -m venv /opt/tts-qwen && \
-      /opt/tts-qwen/bin/pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchaudio && \
+      /opt/tts-qwen/bin/pip install --no-cache-dir -U pip && \
+      /opt/tts-qwen/bin/pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+        --extra-index-url https://pypi.org/simple torch torchaudio && \
       /opt/tts-qwen/bin/pip install --no-cache-dir qwen-tts soundfile; \
     fi
 RUN if [ "$INSTALL_CHATTERBOX" = "true" ]; then \
       python3 -m venv /opt/tts-chatterbox && \
+      /opt/tts-chatterbox/bin/pip install --no-cache-dir -U pip && \
       /opt/tts-chatterbox/bin/pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
         chatterbox-tts "setuptools<81"; \
     fi
