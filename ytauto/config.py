@@ -147,7 +147,7 @@ PRESETS: dict[str, dict] = {
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
     },
     # vertical Short: captions sit under the centred picture and above YouTube's own title/buttons (bottom ~20%)
-    "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 66, "max_chars": 24, "margin_v": 410}},
+    "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 78, "max_chars": 20, "margin_v": 470}},
 }
 
 

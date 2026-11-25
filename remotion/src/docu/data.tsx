@@ -27,7 +27,7 @@ export const Counter: React.FC<CounterProps> = (p) => {
   return (
     <DocuFrame {...p}>
       <div style={centered
-        ? {position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-55%)', textAlign: 'center', filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}
+        ? {position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-55%)', textAlign: 'center', opacity: prog(t, Math.max(0, at - 0.5), 0.5), filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}
         : {position: 'absolute', left: 110 * s, top: p.heading ? 200 * s : 90 * s, filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}}>
         <div style={{fontSize: (centered ? 210 : 150) * s, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums'}}>
           {p.prefix}{p.plain ? Math.round(v).toString() : fmtNum(v, p.decimals ?? 0)}{p.suffix}
