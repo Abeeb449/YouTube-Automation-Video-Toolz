@@ -201,8 +201,37 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
         yaml.safe_dump(data, sort_keys=False, allow_unicode=True, width=110)
 
 
-def _photo(query: str, fallback: dict, callout: str | None = None, layout: str = "full", n: int = 0) -> dict:
-    props: dict = {"layout": layout, "photos": [{"photo": f"stock:{query}", "parallax": layout == "full", "pick": n % 3}]}
+# What the line says about WHERE/HOW the animal is, so the picture is checked against it (ytauto/verify.py)
+SETTINGS = [
+    (r"\b(underwater|beneath|below the surface|dives?|diving|swims?|swimming|in the water|in the sea|in the ocean)\b", "swimming underwater"),
+    (r"\b(hunts?|hunting|attacks?|chases?|ambush|catch(?:es)?|kills?|prey)\b", "hunting"),
+    (r"\b(on (?:the )?ice|ice floes?|sea ice|icebergs?|floes?|ice)\b", "on or near sea ice"),
+    (r"\b(on land|on (?:the )?beach|on (?:the )?rocks|on shore|hauls? out|basking|lying)\b", "on land"),
+    (r"\b(flies|flying|in flight|soars?)\b", "flying"),
+    (r"\b(sleeps?|sleeping|rests?|resting)\b", "resting"),
+    (r"\b(eats?|eating|feeds?|feeding)\b", "feeding"),
+]
+
+
+def _setting(beat: str) -> str:
+    for pat, phrase in SETTINGS:
+        if re.search(pat, beat, re.I):
+            return phrase
+    return ""
+
+
+def _describe(subject: str, beat: str) -> str:
+    """'a wild leopard seal swimming underwater': what the stock picture must actually show for this line."""
+    s = _setting(beat)
+    return f"a photo of a wild {subject}" + (f" {s}" if s else "")
+
+
+def _photo(query: str, fallback: dict, callout: str | None = None, layout: str = "full", n: int = 0,
+           verify: str | None = None) -> dict:
+    ph = {"photo": f"stock:{query}", "parallax": layout == "full", "pick": n % 3}
+    if verify:
+        ph["verify"] = verify
+    props: dict = {"layout": layout, "photos": [ph]}
     if callout:
         props.update(callout=callout[:48], calloutAt=_first_word(callout))
     return {"remotion": "PhotoStory", "props": props, "fallback_visual": fallback}
@@ -238,11 +267,12 @@ def _general_visual(beat: str, style: str, main: str, n: int, subject: str, draw
                     "zoom": [{"at": p.group(1), "x": x, "y": y, "scale": 1.35}]}}
         return _photo(f"{subject} {part}", drawn, callout=_clause_with(beat, p.group(1)), n=n)
     if style == "nature":
-        if n % 3 == 0:  # moving B-roll
-            return {"stock": f"{subject}", "fallback_visual": _photo(subject, drawn, n=n)}
-        return _photo(subject, drawn, layout="print" if n % 4 == 1 else "full", n=n)
+        want = _describe(subject, beat)
+        if n % 2 == 0:  # real video clip every other shot (falls back to a checked photo, then the drawn shot)
+            return {"stock": f"{subject}", "verify": want, "fallback_visual": _photo(subject, drawn, n=n, verify=want)}
+        return _photo(subject, drawn, layout="print" if n % 4 == 1 else "full", n=n, verify=want)
     if style == "ocean" and n % 4 == 2:
-        return _photo(subject, drawn, n=n)
+        return _photo(subject, drawn, n=n, verify=_describe(subject, beat))
     return None
 
 

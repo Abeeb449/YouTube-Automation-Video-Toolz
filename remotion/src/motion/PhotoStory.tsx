@@ -26,6 +26,7 @@ export type PhotoSpec = {
   mark?: {x: number; y: number; r?: number; at?: number; label?: string};
   mono?: boolean;
   colorAt?: number;
+  pan?: 1 | -1;
 };
 
 export type PhotoStoryProps = DocuProps & {
@@ -46,10 +47,12 @@ const monoFilter = (t: number, ph: PhotoSpec) => {
 const FullPhoto: React.FC<{ph: PhotoSpec; t0: number; t1: number}> = ({ph, t0, t1}) => {
   const {t, s, width, height} = useT();
   const k = interpolate(t, [t0, t1], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.sin)});
-  const [z0, z1] = ph.zoom ?? [1.06, 1.2];
+  // a clear, continuous camera move on every photo: push in ~25 % and drift sideways, so stills never look static
+  const [z0, z1] = ph.zoom ?? [1.08, 1.34];
   const [fx, fy] = ph.focus ?? [0.5, 0.45];
   const z = z0 + (z1 - z0) * k;
-  const tx = (0.5 - fx) * (z - 1) * width;
+  const dir = ph.pan ?? ((Math.round(fx * 100) + Math.round(fy * 100)) % 2 === 0 ? 1 : -1);
+  const tx = (0.5 - fx) * (z - 1) * width + dir * (k - 0.5) * 0.06 * width;
   const ty = (0.5 - fy) * (z - 1) * height;
   const filt = monoFilter(t, ph);
   const bg: React.CSSProperties = {position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover'};
@@ -82,14 +85,14 @@ const FullPhoto: React.FC<{ph: PhotoSpec; t0: number; t1: number}> = ({ph, t0, t
 const Print: React.FC<{ph: PhotoSpec; i: number; n: number; t0: number; t1: number; pile: boolean}> = ({ph, i, n, t0, t1, pile}) => {
   const {t, s, width, height} = useT();
   const drop = prog(t, t0, 0.75, Easing.out(Easing.back(1.4)));
-  const k = interpolate(t, [t0, t1 + 2], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const k = interpolate(t, [t0, t1 + 1], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   const w = width * (pile ? 0.5 : 0.62);
   const rot0 = pile ? [-6, 5, -3, 7, -4][i % 5] : -2.5;
   const offX = pile ? [-0.16, 0.14, -0.06, 0.18, -0.12][i % 5] * width : 0;
   const offY = pile ? [-0.04, 0.03, 0.07, -0.05, 0.02][i % 5] * height : 0;
   const tiltY = Math.sin(t * 0.35 + i) * 5 + (1 - drop) * 18;
   const tiltX = Math.cos(t * 0.3 + i) * 3 + (1 - drop) * -10;
-  const z = (1 + 0.06 * k) * (0.9 + 0.1 * drop);
+  const z = (1 + 0.12 * k) * (0.9 + 0.1 * drop);
   return (
     <div style={{position: 'absolute', left: '50%', top: '50%', width: w, transform: `translate(-50%, -50%) translate(${offX}px, ${offY - (1 - drop) * 120 * s}px)
         perspective(${1600 * s}px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) rotate(${rot0 + (1 - drop) * 8 + k * 1.2}deg) scale(${z})`,
@@ -97,7 +100,7 @@ const Print: React.FC<{ph: PhotoSpec; i: number; n: number; t0: number; t1: numb
       boxShadow: `0 ${30 * s}px ${60 * s}px rgba(0,0,0,0.55), 0 ${6 * s}px ${14 * s}px rgba(0,0,0,0.35)`}}>
       <div style={{position: 'relative', width: '100%', aspectRatio: '3 / 2', overflow: 'hidden', background: '#222'}}>
         <Img src={src(ph.photo)} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-          transformOrigin: `${(ph.focus?.[0] ?? 0.5) * 100}% ${(ph.focus?.[1] ?? 0.5) * 100}%`, transform: `scale(${1.02 + 0.12 * k})`,
+          transformOrigin: `${(ph.focus?.[0] ?? 0.5) * 100}% ${(ph.focus?.[1] ?? 0.5) * 100}%`, transform: `scale(${1.04 + 0.22 * k})`,
           filter: monoFilter(t, ph) || undefined}} />
         <div style={{position: 'absolute', inset: 0, boxShadow: 'inset 0 0 60px rgba(0,0,0,0.35)'}} />
       </div>
