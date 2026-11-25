@@ -76,7 +76,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.projects != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 358   # GitHub's hosted-runner maximum is 360
     strategy:
       fail-fast: false
       matrix:
@@ -120,7 +120,7 @@ jobs:
             hf-models-v1-
 
       - name: Render
-        timeout-minutes: 300
+        timeout-minutes: 335
         env:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           YTAUTO_VOICE: ${{ inputs.voice || 'project' }}
@@ -144,7 +144,7 @@ jobs:
               python -m ytauto check "$P" > "$P/check.txt" 2>&1 || echo "::warning::ytauto check found issues to fix in $P (see build/check.txt)"
               cat "$P/check.txt"
               # stop cleanly before the job limit so the finished parts are saved to the cache below
-              timeout -s INT 290m python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
+              timeout -s INT 325m python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
               mv "$P/check.txt" "$P/build/check.txt" 2>/dev/null || true
               cp "$P/script.yaml" "$P/build/script.yaml"   # the plan travels with the video, so you can tweak and re-render
             '

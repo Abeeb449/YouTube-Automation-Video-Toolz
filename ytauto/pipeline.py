@@ -111,7 +111,23 @@ def _resolve_spec_cues(spec, words, offset: float, dur: float, where: str):
     return out
 
 
-def audio_qc(mix: Path, voice: Path, report: Path, planned: list[float] | None = None) -> list[float]:
+_FX_LEN = {"whoosh": 0.7, "swell": 1.6, "riser": 2.5, "hit": 1.6, "thud": 1.2, "boom": 3.0, "tick": 0.1, "ticks": 3.0,
+           "typing": 1.0, "glitch": 0.4, "beep": 0.2, "alarm": 2.0}
+
+
+def _fx_windows(synth_events, file_events) -> list[tuple[float, float]]:
+    """(start, end) of every sound effect the script asked for, over its full length."""
+    from .utils import ffprobe_duration
+    win = [(t, t + float(dur or _FX_LEN.get(name, 2.0))) for t, name, _vol, dur in synth_events]
+    for t, path, _vol in file_events:
+        try:
+            win.append((t, t + ffprobe_duration(path)))
+        except Exception:  # noqa: BLE001
+            win.append((t, t + 3.0))
+    return win
+
+
+def audio_qc(mix: Path, voice: Path, report: Path, planned: list[tuple[float, float]] | None = None) -> list[float]:
     """Find sudden sounds that are NOT the narrator: moments where the mix jumps > 6 dB within 50 ms while the
     voice doesn't, and rises clearly above the voice. Returns their times (also written to `report`)."""
     import numpy as np
@@ -132,7 +148,7 @@ def audio_qc(mix: Path, voice: Path, report: Path, planned: list[float] | None =
     times, last = [], -9.0
     for i in bad:
         t = i * 0.05
-        if any(-0.3 <= t - f <= 2.0 for f in planned or []):   # a sound effect the script asked for
+        if any(a - 0.3 <= t <= b + 0.5 for a, b in planned or []):   # a sound effect the script asked for
             continue
         if t - last > 1.0:
             times.append(round(t, 2))
@@ -336,9 +352,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         premix = work / "premix.wav"
         run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
              "-t", f"{total:.3f}", "-c:a", "pcm_s16le", premix])
-        fx_times = [e[0] for e in synth_events] + [e[0] for e in file_events]
+        fx_windows = _fx_windows(synth_events, file_events)
         try:
-            sudden = audio_qc(premix, narration, build / "audio_check.txt", fx_times)
+            sudden = audio_qc(premix, narration, build / "audio_check.txt", fx_windows)
         except Exception as exc:  # noqa: BLE001 — a check must never stop the render
             warn(f"audio check skipped: {exc}")
             sudden = []
@@ -360,7 +376,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     except (ValueError, KeyError):
         ln = f"loudnorm=I={lufs}:TP=-1.5:LRA=11"
     mixed = work / "mix.m4a"
-    run(["ffmpeg", "-y", "-v", "error", "-i", premix, "-af", f"{ln},aresample=48000", "-c:a", "aac", "-b:a", "192k", mixed])
+    run(["ffmpeg", "-y", "-v", "error", "-i", premix, "-af",
+         f"{ln},aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo", "-ac", "2",
+         "-c:a", "aac", "-b:a", "192k", mixed])
 
     # 5) Captions, watermark, chapters, final mux -----------------------------------------
     log("Step 5/5: captions + final encode")
