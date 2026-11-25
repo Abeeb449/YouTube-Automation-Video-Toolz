@@ -100,21 +100,27 @@ jobs:
           cache-from: type=gha,scope=ytauto
           cache-to: type=gha,scope=ytauto,mode=max
 
+      # Restore and save are separate steps so the work is kept even when a render stops early (time limit,
+      # error): the next run then continues from the narration, photos and scenes already finished.
       - name: Restore render cache (voiceover, stock, rendered clips)
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ matrix.project }}/.cache
           key: ytauto-${{ matrix.project }}-${{ github.run_id }}
           restore-keys: ytauto-${{ matrix.project }}-
 
-      - name: Restore voice models (Qwen3-TTS / Chatterbox / Whisper)
-        uses: actions/cache@v4
+      - name: Restore voice models (Qwen3-TTS / Chatterbox / Whisper / CLIP)
+        id: hfcache
+        uses: actions/cache/restore@v4
         with:
           path: .cache/huggingface
-          key: hf-models-v1-${{ github.run_id }}
-          restore-keys: hf-models-v1-
+          key: hf-models-v2-${{ github.run_id }}
+          restore-keys: |
+            hf-models-v2-
+            hf-models-v1-
 
       - name: Render
+        timeout-minutes: 300
         env:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           YTAUTO_VOICE: ${{ inputs.voice || 'project' }}
@@ -137,13 +143,30 @@ jobs:
               # Pre-render review (originality, sources, variety); printed in the log, never blocks the render
               python -m ytauto check "$P" > "$P/check.txt" 2>&1 || echo "::warning::ytauto check found issues to fix in $P (see build/check.txt)"
               cat "$P/check.txt"
-              python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
+              # stop cleanly before the job limit so the finished parts are saved to the cache below
+              timeout -s INT 290m python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
               mv "$P/check.txt" "$P/build/check.txt" 2>/dev/null || true
               cp "$P/script.yaml" "$P/build/script.yaml"   # the plan travels with the video, so you can tweak and re-render
             '
 
           rm -rf "${{ matrix.project }}/.cache/work"
           ls -la "${{ matrix.project }}/build"
+
+      - name: Save render cache (also when the render stopped early)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ matrix.project }}/.cache
+            !${{ matrix.project }}/.cache/work
+          key: ytauto-${{ matrix.project }}-${{ github.run_id }}
+
+      - name: Save voice models
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/huggingface
+          key: hf-models-v2-${{ github.run_id }}
 
       - name: Name outputs
         id: meta
