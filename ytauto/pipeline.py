@@ -54,7 +54,7 @@ def write_captions(cues: list[Cue], build: Path, settings: dict) -> tuple[Path, 
                            for i, c in enumerate(cues, 1)), encoding="utf-8")
     sub = settings["subtitles"]
     W, H = settings["width"], settings["height"]
-    scale = H / 1080
+    scale = min(W, H) / 1080   # sizes are for a 1080-pixel short side (16:9 1080p, or a 1080x1920 Short)
     box = bool(sub.get("box"))
     style = ",".join(str(x) for x in [
         "Default", sub["font"], int(sub["font_size"] * scale), sub["primary_color"], "&H000000FF",

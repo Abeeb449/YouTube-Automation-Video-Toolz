@@ -532,14 +532,30 @@ def _script_context(script: str, topic: str) -> str:
     return best
 
 
+# Whole countries, continents and oceans: in a line about something inside them ("Italy closed the tower") a photo
+# of "Italy" shows any Italian scene, so they only lead the search when the video is about that place itself
+_BROAD_PLACES = set("""Afghanistan Albania Algeria Argentina Armenia Australia Austria Bangladesh Belgium Bolivia Brazil
+Bulgaria Cambodia Cameroon Canada Chile China Colombia Croatia Cuba Czechia Denmark Ecuador Egypt England Estonia
+Ethiopia Finland France Germany Ghana Greece Hungary Iceland India Indonesia Iran Iraq Ireland Israel Italy Japan
+Jordan Kenya Korea Latvia Lebanon Libya Lithuania Malaysia Mexico Mongolia Morocco Nepal Netherlands Nigeria Norway
+Pakistan Peru Philippines Poland Portugal Romania Russia Scotland Senegal Serbia Singapore Slovakia Somalia Spain
+Sudan Sweden Switzerland Syria Tanzania Thailand Tunisia Turkey Uganda Ukraine Venezuela Vietnam Wales Yemen Zambia
+Zimbabwe Africa Asia Europe America Antarctica Oceania Britain USA UK""".split()) | {
+    "United States", "United Kingdom", "Soviet Union", "South Africa", "New Zealand", "Saudi Arabia", "North America",
+    "South America", "Atlantic", "Pacific", "Indian Ocean", "Atlantic Ocean", "Pacific Ocean", "Arctic", "Mediterranean"}
+
+
 def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
     """Search alternatives for this line, most specific first, ending with the video's topic itself."""
-    q = list(_entities(beat)[:2])
+    ents = list(_entities(beat)[:2])
+    broad = [e for e in ents if e in _BROAD_PLACES and e.lower() not in topic.lower() and topic]
+    q = [e for e in ents if e not in broad]
     topic_words = set(topic.lower().split())
     for n in _key_nouns(beat)[:2]:
-        q.append((topic_q or n) if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
+        q.append((topic_q or topic or n) if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
     if topic:
         q.append(topic_q or topic)
+    q += broad
     return list(dict.fromkeys(x for x in q if x))[:5]
 
 

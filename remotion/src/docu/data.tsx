@@ -8,6 +8,8 @@ export type CounterProps = DocuProps & {
   label?: string; countAt?: number; countDur?: number;
   /** No thousands separators (for years). */
   plain?: boolean;
+  /** Big and centred (default when there is no timeline or footage). */
+  center?: boolean;
   timeline?: {start: number; end: number; tickEvery?: number; events?: {year: number; label: string; at?: number}[]; band?: {from: number; to: number; label: string}};
 };
 
@@ -20,13 +22,17 @@ export const Counter: React.FC<CounterProps> = (p) => {
   const x0 = 120 * s, x1 = width - 120 * s, y = 760 * s;
   const frac = (yr: number) => (tl ? (yr - tl.start) / (tl.end - tl.start) : 0);
   const k = tl ? interpolate(v, [p.from ?? 0, p.to], [0, 1]) : 0;
+  // on its own (no timeline, no footage behind it) the number is the whole shot: big and centred
+  const centered = p.center ?? (!tl && !(p as {footage?: string}).footage);
   return (
     <DocuFrame {...p}>
-      <div style={{position: 'absolute', left: 110 * s, top: p.heading ? 200 * s : 90 * s, filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}}>
-        <div style={{fontSize: 150.0 * s, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums'}}>
+      <div style={centered
+        ? {position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-55%)', textAlign: 'center', filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}
+        : {position: 'absolute', left: 110 * s, top: p.heading ? 200 * s : 90 * s, filter: `blur(${(1 - prog(t, at, 0.4)) * 12 * s}px)`}}>
+        <div style={{fontSize: (centered ? 210 : 150) * s, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums'}}>
           {p.prefix}{p.plain ? Math.round(v).toString() : fmtNum(v, p.decimals ?? 0)}{p.suffix}
         </div>
-        {p.label ? <Reveal at={at + cd * 0.6}><div style={{fontSize: 28 * s, color: C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: 12 * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
+        {p.label ? <Reveal at={at + cd * 0.6}><div style={{fontSize: (centered ? 40 : 28) * s, color: C.red, fontWeight: 800, letterSpacing: 2.5 * s, marginTop: (centered ? 22 : 12) * s, textTransform: 'uppercase'}}>{p.label}</div></Reveal> : null}
       </div>
       {tl ? (
         <svg width={width} height={1080 * s} style={{position: 'absolute', left: 0, top: 0}}>

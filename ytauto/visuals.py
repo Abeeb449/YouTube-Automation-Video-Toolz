@@ -150,7 +150,7 @@ class ClipRenderer:
             fingerprint = (fingerprint, remotion_fingerprint())
         elif "blender" in spec:
             fingerprint = (fingerprint, file_fingerprint(REPO_ROOT / "blender" / "render.py"))
-        key = stable_hash("clip-v3", spec, fingerprint, round(duration, 3), self.W, self.H, self.fps,
+        key = stable_hash("clip-v4", spec, fingerprint, round(duration, 3), self.W, self.H, self.fps,
                           self.p.settings["crf"], self.p.settings["preset"], self.p.settings["transition"],
                           self.p.settings["fade_duration"], fade_in, fade_out, seq % len(ZOOMS),
                           self.p.settings.get("theme"))
@@ -322,7 +322,7 @@ class ClipRenderer:
         run(cmd, cwd=rdir)
         # Remotion templates fade themselves; don't double-fade.
         pre = (f"[0:v]split[fg][bgsrc];[bgsrc]scale={self.W}:{self.H}:force_original_aspect_ratio=increase,"
-               f"crop={self.W}:{self.H},gblur=sigma=40,eq=brightness=-0.18[bg];[bg][fg]overlay=0:(H-h)/2,"
+               f"crop={self.W}:{self.H},gblur=sigma=40,eq=brightness=-0.18[bg];[bg][fg]overlay=0:(H-h)/2-H*0.06,"
                if stage else "")
         self._normalize(raw, duration, out, False, False, pre)
         raw.unlink(missing_ok=True)
