@@ -1,6 +1,6 @@
 ---
 name: documentary-video-maker
-description: Make complete faceless YouTube documentaries (danger & wonder animal docs, ocean docs, what-if infographic docs) with the free open-source ytauto toolkit. Write the researched script, direct every scene (animated creatures, maps, data graphics, B-roll), direct the narrator's emotion line by line, pick mood music, render to 1080p MP4 and QC it. Use whenever the user wants a video made from a title, topic or script.
+description: Make complete faceless YouTube documentaries on any topic (animals, history, science, places, what-ifs) with the free open-source ytauto toolkit, from the creator's own researched script. Direct every scene (animated creatures, maps, data graphics, B-roll), let the narration, music and sound follow the script, render to 1080p MP4 and QC it. Use whenever the user wants a video made from a title, topic or script.
 ---
 
 # Documentary Video Maker (ytauto)
@@ -42,13 +42,12 @@ close-ups, dates into typed date cards, percentages into dot grids, punchy lines
 rest with free photo/video B-roll, each with a fallback. Review and sharpen `script.yaml`, then render.
 
 
-1. **Research** 10–15 verifiable facts and note the sources: size, habitat, senses, weapons, diet, records,
-   enemies, a study with numbers, a human story, an open question.
-2. **Write `projects/<slug>/script.txt`.** About 140 wpm, so ~1,350 words for 10 minutes. `# Heading` lines
-   mark chapters. Hook first (see SYSTEM_PROMPT writing standards).
-3. **Direct `projects/<slug>/script.yaml`.** Split the identical narration into scenes and add visuals, cues,
-   moods and voice tags (sections 3–7). Quick draft: `python -m ytauto plan projects/<slug>/script.txt
-   --style ocean`, then improve it by hand.
+1. **The creator researches and writes `projects/<slug>/script.txt`** in their own words and structure
+   (`# Heading` lines mark chapters; ~140 words per minute of video). Nothing about the writing is prescribed.
+2. **Direct `projects/<slug>/script.yaml`.** Split the identical narration into scenes and add visuals and cues
+   (sections 3–7). Quick draft: `python -m ytauto plan projects/<slug>/script.txt` (style picked from the
+   topic), then improve it by hand. Music mood and effects follow the script automatically (sound director).
+3. **Check:** `python -m ytauto check projects/<slug>` (sources, originality, variety).
 4. **Preview:** `python -m ytauto render projects/<slug> --preview` (540p, fast). Open
    `build/contact_sheet.jpg` (one frame per scene) and fix tiny, empty, cluttered or mistimed scenes.
 5. **Final:** `python -m ytauto render projects/<slug>`, or push to GitHub and run **Actions → Render video**.
@@ -65,17 +64,17 @@ takes roughly 5× the audio length, and visuals about 3–4 minutes per finished
 preset: ocean                     # ocean (animal/sea docs) | documentary (what-if infographic) | add "shorts" for 9:16
 title: "Why Do Sea Lions Fear Leopard Seals?"
 description: |
-  2-3 sentence hook. Sources: …
+  What the video covers, in the creator's words. Sources: …
 tags: [leopard seal, sea lion, antarctica, wildlife documentary]
 settings:
-  voice: {engine: qwen, name: ryan, instruct: "Narrate like a calm, deep-voiced nature documentary narrator: measured, intimate and gripping."}
+  voice: {engine: qwen, name: ryan}                 # optional instruct: "how this video should sound" (default: natural, follows each sentence)
   music: {source: incompetech, mood: mystery}       # real music by mood (default)
-  sound: {whoosh_on_cut: chapters, whoosh_volume: 0.1}
+  sound: {whoosh_on_cut: auto}                        # transition sounds only where the story turns
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
 youtube: {privacy: private, category_id: 15}       # 15 = Pets & Animals, 27 = Education, 28 = Science & Tech
 scenes:
-  - chapter: The hook             # optional: YouTube chapter (7-10 per video, first at the start)
-    mood: mystery                 # optional: wonder | mystery | danger | tension | calm | epic | none (holds until changed)
+  - chapter: Arrival              # optional: YouTube chapter from the script's own headings (>=3, first at the start)
+    mood: mystery                 # optional override; normally chosen from the scene's words (sound director)
     text: "[tone hushed and intimate] A young fur seal stands at the edge of the rocks."
     visual: {remotion: OceanScene, props: {...}}   # or a list of visuals (time is split evenly)
     sfx: [{sound: swell, at: "edge", volume: 0.3}] # optional
@@ -202,7 +201,10 @@ All of them also take `heading`, `subheading`, `kicker`, `callout`, `calloutAt`,
 `footage`.
 
 ---------------------------------------------------------------------------------------------------------
-## 7. Editing recipe (danger & wonder style)
+## 7. Example shot ideas (from the leopard-seal test video, not a template)
+
+These are ways that particular script's beats were shown. Use them only where YOUR script has a similar beat;
+every video's structure comes from its own script.
 
 | Beat | Recipe |
 |---|---|
@@ -218,10 +220,10 @@ All of them also take `heading`, `subheading`, `kicker`, `callout`, `calloutAt`,
 | Twist | `Statement` on `abyss` → evidence scene → `DotGrid` |
 | Human story | `Horizon` grey with a respectful title, then `StatCards` |
 | Closing callback | The opening image again at dusk, a silhouette below, `bigText` callback, slow tempo |
-| Outro | Three creatures from other episodes, "Subscribe for more" |
+| Ending | Whatever the script ends on: show what its last lines say |
 
-Rules: change something every 3–6 s; keep text off animals; one reveal word per scene; use red only for
-danger; mood changes no more often than every 15 s; at most one sfx every 20–30 s.
+General rules: change something every 3–6 s; keep text off subjects; one reveal word per scene; use red only for
+danger.
 
 ---------------------------------------------------------------------------------------------------------
 ## 8. Music and sound
@@ -232,7 +234,10 @@ danger; mood changes no more often than every 15 s; at most one sfx every 20–3
   sub-folders you fill once, e.g. from the YouTube Audio Library), `{source: openverse}`, `{generate: true}`
   (synth score), or `{file: assets/track.mp3}`.
 - `volume` sets the music level in pauses (default 0.8), and `duck` sets its level while speaking (0.45).
-- Whooshes on chapter changes only (`whoosh_on_cut: chapters`).
+- **Sound director (automatic):** each scene's mood comes from its own words and `[tone …]` directions; soft
+  effects land on the word that calls for one (impact, rise before "suddenly", swell on a reveal, ticks on a date)
+  within a budget; transition sounds only where a chapter changes the mood (`whoosh_on_cut: auto`). Hand-written
+  `mood:` / `sfx:` override it; `sound: {director: false}` turns it off.
 
 ---------------------------------------------------------------------------------------------------------
 ## 9. Render and QC checklist
@@ -240,7 +245,7 @@ danger; mood changes no more often than every 15 s; at most one sfx every 20–3
 - [ ] `python -m ytauto render projects/<slug> --preview` runs with no `cue word … not found` warnings.
 - [ ] Contact sheet: every scene has a clear subject filling at least a third of the frame, no text over
       animals, nothing empty.
-- [ ] Watch the hook, every reveal and the ending at full speed: is the motion continuous, do cues land on
+- [ ] Watch the opening, every reveal and the ending at full speed: is the motion continuous, do cues land on
       their words, is the music under the voice, are there no loud spikes?
 - [ ] `python -m ytauto check <project>` shows 0 to fix (sources listed with `sources:`, no repeated passages, varied shots).
 - [ ] `description.txt` has chapters, sources, music credits and stock credits; `credits.json` lists every stock item's licence.

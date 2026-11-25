@@ -146,6 +146,22 @@ def find_subject(script: str, title: str) -> str:
     return best or "wildlife"
 
 
+def _opening(blocks: list[str]) -> str:
+    """The script's first two sentences, as a starting point for the YouTube description."""
+    text = " ".join(b for b in blocks if not b.startswith("#"))
+    text = re.sub(r"\[[^\]]*\]", " ", text)
+    sents = re.split(r"(?<=[.!?])\s+", re.sub(r"\s+", " ", text).strip())
+    return " ".join(sents[:2])[:300]
+
+
+def _tags(title: str, subject: str) -> list[str]:
+    words = [w for w in re.findall(r"[a-z][a-z'-]+", title.lower())
+             if w not in _STOPW and len(w) > 3 and w not in {"were", "built", "made", "became", "happened", "does", "nothing",
+                                                          "never", "every", "really", "inside", "about"}]
+    out = list(dict.fromkeys([subject] + words + ["documentary"]))
+    return [t for t in out if t][:12]
+
+
 def plan_with_rules(script: str, style: str, title: str | None) -> str:
     blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()
               and not re.match(r"^\s*subject\s*:", b, re.I)]
@@ -188,8 +204,9 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
             scenes.append(sc)
     data = {
         "preset": style, "title": title,
-        "description": f"{title}. A narrated documentary.",
-        "tags": [subject, "documentary", "animals", "wildlife"] if style in ("ocean", "nature") else ["documentary"],
+        # from the creator's own words: the script's opening lines (edit before upload; add your sources)
+        "description": _opening(blocks),
+        "tags": _tags(title, subject if style in ("nature", "ocean") else ""),
         "thumbnail": {"text": title.upper()[:40]}, "youtube": {"privacy": "private"},
         "scenes": scenes,
     }

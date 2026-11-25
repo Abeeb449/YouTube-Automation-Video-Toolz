@@ -109,14 +109,14 @@ PRESETS: dict[str, dict] = {
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
-                  "instruct": "Narrate like a calm, authoritative documentary narrator: measured, clear and gripping."},
+                  "instruct": "Narrate naturally and clearly, like a documentary narrator, following the meaning and emotion of each sentence."},
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
         "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
     },
     "ocean": {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
-        # "Danger & wonder" deep-sea animal documentaries (remotion/src/ocean, see .claude/skills/ocean-documentary).
+        # Drawn deep-sea look for ocean topics (remotion/src/ocean, see .claude/skills/ocean-documentary).
         "transition": "none",
         "padding": 0.3, "sentence_gap": 0.35, "pause_scale": 0.8, "loudness": -16,
         # narration: "natural" = the voice reads the script as written; "polished" = retakes + pause editing below
@@ -125,7 +125,7 @@ PRESETS: dict[str, dict] = {
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
-                  "instruct": "Narrate like a calm, deep-voiced nature documentary narrator: hushed and suspenseful, with a sense of wonder."},
+                  "instruct": "Narrate naturally and clearly, like a documentary narrator, following the meaning and emotion of each sentence."},
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
@@ -141,7 +141,7 @@ PRESETS: dict[str, dict] = {
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
-                  "instruct": "Narrate like a calm, deep-voiced wildlife documentary narrator: warm, vivid and gripping, with a sense of wonder."},
+                  "instruct": "Narrate naturally and clearly, like a documentary narrator, following the meaning and emotion of each sentence."},
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns

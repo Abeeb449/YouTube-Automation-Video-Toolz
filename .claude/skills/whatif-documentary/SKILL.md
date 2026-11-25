@@ -22,7 +22,7 @@ Read `references/templates.md` for every template's props.
    Use the defaults when the user doesn't say, and tell them which you used.
 2. **Research and script.** Write the narration as short, punchy sentences in present tense ("Day one. 4:12 a.m."). Then:
    - Open with a **cold open** (an establishing Horizon with a location title and HUD), then the **"Simulation, but nothing is made up"** SourceList.
-   - Structure it in chapters: *context → history → the numbers → the event, second by second → the aftermath → what it means.*
+   - Chapters come from the creator's script (`# headings`); don't impose a structure.
    - Every number needs a source. Put it in the scene's `source:` line, and on SourceList rows for the main sources.
    - Mark illustrative estimates as illustrative ("Illustrative · based on …").
 3. **Shot list.** Plan **one scene per beat, 5–15 seconds each**. For each beat pick a template using the beat-to-template table in the

@@ -5,7 +5,8 @@ description: Use when the user asks to "make an animal documentary", "make a dee
 
 # Ocean / Animal "Danger & Wonder" Documentary
 
-Make faceless animal documentaries in the style of `reference/Why You'd Never Want To Meet A Sperm Whale_0_325.mp4`.
+Gives any ocean script the drawn look of `reference/Why You'd Never Want To Meet A Sperm Whale_0_325.mp4` (visual style
+only; the script's own words decide the content, structure and tone).
 That means flat-vector animals in a procedural underwater world (light shafts → abyss, marine snow), short bold labels, fact chips,
 scale bars, depth meters, sonar views, target brackets, and a calm British narrator. Built on `ytauto` with `preset: ocean`
 and the Remotion kit in `remotion/src/ocean/`. The infographic templates from `remotion/src/docu/` (StatCards, Counter,
@@ -20,12 +21,13 @@ Template props: `references/templates.md`, plus `.claude/skills/whatif-documenta
 Shortcut: if the user just gives narration, save it as `projects/<slug>/script.txt` and run
 `python -m ytauto plan … --style ocean` (or, better, write script.yaml yourself following this guide).
 
-1. **Pick the animal and the angle.** Use the title formula: *"Why You'd Never Want To Meet A ___"*, *"What Happens If You Meet A ___"*
-   or *"The ___ Is Scarier Than You Think"*. The deep-ocean series is the first season.
+1. **The creator picks the topic, title and angle** from their own research. This skill only supplies the drawn
+   deep-sea look (animated creatures, depth meters, sonar); it doesn't prescribe titles or framing.
 2. **Research.** Collect 8–12 verified facts: size, depth, senses, weapons, diet, a record ("loudest", "largest eye"), its enemy,
    a human encounter or historical event, and one open mystery. Prefer NOAA, MBARI, Smithsonian Ocean, the Natural History Museum and
    peer-reviewed papers. Phrase uncertain numbers as "around" or "up to".
-3. **Script.** Write about 150 words per minute in second person ("you"), with short sentences and a reveal every 20–40 seconds.
+3. **Script.** Use the creator's own script as written (about 150 words per minute fits this look). Don't rewrite
+   it into a house style.
    Follow the **danger → wonder → danger** arc in the style guide. A 10-minute video is about 1,500 words and 60–80 scenes.
 4. **Write the scenes.** Use one beat per scene and put cue words (`at: "teeth"`) on every reveal.
    Use the built-in creatures (`spermWhale`, `giantSquid`, `orca`, `shark`, `anglerfish`, `jellyfish`, `diver`, `fishSchool`, `octopus`).
@@ -80,7 +82,8 @@ danger → wonder or mystery (outro). Use your own track instead with `settings.
 ## Rules
 
 - **Accuracy first:** never invent attacks on humans, records or numbers. If something is a theory, say so ("one theory says…").
-- **Danger framing, honest facts:** "You'd never want to meet it" is the hook; the content is real biology. Debunk myths explicitly.
+- **Honest facts:** whatever the script's framing, keep the pictures true to it; never exaggerate danger the
+  script doesn't claim.
 - **No gore:** threat is shown through target brackets, silhouettes, sound and red labels, never wounds.
 - **Original work:** write your own script and visuals for every animal. Reuse templates, not stories.
   YouTube demonetises repetitive mass-produced content.
