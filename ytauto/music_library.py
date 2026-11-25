@@ -57,6 +57,56 @@ class Track:
         return f"♪ \"{self.title}\" by {self.creator} ({lic}) — {self.landing}"
 
 
+# ---------------------------------------------------------------- smoothness screen (any source)
+# Music sits under narration, so it must be smooth: no plucks, drum hits, stabs or sudden jumps that cut
+# through the voice. Track metadata can't be trusted for this ("Relaxed, Calming" on a plucky comedic piece),
+# so every track is measured before it is used.
+MAX_HITS_PER_MIN = 8.0     # sudden onsets (> 6 dB jump in 50 ms) per minute
+MAX_CREST_DB = 13.5        # median peak-to-average ratio per 2 s window (spiky = percussive)
+
+
+def screen_track(path: str | Path) -> dict:
+    """Measure how percussive a track is (cached next to it). ok=False → never used as a narration bed."""
+    import io
+    import subprocess
+
+    import numpy as np
+    import soundfile as sf
+    path = Path(path)
+    memo = path.with_suffix(path.suffix + ".screen.json")
+    if memo.exists():
+        try:
+            return json.loads(memo.read_text())
+        except ValueError:
+            pass
+    wav = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", "22050", "-f", "wav", "-"],
+                         capture_output=True).stdout
+    y, sr = sf.read(io.BytesIO(wav))
+    n = int(0.05 * sr)
+    fr = np.array([np.sqrt(np.mean(y[i:i + n] ** 2)) for i in range(0, len(y) - n, n)]) + 1e-9
+    db = np.maximum(20 * np.log10(fr), -60.0)
+    jumps = int(np.sum((np.diff(db) > 6) & (db[1:] > -40)))
+    win = 2 * sr
+    crest = [20 * np.log10(np.max(np.abs(y[i:i + win])) / (np.sqrt(np.mean(y[i:i + win] ** 2)) + 1e-9))
+             for i in range(0, len(y) - win, win) if np.max(np.abs(y[i:i + win])) > 1e-3]
+    res = {"hits_per_min": round(jumps / max(1e-6, len(y) / sr / 60), 1), "crest_db": round(float(np.median(crest)) if crest else 0.0, 1)}
+    res["ok"] = res["hits_per_min"] <= MAX_HITS_PER_MIN and res["crest_db"] <= MAX_CREST_DB
+    memo.write_text(json.dumps(res))
+    return res
+
+
+def smooth_enough(path: str | Path, title: str = "") -> bool:
+    try:
+        r = screen_track(path)
+    except Exception as exc:  # noqa: BLE001 — can't measure: don't risk it
+        warn(f"music screen failed for {title or path}: {exc}")
+        return False
+    if not r["ok"]:
+        log(f"   skipping music \"{title or Path(path).name}\": too percussive for narration "
+            f"({r['hits_per_min']} hits/min, crest {r['crest_db']} dB)")
+    return r["ok"]
+
+
 def _get(url: str) -> dict:
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=60) as r:
@@ -68,8 +118,10 @@ def openverse_tracks(mood: str, cache: Path, want: int = 2, seed: int = 0, extra
     index_file = cache / "music" / f"openverse_{mood}_{stable_hash(extra_query, want, seed)}.json"
     if index_file.exists():
         tracks = [Track(**t) for t in json.loads(index_file.read_text())]
-        if all(Path(t.path).exists() for t in tracks):
-            return tracks
+        if tracks and all(Path(t.path).exists() for t in tracks):
+            tracks = [t for t in tracks if smooth_enough(t.path, t.title)]
+            if tracks:
+                return tracks
     queries = ([extra_query] if extra_query else []) + MOOD_QUERIES.get(mood, MOOD_QUERIES["wonder"])
     candidates: list[dict] = []
     for q in queries:
@@ -115,6 +167,8 @@ def openverse_tracks(mood: str, cache: Path, want: int = 2, seed: int = 0, extra
             warn(f"skipping track {r.get('title')!r}: {exc}")
             dst.unlink(missing_ok=True)
             continue
+        if not smooth_enough(dst, r.get("title") or ""):
+            continue
         tracks.append(Track(str(dst), r.get("title") or "Untitled", r.get("creator") or "Unknown", r["license"],
                             r.get("license_version") or "", r.get("source") or "", r.get("foreign_landing_url") or r["url"]))
     if not tracks:
@@ -129,8 +183,11 @@ def library_tracks(folder: Path, mood: str) -> list[Track]:
     for d in (folder / mood, folder):
         if d.is_dir():
             files = sorted(p for p in d.iterdir() if p.suffix.lower() in AUDIO_EXT)
-            if files:
-                return [Track(str(p), p.stem, "", "own", "", "library", "") for p in files]
+            smooth = [p for p in files if smooth_enough(p, p.name)]
+            if files and not smooth:
+                warn(f"music library {d}: every track is too percussive for narration; add smoother ones")
+            if smooth:
+                return [Track(str(p), p.stem, "", "own", "", "library", "") for p in smooth]
     return []
 
 
@@ -141,6 +198,10 @@ def _mean_db(path: Path, seconds: float | None = None) -> float:
         if "mean_volume:" in line:
             return float(line.split("mean_volume:")[1].split("dB")[0])
     return -20.0
+
+
+# fast transient tamer (catches plucks/hits in 2 ms) + gentle treble roll-off so the bed stays soft under a voice
+BED_SMOOTH = "acompressor=threshold=-30dB:ratio=8:attack=2:release=120:knee=6,lowpass=f=7500"
 
 
 def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: Path, xfade: float = 4.0) -> tuple[Path, list[Track]]:
@@ -181,7 +242,7 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
         parts.append(part)
     if len(parts) == 1:
         run(["ffmpeg", "-y", "-v", "error", "-i", parts[0], "-af",
-             "acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35", out])
+             f"{BED_SMOOTH},acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35", out])
     else:
         inputs, chain = [], ""
         for p in parts:
@@ -193,7 +254,7 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
             prev = lab
         # glue: gentle compression + a limiter so no hit or swell ever jumps out from under the narration
         # leveller (~7 s window) evens out quiet vs loud tracks without pumping, then compressor + limiter
-        chain += (f"{prev}dynaudnorm=f=500:g=15:p=0.5:m=6:r=0.12,"
+        chain += (f"{prev}dynaudnorm=f=500:g=15:p=0.5:m=6:r=0.12,{BED_SMOOTH},"
                   "acompressor=threshold=-26dB:ratio=3:attack=150:release=1200:makeup=1,alimiter=limit=0.35:attack=20:release=400[bed]")
         run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", chain, "-map", "[bed]", "-t", f"{total + 1:.3f}", out])
     for p in parts:
@@ -218,7 +279,9 @@ INCOMPETECH_RULES = {
 # Documentary beds shouldn't sound cheerful, folksy or comedic.
 INCOMPETECH_AVOID = {"grooving", "bouncy", "humorous", "ren faire", "medieval", "aggressive", "bright", "driving", "action"}
 # Beds sit under narration: no drum kits, booms or vocals that punch through the voice.
-PERCUSSION = ("drum", "percussion", "timpani", "taiko", "cymbal", "snare", "kick", "vocal", "choir", "beat")
+PERCUSSION = ("drum", "percussion", "timpani", "taiko", "cymbal", "snare", "kick", "vocal", "choir", "beat",
+              "lute", "pennywhistle", "banjo", "ukulele", "mandolin", "marimba", "xylophone", "glockenspiel",
+              "pizzicato", "accordion", "kazoo", "harpsichord", "whistle", "tuba")
 TITLE_AVOID = ("funeral", "porch", "sunny", "happy", "christmas", "party", "wedding", "comedy", "circus", "carnival",
                "dance", "disco", "jazz", "blues", "rock", "polka", "waltz", "march", "lullaby", "kids", "cartoon")
 
@@ -253,7 +316,7 @@ def incompetech_tracks(mood: str, cache: Path, want: int = 2, seed: int = 0, avo
     rng = random.Random(f"{mood}-{seed}")
     rng.shuffle(cands)
     cands.sort(key=lambda p: -len(_feels(p) & want_feels))
-    pool = cands[: max(12, want * 4)]
+    pool = cands[: max(24, want * 8)]   # room to skip tracks that fail the smoothness screen
     rng.shuffle(pool)
     out: list[Track] = []
     for p in pool:
@@ -267,6 +330,8 @@ def incompetech_tracks(mood: str, cache: Path, want: int = 2, seed: int = 0, avo
         except Exception as exc:  # noqa: BLE001
             warn(f"skipping {p['title']!r}: {exc}")
             dst.unlink(missing_ok=True)
+            continue
+        if not smooth_enough(dst, p["title"]):
             continue
         out.append(Track(str(dst), p["title"], "Kevin MacLeod", "by", "4.0", "incompetech",
                          "https://incompetech.com/music/royalty-free/"))

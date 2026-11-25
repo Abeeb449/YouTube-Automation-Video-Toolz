@@ -92,6 +92,44 @@ def _with_sprites(spec: dict, man: dict) -> dict:
     return spec
 
 
+# Every sound effect is softened and capped well below the narrator (peak about -20 dBFS against a voice
+# around -26 dB RMS / -8 dB peaks), so no effect can ever jump out over the voice.
+SFX_SAFE = "lowpass=f=9000,acompressor=threshold=-30dB:ratio=6:attack=3:release=150,alimiter=limit=0.1:attack=2:release=200"
+
+
+def audio_qc(mix: Path, voice: Path, report: Path) -> list[float]:
+    """Find sudden sounds that are NOT the narrator: moments where the mix jumps > 6 dB within 50 ms while the
+    voice doesn't, and rises clearly above the voice. Returns their times (also written to `report`)."""
+    import numpy as np
+    import soundfile as sf
+
+    def frames(path: Path):
+        y, sr = sf.read(str(path), always_2d=True, dtype="float32")
+        y = y.mean(1)
+        n = int(0.05 * sr)
+        k = len(y) // n
+        return np.maximum(20 * np.log10(np.sqrt((y[:k * n].reshape(k, n) ** 2).mean(1)) + 1e-9), -70.0)
+    m, v = frames(mix), frames(voice)
+    k = min(len(m), len(v))
+    m, v = m[:k], v[:k]
+    jump_m = np.diff(m, prepend=m[0])
+    jump_v = np.diff(v, prepend=v[0])
+    bad = np.where((jump_m > 6) & (jump_v < 3) & (m > v + 3) & (m > -40))[0]
+    times, last = [], -9.0
+    for i in bad:
+        t = i * 0.05
+        if t - last > 1.0:
+            times.append(round(t, 2))
+            last = t
+    lines = [f"{int(t) // 60}:{int(t) % 60:02d}.{int((t % 1) * 10)}" for t in times]
+    report.write_text(("Sudden non-voice sounds:\n" + "\n".join(lines)) if lines else "No sudden non-voice sounds.\n")
+    if times:
+        warn(f"audio check: {len(times)} sudden non-voice sound(s) at " + ", ".join(lines[:10]) + " (see build/audio_check.txt)")
+    else:
+        log("   audio check: no sudden non-voice sounds")
+    return times
+
+
 def render_project(project: Project, preview: bool = False, keep_cache: bool = True) -> Path:
     t0 = time.time()
     st = project.settings
@@ -209,13 +247,13 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     if synth_events or float(snd.get("drone", 0) or 0) > 0:
         track = build_track(total, synth_events, float(snd.get("drone", 0) or 0), work / "sound_design.wav")
         inputs += ["-i", track]
-        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={float(snd.get('volume', 1.0))}[sd]")
+        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={float(snd.get('volume', 1.0))},{SFX_SAFE}[sd]")
         mix.append("[sd]")
         idx += 1
     for at, path, vol in file_events:
         inputs += ["-i", path]
         ms = int(max(0, at) * 1000)
-        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},adelay={ms}|{ms}[s{idx}]")
+        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},{SFX_SAFE},adelay={ms}|{ms}[s{idx}]")
         mix.append(f"[s{idx}]")
         idx += 1
     music = st.get("music")
@@ -275,6 +313,10 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     premix = work / "premix.wav"
     run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
          "-t", f"{total:.3f}", "-c:a", "pcm_s16le", premix])
+    try:
+        audio_qc(premix, narration, build / "audio_check.txt")
+    except Exception as exc:  # noqa: BLE001 — a check must never stop the render
+        warn(f"audio check skipped: {exc}")
     # Two-pass, linear loudness normalisation: one fixed gain for the whole video (no pumping or squashing).
     meas = run(["ffmpeg", "-v", "info", "-i", premix, "-af", f"loudnorm=I={lufs}:TP=-1.5:LRA=11:print_format=json",
                 "-f", "null", "-"])
@@ -424,7 +466,7 @@ def real_music_bed(project: Project, segs, total: float, music: dict, source: st
         merged[1] = (0.0, merged[1][1], merged[1][2])
         merged.pop(0)
     segs = merged
-    key = stable_hash("bed-v8", source, segs, round(total, 2), seed, queries, music.get("library"))
+    key = stable_hash("bed-v9", source, segs, round(total, 2), seed, queries, music.get("library"))
     out = cache / "music" / f"bed_{key}.wav"
     meta = out.with_suffix(".json")
     if out.exists() and meta.exists():

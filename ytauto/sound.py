@@ -50,15 +50,20 @@ def synth(name: str, rng: np.random.Generator, dur: float | None = None) -> np.n
         y = (noise + tone) * ramp * np.minimum(1, (t[-1] - t) / 0.08)
         return y / (np.abs(y).max() + 1e-9) * 0.5
     if name in ("hit", "thud", "boom"):
-        L = {"hit": 1.0, "thud": 0.8, "boom": 3.5}[name]
+        # Soft cinematic accents that sit UNDER a narrator: a deep sine swell that blooms in over 40-90 ms and
+        # fades slowly, with a little airy shimmer. No noise "crack" and no hard attack, so nothing ever
+        # snaps out over the voice (the old percussive hits did).
+        L = {"hit": 1.6, "thud": 1.2, "boom": 3.0}[name]
         n = int(L * SR)
         t = np.arange(n) / SR
-        f0 = {"hit": 70, "thud": 60, "boom": 45}[name]
-        body = np.sin(2 * np.pi * (f0 * np.exp(-t * 3) + 30) * t) * np.exp(-t * (6 if name != "boom" else 1.4))
-        crack = rng.normal(0, 1, n) * np.exp(-t * (35 if name != "boom" else 4))
-        rumble = _lowpass(rng.normal(0, 1, n), 0.004) * np.exp(-t * 0.9) * (8 if name == "boom" else 0)
-        y = body + 0.35 * crack + rumble
-        return y / (np.abs(y).max() + 1e-9) * (0.9 if name == "boom" else 0.75)
+        f0 = {"hit": 62, "thud": 52, "boom": 42}[name]
+        atk = {"hit": 0.06, "thud": 0.04, "boom": 0.09}[name]
+        env = np.minimum(1.0, t / atk) ** 2 * np.exp(-t * {"hit": 2.2, "thud": 3.0, "boom": 1.1}[name])
+        body = np.sin(2 * np.pi * (f0 * (1 + 0.25 * np.exp(-t * 4))) * t)
+        warm = 0.35 * np.sin(2 * np.pi * 2 * f0 * t + 0.6)
+        air = _lowpass(rng.normal(0, 1, n), 0.02) * 0.6 * np.minimum(1.0, t / 0.12) * np.exp(-t * 2.5)
+        y = (body + warm) * env + air
+        return y / (np.abs(y).max() + 1e-9) * 0.35
     if name in ("tick", "beep"):
         n = int((0.04 if name == "tick" else 0.18) * SR)
         t = np.arange(n) / SR
