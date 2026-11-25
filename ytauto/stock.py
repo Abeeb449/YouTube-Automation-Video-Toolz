@@ -365,7 +365,7 @@ def _commons(query: str, kind: str, width: int) -> list[tuple[str, str]]:
             ders = [d for d in info.get("derivatives", []) if "webm" in d.get("type", "") or "mp4" in d.get("type", "")]
             ders.sort(key=lambda d: abs(int(d.get("height") or 0) - 1080))
             url = ders[0]["src"] if ders else info.get("url")
-            if not url or (info.get("height") or 0) < 480:
+            if not url or (info.get("height") or 0) < 720:   # sharp enough for a 1080p video
                 continue
         else:
             w0 = info.get("width") or 0

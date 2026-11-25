@@ -106,6 +106,19 @@ ANIMAL_ICONIC = {"Animalia", "Mammalia", "Aves", "Reptilia", "Amphibia", "Actino
                  "Insecta"}
 
 
+def _is_animal(query: str) -> bool:
+    """Does the query name an animal? (an exact species/group, or a loose match whose whole name is in the query)"""
+    from .stock import _inat_taxon
+    try:
+        tx, _ = _inat_taxon(query)
+    except Exception:  # noqa: BLE001
+        return False
+    if tx and tx.get("iconic_taxon_name") in ANIMAL_ICONIC or lookalikes(query):
+        return True
+    lo = _loose_animal(query)
+    return bool(lo and _words(lo.get("preferred_common_name") or lo.get("matched_term") or "") <= _words(query))
+
+
 def _loose_animal(query: str) -> dict | None:
     """No exact species in the query ("fur seal mother"): the best animal match for its leading words
     (e.g. a fur seal genus), used only to find look-alikes."""
@@ -151,48 +164,90 @@ def check(image: Path, query: str, cache: Path, wanted: str | None = None, trust
     global _disabled_reason
     if not enabled():
         return True, "check off"
+    r = _judge(image, query, cache, wanted, trusted)
+    return r["ok"], r["reason"]
+
+
+# Question 1: is this a real camera photograph / footage at all?
+# (two wordings, calibrated on known good/bad photos and clips: real photos score >= 0.23 on the better of the
+#  two, data maps and cartoons 0.00)
+KIND_A = ["a photograph", "a map or a chart with a colour legend", "a cartoon or animated illustration",
+          "a screenshot of a computer screen or a presentation slide"]
+KIND_B = ["a real-world photo of nature", "a scientific data map or graph", "a cartoon, drawing or computer animation",
+          "a computer screenshot"]
+KIND_MIN = 0.12
+# Question 3 (animals only): wild, or kept by people? (wild photos >= 0.84, pool/aquarium shots <= 0.01)
+WILD = ["an animal outdoors in nature, on rocks, ice, sand, grass or in the open sea",
+        "an animal in a man-made tank or pool with smooth blue walls, or behind a zoo fence"]
+WILD_MIN = 0.5
+KIND = KIND_A
+
+
+def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bool) -> dict:
+    """All three questions for one image (cached): kind, subject, wild. Returns {ok, reason, kind, subject, wild}."""
+    global _disabled_reason
     pos, negs = prompts(query, wanted, trusted)
-    key = stable_hash("verify-v4", str(image), image.stat().st_size, pos, negs, trusted)
+    animal = _is_animal(query)
+    key = stable_hash("verify-v6", str(image), image.stat().st_size, pos, negs, trusted, animal)
     memo_file = _memo_path(cache)
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
     if key in memo:
-        return tuple(memo[key])  # type: ignore[return-value]
+        return memo[key]
+    groups = [KIND_A, KIND_B, [pos, *negs]] + ([WILD] if animal else [])
     try:
-        res = _clip().run({"images": [str(image)], "texts": [pos, *negs]})
+        res = _clip().run({"images": [str(image)], "groups": groups})
     except Exception as exc:  # noqa: BLE001
         _disabled_reason = str(exc)
         warn(f"photo check unavailable ({exc}); using text matching only")
-        return True, "check unavailable"
-    probs = res["probs"][0]
+        return {"ok": True, "reason": "check unavailable", "kind": 1.0, "subject": 1.0, "wild": 1.0}
+    kind = max(res["groups"][0][0][0], res["groups"][1][0][0])
+    probs = res["groups"][2][0]
+    wild = res["groups"][3][0][0] if animal else 1.0
     best = max(range(len(probs)), key=lambda i: probs[i])
     p = probs[0]
     need = 0.25 if trusted else 0.45
-    ok = best == 0 and p >= need or (trusted and p >= 0.5)
-    reason = (f"matches ({p:.0%})" if ok else
-              f"not sure enough it shows '{pos}' ({p:.0%})" if best == 0 else
-              f"looks more like '{([pos] + negs)[best]}' ({probs[best]:.0%}) than '{pos}' ({p:.0%})")
+    subject_ok = best == 0 and p >= need or (trusted and p >= 0.5)
+    if kind < KIND_MIN:
+        k2 = max(range(1, len(KIND_B)), key=lambda i: res["groups"][1][0][i])
+        reason = f"not a real photo: looks like {KIND_B[k2]} ({res['groups'][1][0][k2]:.0%})"
+    elif animal and wild < WILD_MIN:
+        reason = f"captive animal (zoo/aquarium/pool, {1 - wild:.0%})"
+    elif not subject_ok:
+        reason = (f"not sure enough it shows '{pos}' ({p:.0%})" if best == 0 else
+                  f"looks more like '{([pos] + negs)[best]}' ({probs[best]:.0%}) than '{pos}' ({p:.0%})")
+    else:
+        reason = f"matches ({p:.0%}; real photo {kind:.0%}" + (f"; wild {wild:.0%})" if animal else ")")
+    out = {"ok": kind >= KIND_MIN and (not animal or wild >= WILD_MIN) and subject_ok, "reason": reason,
+           "kind": round(kind, 3), "subject": round(p, 3), "wild": round(wild, 3), "subject_ok": subject_ok}
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
-        memo[key] = [ok, reason]
+        memo[key] = out
         memo_file.parent.mkdir(parents=True, exist_ok=True)
         memo_file.write_text(json.dumps(memo))
-    return ok, reason
+    return out
 
 
 def check_video(clip: Path, query: str, cache: Path, wanted: str | None = None) -> tuple[bool, str]:
-    """A clip passes when at least 2 of 3 frames (25/50/75 %) show the subject."""
+    """A clip passes only if EVERY sampled frame (15/35/50/65/85 %) is real footage (no maps, charts, cartoons) and,
+    for animals, wild; and the subject is shown in at least 4 of the 5 frames."""
     import subprocess
     from .utils import ffprobe_duration
     d = ffprobe_duration(clip)
-    oks, reasons = 0, []
-    for k, f in enumerate((0.25, 0.5, 0.75)):
-        frame = clip.with_name(f"{clip.stem}.f{k}.jpg")
+    rs = []
+    for k, f in enumerate((0.15, 0.35, 0.5, 0.65, 0.85)):
+        frame = clip.with_name(f"{clip.stem}.v{k}.jpg")
         if not frame.exists():
             subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{d * f:.2f}", "-i", str(clip), "-frames:v", "1",
                             "-vf", "scale=640:-2", str(frame)], check=False)
         if frame.exists():
-            ok, why = check(frame, query, cache, wanted)
-            oks += ok
-            reasons.append(why)
-    return oks >= 2, "; ".join(reasons[:3])
+            rs.append(_judge(frame, query, cache, wanted, False))
+    if not rs:
+        return False, "no frames"
+    bad = [r for r in rs if r["kind"] < KIND_MIN or r["wild"] < WILD_MIN]
+    if bad:
+        return False, bad[0]["reason"]
+    hits = sum(1 for r in rs if r["subject_ok"])
+    if hits < max(1, len(rs) - 1):
+        return False, f"subject seen in only {hits} of {len(rs)} frames ({rs[0]['reason']})"
+    return True, f"all {len(rs)} frames real footage, subject in {hits}"
