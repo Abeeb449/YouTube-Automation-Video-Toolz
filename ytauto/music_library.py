@@ -291,7 +291,8 @@ PERCUSSION = ("drum", "percussion", "timpani", "taiko", "cymbal", "snare", "kick
               "lute", "pennywhistle", "banjo", "ukulele", "mandolin", "marimba", "xylophone", "glockenspiel",
               "pizzicato", "accordion", "kazoo", "harpsichord", "whistle", "tuba")
 TITLE_AVOID = ("funeral", "porch", "sunny", "happy", "christmas", "party", "wedding", "comedy", "circus", "carnival",
-               "dance", "disco", "jazz", "blues", "rock", "polka", "waltz", "march", "lullaby", "kids", "cartoon")
+               "dance", "disco", "jazz", "blues", "rock", "polka", "waltz", "march", "lullaby", "kids", "cartoon",
+               "sancho panza")   # the plucky track that cut through the narration in the sea lions video
 
 
 def _feels(p: dict) -> set[str]:

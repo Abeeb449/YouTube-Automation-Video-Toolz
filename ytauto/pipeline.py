@@ -97,7 +97,7 @@ def _with_sprites(spec: dict, man: dict) -> dict:
 SFX_SAFE = "lowpass=f=9000,acompressor=threshold=-30dB:ratio=6:attack=3:release=150,alimiter=limit=0.1:attack=2:release=200"
 
 
-def audio_qc(mix: Path, voice: Path, report: Path) -> list[float]:
+def audio_qc(mix: Path, voice: Path, report: Path, planned: list[float] | None = None) -> list[float]:
     """Find sudden sounds that are NOT the narrator: moments where the mix jumps > 6 dB within 50 ms while the
     voice doesn't, and rises clearly above the voice. Returns their times (also written to `report`)."""
     import numpy as np
@@ -118,6 +118,8 @@ def audio_qc(mix: Path, voice: Path, report: Path) -> list[float]:
     times, last = [], -9.0
     for i in bad:
         t = i * 0.05
+        if any(-0.3 <= t - f <= 2.0 for f in planned or []):   # a sound effect the script asked for
+            continue
         if t - last > 1.0:
             times.append(round(t, 2))
             last = t
@@ -241,7 +243,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     # 4) Audio mix: narration + sfx + ducked music + loudness normalisation -----------------
     log("Step 4/5: mixing audio")
     # Mix, then check: if any sudden non-voice sound remains, the music track playing at that moment is banned
-    # and the music is rebuilt without it (up to 3 rounds). Sound effects are off by default, so it is the music.
+    # and the music is rebuilt without it (up to 3 rounds). Moments right at a planned effect are not counted.
     from . import music_library as _ml
     mfile = None
     for _round in range(3):
@@ -321,8 +323,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         premix = work / "premix.wav"
         run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
              "-t", f"{total:.3f}", "-c:a", "pcm_s16le", premix])
+        fx_times = [e[0] for e in synth_events] + [e[0] for e in file_events]
         try:
-            sudden = audio_qc(premix, narration, build / "audio_check.txt")
+            sudden = audio_qc(premix, narration, build / "audio_check.txt", fx_times)
         except Exception as exc:  # noqa: BLE001 — a check must never stop the render
             warn(f"audio check skipped: {exc}")
             sudden = []
@@ -520,9 +523,7 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
     snd = project.settings.get("sound") or {}
     synth: list[tuple[float, str, float, float | None]] = []
     files: list[tuple[float, Path, float]] = []
-    # No sound effects at all unless a project explicitly asks for them (sound: {effects: true}): no hits, booms,
-    # whooshes or risers over the narration in any video. Scene `sfx:` lines are ignored by default.
-    if not snd.get("effects", False):
+    if snd.get("effects", True) is False:   # a project can switch every effect off with sound: {effects: false}
         return synth, files
     if snd.get("whoosh_on_cut"):
         wv = float(snd.get("whoosh_volume", 0.22))
