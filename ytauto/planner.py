@@ -146,6 +146,10 @@ def find_subject(script: str, title: str) -> str:
     return best or "wildlife"
 
 
+_VERBS = set("""built made make makes took take went go goes found find began begin became become came come gave give
+held hold kept keep left leave lost lose said say sent send stood stand told tell wrote write rose rise fell fall
+grew grow knew know ran run saw see sees sat sit won win works work changed change exploded sank sink fear fears
+hunts hunt kills kill does did happened happen built""".split())
 _GENERIC_NAMES = {"Earth", "World", "Universe", "God", "Christmas", "Christmas Day", "Christmas Eve", "Easter",
                   "New Year", "New Year's Day", "Celsius", "Fahrenheit", "Kelvin", "Today", "Mr", "Mrs", "Dr"}
 
@@ -157,18 +161,25 @@ def find_topic(script: str, title: str) -> str:
     m = re.search(r"^\s*subject\s*:\s*(.+)$", script, re.I | re.M)
     if m:
         return m.group(1).strip()
-    tw = re.findall(r"[A-Za-z][\w'-]*", title)
+    tw = [re.sub(r"'s$", "", w) for w in re.findall(r"[A-Za-z][\w'-]*", title)]
     low = [w.lower() for w in tw]
     body = " ".join(b for b in re.split(r"\n\s*\n", script) if not b.strip().startswith("#")).lower()
     from collections import Counter
     ents = Counter(e for b in re.split(r"\n\s*\n", script) if not b.strip().startswith("#") for e in _entities(b))
+    raw_body = " ".join(b for b in re.split(r"\n\s*\n", script) if not b.strip().startswith("#"))
+    for w in tw:   # a title word the script only ever writes capitalised is a name, even at a sentence start ("Venice")
+        if (w.lower() not in _STOPW and len(w) > 2 and re.search(rf"\b{re.escape(w)}\b", raw_body)
+                and not re.search(rf"\b{re.escape(w.lower())}\b", raw_body)):
+            ents[w] += 1
     best = ""
     for e, _c in ents.most_common():
         ew = [w.lower() for w in e.split()]
         if e in _GENERIC_NAMES or not all(w in low for w in ew):
             continue
         i, j = low.index(ew[0]), low.index(ew[-1]) + 1
-        def used(w: str) -> bool:   # the script uses this exact word (a plural may appear as its singular)
+        def used(w: str) -> bool:   # the script uses this exact word (a plural may appear as its singular), not a verb
+            if w.endswith(("ed", "ing")) or w in _VERBS:
+                return False
             forms = [w] + ([w[:-1]] if w.endswith("s") and not w.endswith(("ss", "es")) else [])
             return any(re.search(rf"\b{re.escape(f)}\b", body) for f in forms)
         while j < len(low) and low[j] not in _STOPW and used(low[j]):
@@ -177,7 +188,10 @@ def find_topic(script: str, title: str) -> str:
             i -= 1
         best = " ".join(tw[i:j])
         break
-    return best or find_subject(script, title)
+    if best:
+        return best
+    words = [w for w in tw if w.lower() not in _STOPW and w.lower() not in _VERBS and not w.lower().endswith(("ed", "ing"))]
+    return " ".join(words[:3]) or title
 
 
 def _opening(blocks: list[str]) -> str:
@@ -385,7 +399,7 @@ nobody man men woman women""".split())
 _ADJ = set("""oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
 ancient old new great big small huge tiny vast giant early late modern famous same other own single main final
 best worst true real wet dry dark bright heavy light hidden lost secret strange golden silver thin thick
-powerful huge massive tiny distant nearby""".split())
+powerful huge massive tiny distant nearby empty full narrow wide deep shallow""".split())
 _UNIT_WORDS = set("""metres meters metre meter kilometres kilometers miles feet foot inches centimetres tonnes tons kilograms
 kilos pounds degrees celsius fahrenheit percent years months weeks days hours minutes seconds light-years""".split())
 
@@ -416,19 +430,30 @@ def _key_nouns(beat: str) -> list[str]:
     bakeries'), skipping numbers, people-words and adjectives."""
     text = re.sub(r"\[[^\]]*\]", " ", beat).lower()
     def ok(w: str) -> bool:
-        return (len(w) > 3 and w not in _COMMON and w not in _STOPW and w not in _NUMWORDS and w not in _PEOPLE
+        if any(part in _NUMWORDS for part in w.split("-")):   # twenty-eight
+            return False
+        return (len(w) > 3 and w not in _VERBS and w not in _COMMON and w not in _STOPW and w not in _NUMWORDS and w not in _PEOPLE
                 and w not in _ADJ and w not in _UNIT_WORDS and w != "ever" and not w.endswith(("ly", "ing")) and not w.isdigit())
     heads = []
-    for m in re.finditer(r"\b(?:the|a|an|their|its|his|her|this|these|those|our|of)\s+((?:[a-z'-]+\s+){0,3})", text):
+    for m in re.finditer(r"(?:^|[.!?]\s+)([a-z][a-z'-]+)", text):   # the subject a sentence starts with ("wolves, elk…")
+        if ok(m.group(1)):
+            heads.append(m.group(1))
+    for m in re.finditer(r"\b([a-z]{4,}s)\s*(?:,|\band\b)", text):   # items of a list: "wolves, elk and wild horses"
+        if ok(m.group(1)):
+            heads.append(m.group(1))
+    for m in re.finditer(r"\b(?:the|a|an|their|its|his|her|this|these|those|our|of)\s+((?:[a-z'-]+(?:\s+|$|(?=[.,;:!?]))){0,3})", text):
         ws = m.group(1).split()
         k = 0
-        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or ws[k] in (
+        def adjective(i: int) -> bool:   # "hexagonal mirror", "wooden piles": a describing word before a noun
+            return (ws[i].endswith(("al", "ic", "ous", "ful", "ive", "ish", "en")) and i + 1 < len(ws) and ok(ws[i + 1]))
+        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or adjective(k) or ws[k] in (
                 "the", "a", "an", "their", "its", "his", "her", "this", "these", "those", "our", "front", "side",
                 "middle", "top", "bottom", "kind", "sort", "part", "size", "layer", "piece", "number", "group")):
             k += 1
         if k < len(ws) and ok(ws[k]):
             phrase = ws[k]
-            if k + 1 < len(ws) and ok(ws[k + 1]) and not ws[k + 1].endswith(("ed", "s")):   # "tennis court"
+            if (k + 1 < len(ws) and ok(ws[k + 1]) and not ws[k + 1].endswith(("ed", "s")) and ws[k + 1] not in _VERBS
+                    and not ws[k].endswith("s")):   # "tennis court", but not "buildings rest" (noun + verb)
                 phrase += " " + ws[k + 1]
             heads.append(phrase)
     return list(dict.fromkeys(heads))[:3]
@@ -480,7 +505,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
         rest = _general_beat_visual(DATE.sub("", beat), n + 1, topic, drawn, topic_q)
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     m = NUMBER.search(numeric)
-    if m and not _entities(beat):
+    if m and not _entities(beat) and not _key_nouns(beat):
         val = _num(m.group(1))
         if m.group(2).lower() in ("%", "percent") and val <= 100:
             return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],

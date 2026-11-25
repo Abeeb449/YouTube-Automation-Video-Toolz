@@ -23,9 +23,9 @@ from dataclasses import dataclass
 MOOD_WORDS = {
     "danger": r"kill|killed|killing|deadly|death|died|die|dies|dying|attack|attacks|prey|predator|venom|poison|bite|"
               r"blood|war|battle|bomb|explosion|explode|disaster|catastroph\w*|destroy\w*|massacre|violent|weapon|"
-              r"threat|lethal|fatal|crush\w*|devour\w*|hunt|hunts|hunting|eruption|erupt\w*|collapse\w*|drown\w*",
+              r"threat|lethal|fatal|crushed to death|devour\w*|hunt|hunts|hunting|eruption|erupt\w*|collapse\w*|drown\w*",
     "tension": r"suddenly|waiting|waits|wait|watch|watching|edge|warning|countdown|seconds|dead ahead|"
-               r"approach\w*|closer|hesitat\w*|risk|trap|hidden|hiding|nervous|afraid|fear|feared|tense|"
+               r"approach\w*|closer|hesitat\w*|risk|trap|hiding|nervous|afraid|fear|feared|tense|"
                r"chase|escape|panic|alarm|stalk\w*|ambush|before it was too late",
     "mystery": r"mystery|mysterious|unknown|unexplained|secret|secrets|strange|vanish\w*|disappear\w*|no one knows|"
                r"nobody knows|hidden|dark|darkness|deep|abyss|shadow\w*|puzzle|riddle|ancient|lost|legend",
