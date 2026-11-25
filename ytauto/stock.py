@@ -51,7 +51,8 @@ NO_CREDIT_NEEDED = {"cc0", "pdm", "unsplash", "pexels", "pixabay"}
 
 
 def allowed_licenses() -> set[str]:
-    raw = os.environ.get("YTAUTO_STOCK_LICENSES", "cc0,pdm,by")
+    # an unset GitHub variable arrives as an EMPTY string: that means "default", not "no licence allowed"
+    raw = os.environ.get("YTAUTO_STOCK_LICENSES", "").strip() or "cc0,pdm,by"
     return {x.strip().lower() for x in raw.split(",") if x.strip()}
 
 
@@ -297,8 +298,8 @@ def _inaturalist(query: str) -> tuple[list[tuple[str, str]], bool]:
             if not _license_ok(code) or not ph.get("url"):
                 continue
             dims = ph.get("original_dimensions") or {}
-            w, h = dims.get("width") or 0, dims.get("height") or 1
-            if w < 1400 or w / h < 1.2:    # landscape and sharp enough for a 1080p frame
+            w, h = dims.get("width") or 0, dims.get("height") or 0
+            if w and h and (w < 1400 or w / h < 1.2):    # landscape and sharp enough for a 1080p frame
                 continue
             cid = f"inaturalist-{ph['id']}"
             _credit(cid, "inaturalist", f"{common} ({tx.get('name')})", user.get("name") or user.get("login") or "unknown",

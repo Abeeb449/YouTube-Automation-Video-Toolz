@@ -543,9 +543,18 @@ class _Worker:
         with self.lock:
             if self.proc is None or self.proc.poll() is not None:
                 self._start()
-            self.proc.stdin.write(json.dumps(job) + "\n")
-            self.proc.stdin.flush()
-            res = self._read()
+            try:
+                self.proc.stdin.write(json.dumps(job) + "\n")
+                self.proc.stdin.flush()
+                res = self._read()
+            except (BrokenPipeError, OSError):
+                res = None
+            if res is None:   # crashed: drop the process so the next call starts a fresh one
+                try:
+                    self.proc.kill()
+                except Exception:  # noqa: BLE001
+                    pass
+                self.proc = None
         if res is None:
             raise YtautoError(f"{self.name} worker crashed")
         if not res.get("ok"):
@@ -628,6 +637,9 @@ ENGINES = {"edge": _edge, "kokoro": _kokoro, "qwen": _qwen_tts, "chatterbox": _c
            "elevenlabs": _elevenlabs, "espeak": _espeak}
 
 
+_worked_engines: set[str] = set()   # engines that have voiced at least one line in this run
+
+
 def _fresh(path: Path) -> bool:
     """A cached voice file that the requested engine really made (not a fallback stand-in)."""
     return path.exists() and not path.with_suffix(".fallback").exists()
@@ -644,12 +656,27 @@ def synthesize(text: str, voice: dict, out: Path) -> str:
     for eng in chain:
         if eng in _failed_engines and eng != chain[-1]:
             continue
+        if eng != engine and engine in _worked_engines:
+            # The narrator already voiced part of this video: never switch to another voice mid-video.
+            raise YtautoError(f"{engine} failed on: {text[:80]!r} ({last}); stopping rather than mixing voices")
         fn = ENGINES.get(eng)
         if not fn:
             raise YtautoError(f"Unknown TTS engine {eng!r}. Choose from {', '.join(ENGINES)}")
         try:
             v = voice if eng == engine else {**voice, "name": voice.get("fallback_name")}
-            fn(text, v, out)
+            # model workers (Qwen, Chatterbox) can crash on a long run: restart and retry the same line
+            tries = 5 if eng in ("qwen", "chatterbox") else 1
+            for k in range(tries):
+                try:
+                    fn(text, v, out)
+                    break
+                except YtautoError as exc:
+                    if k == tries - 1 or not re.search(r"crashed|failed to start|Broken pipe", str(exc)):
+                        raise
+                    warn(f"{eng} worker stopped ({exc}); restarting it and retrying this line ({k + 2}/{tries})")
+                    import time as _t
+                    _t.sleep(5)
+            _worked_engines.add(eng)
             marker = out.with_suffix(".fallback")
             if eng != engine:   # cached under the primary engine's key: mark it so a later run retries the real engine
                 marker.write_text(eng)

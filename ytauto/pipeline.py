@@ -97,6 +97,20 @@ def _with_sprites(spec: dict, man: dict) -> dict:
 SFX_SAFE = "lowpass=f=9000,acompressor=threshold=-30dB:ratio=6:attack=3:release=150,alimiter=limit=0.1:attack=2:release=200"
 
 
+def _resolve_spec_cues(spec, words, offset: float, dur: float, where: str):
+    if not isinstance(spec, dict):
+        return spec
+    out = dict(spec)
+    if isinstance(out.get("props"), dict):
+        out["props"] = resolve_cues(out["props"], words, offset, dur, where=where)
+    fb = out.get("fallback_visual")
+    if isinstance(fb, dict):
+        out["fallback_visual"] = _resolve_spec_cues(fb, words, offset, dur, where)
+    elif isinstance(fb, list):
+        out["fallback_visual"] = [_resolve_spec_cues(x, words, offset, dur, where) for x in fb]
+    return out
+
+
 def audio_qc(mix: Path, voice: Path, report: Path, planned: list[float] | None = None) -> list[float]:
     """Find sudden sounds that are NOT the narrator: moments where the mix jumps > 6 dB within 50 ms while the
     voice doesn't, and rises clearly above the voice. Returns their times (also written to `report`)."""
@@ -194,10 +208,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             # 3D creature sprites (Blender) replace the flat drawings when available.
             if isinstance(spec, dict) and st.get("render3d", True) and sprite_man:
                 spec = _with_sprites(spec, sprite_man)
-            # Word cues (at: "Hiroshima") → seconds within this clip.
-            if isinstance(spec, dict) and spec.get("props"):
-                spec = {**spec, "props": resolve_cues(spec["props"], plan.audio.words, offset_frames / fps, fr / fps,
-                                                      where=f"scene {plan.scene_index + 1}")}
+            # Word cues (at: "Hiroshima") → seconds within this clip, in the visual AND in its fallbacks
+            # (a fallback that still held cue words crashed the animation when a stock search failed).
+            spec = _resolve_spec_cues(spec, plan.audio.words, offset_frames / fps, fr / fps, f"scene {plan.scene_index + 1}")
             jobs.append((seq, spec, fr / fps, vi == 0, vi == len(scene.visuals) - 1))
             offset_frames += fr
             seq += 1
