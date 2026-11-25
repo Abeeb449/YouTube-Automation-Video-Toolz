@@ -266,11 +266,16 @@ def _inat_taxon(query: str) -> tuple[dict | None, bool]:
         sub = " ".join(words[:n])
         if not _words(sub):
             continue
-        data = _inat_get("https://api.inaturalist.org/v1/taxa/autocomplete?" + urllib.parse.urlencode({"q": sub, "per_page": 5}))
         want = {w.rstrip("s") for w in _words(sub)}
-        for tx in data.get("results", []):
+        results = []
+        for q in dict.fromkeys([sub, sub + "s" if not sub.endswith("s") else sub[:-1]]):   # "eagle" and "eagles"
+            data = _inat_get("https://api.inaturalist.org/v1/taxa/autocomplete?" + urllib.parse.urlencode({"q": q, "per_page": 8}))
+            results += data.get("results", [])
+        for tx in results:
             names = [tx.get("matched_term") or "", tx.get("preferred_common_name") or "", tx.get("name") or ""]
-            if any({w.rstrip("s") for w in _words(nm)} == want for nm in names):
+            # group names list their members: "Hawks, Eagles, and Kites" matches "eagle"
+            parts = [p for nm in names for p in re.split(r",\s*|\s+and\s+", nm) if p.strip()]
+            if any({w.rstrip("s") for w in _words(nm)} == want for nm in names + parts):
                 # words were dropped ("sahara desert" -> "sahara"): a one-word leftover only counts if it is a
                 # well-known animal ("orca teeth" -> orca), not an obscure taxon that shares a place name
                 dropped = {w.rstrip("s") for w in _words(" ".join(words[n:]))}

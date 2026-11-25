@@ -137,7 +137,8 @@ def _names_fit(tx: dict, query: str) -> bool:
     stem = lambda t: [w.rstrip("s") for w in re.findall(r"[a-z]+", t.lower())]
     head = stem(query)[:2]
     group = tx.get("rank") not in ("species", "subspecies", "variety", "form")
-    return group and any(stem(n)[:len(head)] == head for n in names if n)
+    # needs two matching words: "fur seal" ~ "Fur Seals and Sea Lions", but "pyramid" !~ "Pyramid Snails"
+    return group and len(head) >= 2 and any(stem(n)[:len(head)] == head for n in names if n)
 
 
 def _loose_animal(query: str) -> dict | None:

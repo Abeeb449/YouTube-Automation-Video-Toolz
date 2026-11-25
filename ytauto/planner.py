@@ -167,6 +167,8 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
               and not re.match(r"^\s*subject\s*:", b, re.I)]
     title = title or (blocks[0].lstrip("#").strip()[:70] if blocks and blocks[0].startswith("#") else "Untitled Documentary")
     subject = find_subject(script, title)
+    ctx = _script_context(script, subject)
+    topic_q = f"{subject} {ctx}".strip() if ctx else subject
     main = _creature(subject, None) or _creature(script, "giantSquid" if style == "ocean" else "fishSchool")
     scenes: list[dict] = []
     chapter = None
@@ -199,7 +201,7 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
             # music mood and sound effects are left to the sound director (ytauto/sound_director.py), which reads
             # every scene's words and emotion at render time; write mood:/sfx: by hand only to override it
             sc["text"] = beat
-            vis = _rule_visual(beat, style, main, n, subject)
+            vis = _rule_visual(beat, style, main, n, subject, topic_q)
             sc["visuals" if isinstance(vis, list) else "visual"] = vis
             scenes.append(sc)
     data = {
@@ -289,7 +291,7 @@ def _general_visual(beat: str, style: str, main: str, n: int, subject: str, draw
     return None
 
 
-def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "") -> dict | list:
+def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "", topic_q: str | None = None) -> dict | list:
     creature = _creature(beat, main)
     if style in ("ocean", "nature"):
         if style == "nature":
@@ -313,7 +315,7 @@ def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "") ->
         return drawn
     if style == "ocean":
         return _ocean_visual(beat, main, n, creature)
-    return _general_beat_visual(beat, n, subject, _doc_visual(beat, n))
+    return _general_beat_visual(beat, n, subject, _doc_visual(beat, n), topic_q)
 
 
 # ---------------------------------------------------------------------------------- what is THIS line about?
@@ -389,18 +391,38 @@ def _key_nouns(beat: str) -> list[str]:
     return list(dict.fromkeys(heads))[:3]
 
 
-def _queries(beat: str, topic: str) -> list[str]:
+def _script_context(script: str, topic: str) -> str:
+    """The name the whole script keeps coming back to (a place, person or object: 'Giza', 'Rome', 'Apollo 11'),
+    so a fallback search for the topic finds THIS story's topic, not any pyramid or any empire."""
+    from collections import Counter
+    ents = Counter()
+    for block in re.split(r"\n\s*\n", script):
+        if block.strip().startswith("#"):
+            continue
+        for e in _entities(block):
+            ents[e] += 1
+    if not ents:
+        return ""
+    # a name contained in longer names counts for them too ("Giza" in "Great Pyramid of Giza")
+    score = {e: sum(c for f, c in ents.items() if e in f) for e in ents}
+    best = max(score, key=lambda e: (score[e], -len(e)))
+    if score[best] < 2 or best.lower() in topic.lower():
+        return ""
+    return best
+
+
+def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
     """Search alternatives for this line, most specific first, ending with the video's topic itself."""
     q = list(_entities(beat)[:2])
     topic_words = set(topic.lower().split())
     for n in _key_nouns(beat)[:2]:
-        q.append(n if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
+        q.append((topic_q or n) if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
     if topic:
-        q.append(topic)
+        q.append(topic_q or topic)
     return list(dict.fromkeys(x for x in q if x))[:5]
 
 
-def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict) -> dict | list:
+def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: str | None = None) -> dict | list:
     """Any topic: dates → a typed date card; percentages/numbers → data graphics; otherwise a real video clip
     (every other line) or photo of what the line is about, each with the drawn/text shot as fallback."""
     numeric = words_to_digits(beat)
@@ -409,7 +431,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict) -> dict | l
         place = _entities(DATE.sub("", beat))
         stamp = {"remotion": "DateStamp", "props": {"date": d.group(1).upper(), "at": 0.2,
                                                     **({"place": place[0]} if place else {})}}
-        rest = _general_beat_visual(DATE.sub("", beat), n + 1, topic, drawn)
+        rest = _general_beat_visual(DATE.sub("", beat), n + 1, topic, drawn, topic_q)
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     m = NUMBER.search(numeric)
     if m and not _entities(beat):
@@ -418,7 +440,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict) -> dict | l
             return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
                                                      "count": 100, "highlight": int(val)}}
         return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": m.group(1).split(",")[0]}}
-    qs = _queries(beat, topic)
+    qs = _queries(beat, topic, topic_q)
     if not qs:
         return drawn
     query = "|".join(qs)
