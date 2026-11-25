@@ -41,6 +41,8 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    | `PEXELS_API_KEY` | optional second stock source, if you already have a key | https://www.pexels.com/api/ |
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
 
+   | Variable `YTAUTO_CONTACT` (Actions *variable*, not a secret) | a URL or email Wikimedia's robot policy asks download tools to send; without it Wikimedia Commons refuses video downloads | Settings → Secrets and variables → Actions → *Variables* |
+
    Stock photos and clips also come **without any key** from iNaturalist (wildlife photos of the exact species),
    Openverse, Wikimedia Commons and NASA. Only CC0, public-domain and CC BY items are used (add the Actions
    *variable* `YTAUTO_STOCK_LICENSES` = `cc0,pdm,by,by-sa` to also allow CC BY-SA). Every item is credited
@@ -108,6 +110,17 @@ projects, facts (numbers, years, percentages) with no listed source, source clip
 or plain stock footage carrying most of the video, and YouTube basics (title length, 8-minute mid-roll threshold, AI
 disclosure). List your research with `sources:` (a list) in `script.yaml`; it is added to the description. The
 GitHub Action runs the check before every render and saves the report as `build/check.txt`.
+
+**Every stock photo and clip is checked before it is used** (`ytauto/verify.py`, the open CLIP model): it must be a
+real camera photo or footage (not a map, chart, cartoon or screenshot), show the right animal (it has to beat
+look-alike species from iNaturalist, e.g. a "leopard seal" must beat harbour, Weddell and crabeater seals), show it
+in the wild (not a zoo, aquarium or pool), and match the line's setting (`verify: "a leopard seal swimming
+underwater"`). Video clips are checked on 5 frames. Anything that fails is skipped; if nothing passes, the scene's
+fallback is used, never a wrong picture.
+
+**Sound that never jumps over the voice:** every music track is measured before use and plucky or percussive tracks
+are skipped; sound effects are soft swells capped below the narrator; after the mix, `build/audio_check.txt` lists any
+sudden non-voice sound.
 
 **Who decides the visuals? Free options only — no paid API anywhere.**
 - **Built-in director** (automatic): recognises animals, depths, numbers, danger and wonder words and short punchy lines, and varies the shots. Good for drafts.

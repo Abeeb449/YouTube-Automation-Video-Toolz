@@ -24,7 +24,9 @@ The planner then, for every beat:
 - **is a short punchy line** → `Statement`;
 - otherwise → real B-roll: free photos (`PhotoStory`: parallax push-ins, framed prints that tilt in 3D, grain,
   light leaks, credit chip) and free video clips, alternating so no two shots look the same.
-Every stock shot has a fallback, so a failed search never leaves a blank or broken frame.
+Every stock shot has a fallback, so a failed search never leaves a blank or broken frame. Every stock photo and
+clip is checked by the picture check before use (real photo, right species not a look-alike, wild not captive, and
+the line's setting); give `verify: "a wild <animal> <doing what the line says>"` on photos and clips.
 
 Then run `python -m ytauto check projects/<slug>` (originality against your other videos, unsourced facts, shot
 variety, YouTube readiness) and **review `script.yaml` before rendering** and sharpen it by hand (or ask any AI assistant with
