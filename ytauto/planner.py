@@ -71,6 +71,7 @@ _UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eig
 _TENS = {w: 10 * (i + 2) for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
 _SCALES = {"hundred": 100, "thousand": 1000, "million": 1_000_000, "billion": 1_000_000_000}
 _NUMW = "|".join(sorted([*_UNITS, *_TENS, "hundred", "thousand", "million", "billion"], key=len, reverse=True))
+_NUMW_DET = "|".join(w for w in _NUMW.split("|") if w != "one")   # 'each one carries…': 'one' is a pronoun
 _HALF = re.compile(rf"\b((?:(?:{_NUMW}|\d+)[\s-]+)*?(?:{_NUMW}|\d+)) and a half(?:\s+(hundred|thousand|million|billion))?\b", re.I)
 _HALF_A = re.compile(r"\bhalf an? (hundred|thousand|million|billion)\b", re.I)
 
@@ -308,6 +309,19 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
     subject = find_subject(narration, title) if style in ("nature", "ocean") else find_topic(narration, title)
     ctx = _script_context(script, subject)
     topic_q = f"{subject} {ctx}".strip() if ctx else subject
+    if style not in ("nature", "ocean") and re.fullmatch(r"[A-Z0-9]{2,5}", subject or ""):
+        # an acronym alone ('GPS', 'MRI') finds devices, logos and diagrams: search it with the thing the script
+        # keeps talking about ('GPS satellites')
+        from collections import Counter
+        forms: dict[str, list[str]] = {}
+        for b in blocks:
+            if not b.startswith("#"):
+                for n in _key_nouns(b):
+                    forms.setdefault(n[:-1] if _plural(n) else n, []).append(n)
+        ranked = sorted(forms.items(), key=lambda kv: -len(kv[1]))
+        top = next((max(v, key=len) for k, v in ranked if len(v) >= 2 and k.lower() != subject.lower()), None)
+        if top:
+            topic_q = f"{subject} {top}"
     main = _creature(subject, None) or _creature(script, "giantSquid" if style == "ocean" else "fishSchool")
     scenes: list[dict] = []
     chapter = None
@@ -486,6 +500,7 @@ view views look looks story stories question questions answer answers reason rea
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
 past future present catch delay delays moment moments distance distances amount amounts level levels
 rate rates chance chances problem problems fact facts truth result results difference differences effect effects
+january february march april june july august september october november december
 team teams crew crews group groups member members century centuries decade decades
 hour hours minute minutes week weeks month months era eras age ages""".split())
 _ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Today", "This", "That", "These", "Those",
@@ -564,12 +579,12 @@ def _key_nouns(beat: str) -> list[str]:
             continue   # "as the universe expands, that light…" is a clause, not a list
         if ok(m.group(1)):
             heads.append(m.group(1))
-    for m in re.finditer(r"\b(?:the|a|an|their|its|his|her|this|these|those|our|of)\s+((?:[a-z'-]+(?:\s+|$|(?=[.,;:!?]))){0,3})", text):
+    for m in re.finditer(rf"\b(?:the|a|an|their|its|his|her|this|these|those|our|of|\d[\d,.]*|{_NUMW_DET})\s+((?:[a-z'-]+(?:\s+|$|(?=[.,;:!?]))){{0,3}})", text):
         ws = m.group(1).split()
         k = 0
         def adjective(i: int) -> bool:   # "hexagonal mirror", "wooden piles": a describing word before a noun
             return (ws[i].endswith(("al", "ic", "ous", "ful", "ive", "ish", "en")) and i + 1 < len(ws) and ok(ws[i + 1]))
-        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or adjective(k) or ws[k] in (
+        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or adjective(k) or (ws[k] in names and k + 1 < len(ws)) or ws[k] in (
                 "the", "a", "an", "their", "its", "his", "her", "this", "these", "those", "our", "front", "side",
                 "middle", "top", "bottom", "kind", "sort", "part", "size", "layer", "piece", "number", "group")):
             k += 1
@@ -620,7 +635,7 @@ Zimbabwe Africa Asia Europe America Antarctica Oceania Britain USA UK""".split()
 
 def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
     """Search alternatives for this line, most specific first, ending with the video's topic itself."""
-    ents = list(_entities(beat)[:2])
+    ents = [topic_q if (topic_q and e == topic) else e for e in _entities(beat)[:2]]
     # a place the line only mentions in passing ("visitors in Paris", "lifted off from French Guiana") or a whole
     # country is searched after the thing the line is about
     def passing(e: str) -> bool:

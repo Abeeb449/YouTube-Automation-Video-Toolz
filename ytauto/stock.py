@@ -37,6 +37,7 @@ _CONTACT = os.environ.get("YTAUTO_CONTACT", "").strip()
 UA = {"User-Agent": "ytauto-documentary-tool/1.0 (open-source video tool" + (f"; {_CONTACT}" if _CONTACT else "") + ")"}
 _lock = threading.Lock()
 _used: set[str] = set()          # avoid repeating the same stock clip inside one render
+_reused: dict[str, int] = {}     # how often a clip had to be shown again
 _credits: dict[str, dict] = {}   # id -> {title, author, license, license_url, url, provider}
 _path_ids: dict[str, str] = {}   # downloaded file -> id
 _inat_last = [0.0]               # iNaturalist asks for at most ~1 request per second
@@ -542,8 +543,13 @@ def _pick(candidates: list[tuple[str, str]]) -> tuple[str, str]:
             if cid not in _used:
                 _used.add(cid)
                 return cid, url
-        _used.add(candidates[0][0])
-    return candidates[0]
+        # all already shown: reuse the least-shown one, at most twice in a video (a third showing is worse than
+        # moving on to the next search or the drawn shot)
+        cid, url = min(candidates, key=lambda c: _reused.get(c[0], 0))
+        if _reused.get(cid, 0) >= 1:
+            raise YtautoError("every result is already in the video twice")
+        _reused[cid] = _reused.get(cid, 0) + 1
+    return cid, url
 
 
 _tl = threading.local()
@@ -674,7 +680,11 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
         rot = [c for c in rot if c[0] not in _rejected]
         tries = 0
         while rot and tries < 8:
-            cid, url = _pick(rot)
+            try:
+                cid, url = _pick(rot)
+            except YtautoError as exc:
+                errors.append(f"{prov}: {exc}")
+                break
             rot = [c for c in rot if c[0] != cid]
             tries += 1
             known = cache / "stock" / f"{cid}_{stable_hash(url)}{'.mp4' if kind == 'video' else '.jpg'}.rejected"

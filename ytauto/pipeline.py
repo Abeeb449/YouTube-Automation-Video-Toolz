@@ -48,6 +48,19 @@ def _ass_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+def _with_narration_text(spec, text: str):
+    """KineticText with no text of its own shows the scene's narration, wherever it sits (the visual itself or
+    any fallback_visual / fallback inside it)."""
+    if isinstance(spec, list):
+        return [_with_narration_text(x, text) for x in spec]
+    if not isinstance(spec, dict):
+        return spec
+    out = {k: (_with_narration_text(v, text) if k in ("fallback_visual", "fallback") else v) for k, v in spec.items()}
+    if out.get("remotion") == "KineticText" and not (out.get("props") or {}).get("text"):
+        out["props"] = {**(out.get("props") or {}), "text": text}
+    return out
+
+
 def write_captions(cues: list[Cue], build: Path, settings: dict) -> tuple[Path, Path]:
     srt = build / "captions.srt"
     srt.write_text("".join(f"{i}\n{_srt_time(c.start)} --> {_srt_time(c.end)}\n{c.text}\n\n"
@@ -223,8 +236,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         offset_frames = 0
         for vi, (spec, fr) in enumerate(zip(scene.visuals, plan.clip_frames)):
             # Remotion KineticText with no explicit text uses the narration.
-            if isinstance(spec, dict) and spec.get("remotion") == "KineticText":
-                spec = {**spec, "props": {"text": strip_directives(scene.text), **(spec.get("props") or {})}}
+            # Also inside fallbacks: a stock shot that can't be found falls back to KineticText, which was blank.
+            spec = _with_narration_text(spec, strip_directives(scene.text))
             # 3D creature sprites (Blender) replace the flat drawings when available.
             if isinstance(spec, dict) and st.get("render3d", True) and sprite_man:
                 spec = _with_sprites(spec, sprite_man)
