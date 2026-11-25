@@ -231,7 +231,10 @@ def find_subject(script: str, title: str) -> str:
 _VERBS = set("""built made make makes took take went go goes found find began begin became become came come gave give
 held hold kept keep left leave lost lose said say sent send stood stand told tell wrote write rose rise fell fall
 grew grow knew know ran run saw see sees sat sit won win works work changed change exploded sank sink fear fears
-hunts hunt kills kill does did happened happen built""".split())
+hunts hunt kills kill does did happened happen built imagine imagined picture consider remember notice noticed
+think thought look looked drives drive keeps means gives takes causes caused pulls pulled pushes pushed turns turned
+moves moved stays stayed brings bringing helps helped shows showed lets needs wants seems seemed sits lies lay
+depends depend lives live""".split())
 _GENERIC_NAMES = {"Earth", "World", "Universe", "God", "Christmas", "Christmas Day", "Christmas Eve", "Easter",
                   "New Year", "New Year's Day", "Celsius", "Fahrenheit", "Kelvin", "Today", "Mr", "Mrs", "Dr"}
 
@@ -524,7 +527,7 @@ view views look looks story stories question questions answer answers reason rea
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
 past future present catch delay delays moment moments distance distances amount amounts level levels
 rate rates chance chances problem problems fact facts truth result results difference differences effect effects
-supernatural paranormal mystery mysteries force forces night nights day mornings morning evening case cases explanation explanations theory theories idea model models
+first second third fourth fifth sixth tenth quarter danger dangers threat threats risk risks machine machines thing world supernatural paranormal mystery mysteries force forces night nights day mornings morning evening case cases explanation explanations theory theories idea model models
 injury injuries wound wounds body bodies corpse corpses blood death deaths remains victim victims skull skeleton
 january february march april june july august september october november december
 team teams crew crews group groups member members century centuries decade decades
@@ -532,6 +535,7 @@ hour hours minute minutes week weeks month months era eras age ages""".split())
 _ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Today", "This", "That", "These", "Those",
                 "There", "Here", "Nobody", "No", "One", "Every", "Each", "When", "While", "After", "Before", "If",
                 "Archaeologists", "Scientists", "Researchers", "Historians", "Experts", "We", "You", "They", "He",
+                "Without", "With", "Over", "Under", "Imagine", "Tonight", "Now", "Yet", "So", "Even", "Only", "Just",
                 "She", "His", "Her", "Its", "Their", "A", "An", "As", "By", "From", "With", "Some", "Most", "Many",
                 "BC", "BCE", "AD", "CE", "January", "February", "March", "April", "May", "June", "July", "August",
                 "September", "October", "November", "December", "Monday", "Tuesday", "Wednesday", "Thursday",
@@ -564,7 +568,7 @@ def _entities(beat: str) -> list[str]:
         if sentence_start and len(m.group(1).split()) == 1:
             continue
         words = m.group(1).split()
-        while words and words[0] in _ENTITY_SKIP:
+        while words and (words[0] in _ENTITY_SKIP or words[0].lower() in ("the", "of", "de", "and")):
             words = words[1:]
         while words and words[-1].lower() in ("of", "the", "de", "and"):
             words = words[:-1]
@@ -572,6 +576,10 @@ def _entities(beat: str) -> list[str]:
         if ent and len(ent) > 2 and ent not in out and ent not in _GENERIC_NAMES:
             out.append(ent)
     return sorted(out, key=lambda e: -len(e.split()))
+
+
+_COMPARATIVE = re.compile(r"^(?:bigg|larg|small|high|low|strong|weak|fast|slow|old|young|great|deep|long|short|"
+                          r"dark|bright|hott|cold|wid|heav|light|clos|far)(?:er|est)$")
 
 
 def _plural(w: str) -> bool:
@@ -597,21 +605,24 @@ def _key_nouns(beat: str) -> list[str]:
         w = m.group(1).split()
         if ok(w[0]):
             heads.append(" ".join(w) if len(w) > 1 and ok(w[1]) else w[0])
-    for m in re.finditer(r"(?:^|[.!?]\s+)([a-z][a-z'-]+)", text):   # the subject a sentence starts with ("wolves, elk…")
-        if ok(m.group(1)):
-            heads.append(m.group(1))
     for m in re.finditer(r"\b([a-z]{4,}s)\s*(,|\band\b)", text):   # items of a list: "wolves, elk and wild horses"
         after = text[m.end():m.end() + 40]
         if m.group(2) == "," and not re.search(r"\band\b", after.split(".")[0]):
             continue   # "as the universe expands, that light…" is a clause, not a list
         if ok(m.group(1)):
             heads.append(m.group(1))
+    for m in re.finditer(r"(?:^|[.!?]\s+)([a-z][a-z'-]+)(?:\s+([a-z][a-z'-]+))?", text):   # the subject a sentence starts with
+        first, second = m.group(1), m.group(2) or ""
+        if first.endswith(("al", "ic", "ous", "ful", "ive", "ish", "ed")) and ok(second):
+            first = second   # "Coastal creatures that live…" → creatures
+        if ok(first):
+            heads.append(first)
     for m in re.finditer(rf"\b(?:the|a|an|their|its|his|her|this|these|those|our|of|\d[\d,.]*|{_NUMW_DET})\s+((?:[a-z'-]+(?:\s+|$|(?=[.,;:!?]))){{0,3}})", text):
         ws = m.group(1).split()
         k = 0
         def adjective(i: int) -> bool:   # "hexagonal mirror", "wooden piles": a describing word before a noun
             return (ws[i].endswith(("al", "ic", "ous", "ful", "ive", "ish", "en", "ed")) and i + 1 < len(ws) and ok(ws[i + 1]))
-        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or adjective(k) or (ws[k] in names and k + 1 < len(ws)) or ws[k] in (
+        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or adjective(k) or _COMPARATIVE.match(ws[k]) or (ws[k] in names and k + 1 < len(ws)) or ws[k] in (
                 "the", "a", "an", "their", "its", "his", "her", "this", "these", "those", "our", "front", "side",
                 "middle", "top", "bottom", "kind", "sort", "part", "size", "layer", "piece", "number", "group")):
             k += 1
@@ -691,6 +702,10 @@ def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
                 "sea", "beach", "river", "lake", "forest", "mountain", "mountains", "storm", "rain", "city", "night"]
     found = {w.lower() for w in re.findall(r"[A-Za-z]+", beat)}
     setting = next((w for w in settings if w in found and w not in nouns[0]), None) if nouns else None
+    # only concrete enough to stand alone: several of them ('wolves'), two words ('slab avalanche') or placed in a
+    # setting ('hikers snowy'); a lone 'screen' or 'site' would match any picture of one
+    if nouns and ("-" in nouns[0] or not (_plural(nouns[0]) or " " in nouns[0] or setting)):
+        nouns = []
     if nouns:
         generic = nouns[0] + (f" {setting}" if setting else "")
         if generic not in q:
