@@ -589,7 +589,8 @@ def provider_order(kind: str) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip() and (p.strip() not in keyed or os.environ.get(keyed[p.strip()]))]
 
 
-_rejected: set[str] = set()   # candidates that failed the picture check (never retried in this render)
+_rejected: set[str] = set()
+_paused: dict[str, float] = {}   # provider -> time until which it is skipped (rate limits)   # candidates that failed the picture check (never retried in this render)
 
 
 def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wanted: str | None = None) -> tuple[Path, str]:
@@ -662,7 +663,17 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
             elif prov == "openverse":
                 cands = _openverse_photo(query) if kind == "image" else []
             elif prov == "commons":
-                cands = _commons(query, kind, width)
+                import time as _t
+                if _t.time() < _paused.get("commons", 0):
+                    errors.append("commons: paused (rate-limited)")
+                    continue
+                try:
+                    cands = _commons(query, kind, width)
+                except Exception as exc:  # noqa: BLE001
+                    if "429" in str(exc):   # rate-limited: skip Wikimedia for a while instead of waiting on every search
+                        _paused["commons"] = _t.time() + 600
+                        log("   Wikimedia Commons is rate-limiting this machine: using the other sources for 10 minutes")
+                    raise
             elif prov == "nasa":
                 cands = _nasa(query, kind)
             else:
