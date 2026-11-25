@@ -337,10 +337,23 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
     chapter = None
     mood_prev = None
     n = 0
+    body_low = " ".join(b for b in blocks if not b.startswith("#")).lower()
+    weak = style not in ("nature", "ocean") and not any(
+        w in body_low for w in re.findall(r"[a-z]{4,}", (subject or "").lower()) if w not in _STOPW)
+    local_subject, local_q = subject, topic_q
     for block in blocks:
         if block.startswith("#"):
             chapter = block.splitlines()[0].lstrip("#").strip()
             rest = "\n".join(block.splitlines()[1:]).strip()
+            # a list video ('# 3. Velcro') or a title that names nothing in the script: each chapter is about its
+            # own thing, so its lines are searched with the chapter's subject, not the video's title
+            numbered = re.match(r"^(?:#?\d+[.):]?|number\s+\d+[.:]?)\s+", chapter, re.I)
+            head = re.sub(r"^(?:#?\d+[.):]?|number\s+\d+[.:]?)\s+", "", chapter, flags=re.I)
+            head = re.sub(r"^(?:the|a|an)\s+", "", head, flags=re.I).strip(" .:!?")
+            if style not in ("nature", "ocean") and head and blocks.index(block) > 0 and (numbered or weak):
+                local_subject = local_q = head
+            elif blocks.index(block) > 0:
+                local_subject, local_q = subject, topic_q
             if not rest:
                 continue
             block = rest
@@ -364,7 +377,7 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             # music mood and sound effects are left to the sound director (ytauto/sound_director.py), which reads
             # every scene's words and emotion at render time; write mood:/sfx: by hand only to override it
             sc["text"] = beat
-            vis = _rule_visual(beat, style, main, n, subject, topic_q)
+            vis = _rule_visual(beat, style, main, n, local_subject, local_q)
             sc["visuals" if isinstance(vis, list) else "visual"] = vis
             scenes.append(sc)
     data = {
@@ -567,7 +580,8 @@ def _plural(w: str) -> bool:
 def _key_nouns(beat: str) -> list[str]:
     """The things the line points at: heads of noun phrases ('the oldest papyrus', 'the sledges', 'their
     bakeries'), skipping numbers, people-words and adjectives."""
-    text = re.sub(r"\[[^\]]*\]", " ", beat).lower()
+    text = re.sub(r"'s\b", "", re.sub(r"\[[^\]]*\]", " ", beat).lower())   # "his dog's fur" → "his dog fur"
+    text = re.sub(r"\b(?:a|an|the)\s+[a-z-]+\s+ones?\b", " ", text)        # "made a weak one": no noun there
     names = {w.lower() for e in _entities(beat) for w in e.split()}   # 'Marie kept…': a name, searched as an entity
     def ok(w: str) -> bool:
         if w in names:
@@ -658,7 +672,8 @@ def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
         if re.search(rf"\b(?:called|named|known as)\s+{re.escape(n)}\b", beat, re.I):
             q.append(n)   # a named thing ("a mineral called pitchblende") is searched by its own name
             continue
-        q.append((topic_q or topic or n) if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
+        tw = {t.rstrip("s") for t in topic_words}
+        q.append((topic_q or topic or n) if all(x.rstrip("s") in tw for x in n.split()) else f"{n} {topic}".strip())
     if topic:
         q.append(topic_q or topic)
     q += broad
@@ -676,7 +691,8 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
                                                     **({"place": place[0]} if place else {})}}
         rest = _general_beat_visual(DATE.sub("", numeric), n + 1, topic, drawn, topic_q)
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
-    m = NUMBER.search(numeric)
+    m = next((x for x in NUMBER.finditer(numeric)
+              if not re.match(r"\s*(?:later|ago|after|before|earlier|on|afterwards)\b", numeric[x.end():], re.I)), None)
     figure = None
     if m:
         val = _num(m.group(1))
