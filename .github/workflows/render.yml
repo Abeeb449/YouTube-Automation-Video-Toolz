@@ -14,6 +14,11 @@ on:
         type: choice
         options: [auto, nature, ocean, documentary]
         default: auto
+      format:
+        description: "If the folder only has script.txt: video = 16:9 1080p, shorts = vertical 1080x1920 Short with captions"
+        type: choice
+        options: [video, shorts]
+        default: video
       voice:
         description: "Narrator: project = as set in script.yaml, ryan = Qwen Ryan, natural read"
         type: choice
@@ -138,7 +143,7 @@ jobs:
               P="${{ matrix.project }}"
               # Plain script only? Plan the scenes first with the free built-in director.
               if [ -f "$P/script.txt" ] && { [ ! -f "$P/script.yaml" ] || [ "${{ inputs.replan }}" = "true" ]; }; then
-                python -m ytauto plan "$P/script.txt" --out "$P" --style "${{ inputs.style || 'auto' }}"
+                python -m ytauto plan "$P/script.txt" --out "$P" --style "${{ inputs.style || 'auto' }}" --format "${{ inputs.format || 'video' }}"
               fi
               # Pre-render review (originality, sources, variety); printed in the log, never blocks the render
               python -m ytauto check "$P" > "$P/check.txt" 2>&1 || echo "::warning::ytauto check found issues to fix in $P (see build/check.txt)"

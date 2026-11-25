@@ -139,7 +139,7 @@ def cmd_render(a) -> int:
 
     overrides = {}
     if a.preview:
-        overrides = {"width": 960, "height": 540, "preset": "ultrafast", "crf": 26}
+        overrides = {"_preview_half": True, "preset": "ultrafast", "crf": 26}
     if a.voice_engine:
         overrides.setdefault("voice", {})["engine"] = a.voice_engine
     if a.music:
@@ -219,7 +219,7 @@ def cmd_plan(a) -> int:
 
     script = Path(a.script)
     out = Path(a.out) if a.out else (script.parent if script.parent.name not in ("", ".") else Path("projects") / script.stem)
-    write_plan(script, out, a.style, a.title)
+    write_plan(script, out, a.style, a.title, fmt=a.format)
     return 0
 
 
@@ -232,8 +232,8 @@ def cmd_make(a) -> int:
     script = Path(a.script)
     out = Path(a.out) if a.out else script.parent
     if not (out / "script.yaml").exists() or a.replan:
-        write_plan(script, out, a.style, a.title)
-    overrides = {"width": 960, "height": 540, "preset": "ultrafast", "crf": 26} if a.preview else {}
+        write_plan(script, out, a.style, a.title, fmt=a.format)
+    overrides = {"_preview_half": True, "preset": "ultrafast", "crf": 26} if a.preview else {}
     render_project(load_project(out, overrides), preview=a.preview)
     return 0
 
@@ -371,6 +371,8 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--style", choices=["auto", "nature", "ocean", "documentary"], default="auto",
                        help="nature = any animal (real photos/video + 3D close-ups); ocean = drawn deep-sea look; documentary = what-if infographics")
         p.add_argument("--title")
+        p.add_argument("--format", choices=["video", "shorts"], default="video",
+                       help="video = 16:9 1080p (default); shorts = vertical 1080x1920 with burned-in captions")
         p.add_argument("--out", help="project folder (default: the script's folder)")
         if name == "make":
             p.add_argument("--preview", action="store_true")

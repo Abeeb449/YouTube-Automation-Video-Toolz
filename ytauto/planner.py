@@ -211,7 +211,16 @@ def _tags(title: str, subject: str, script: str = "") -> list[str]:
     return [t for t in out if t][:12]
 
 
-def plan_with_rules(script: str, style: str, title: str | None) -> str:
+def _thumb_text(title: str, limit: int = 40) -> str:
+    """Thumbnail words: the title in capitals, cut at a word boundary (never mid-word)."""
+    t = title.upper().strip()
+    if len(t) <= limit:
+        return t
+    cut = t[:limit + 1].rsplit(" ", 1)[0].rstrip(" ,:;-")
+    return cut or t[:limit]
+
+
+def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "video") -> str:
     blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()
               and not re.match(r"^\s*subject\s*:", b, re.I)]
     title = title or (blocks[0].lstrip("#").strip()[:70] if blocks and blocks[0].startswith("#") else "Untitled Documentary")
@@ -254,11 +263,11 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
             sc["visuals" if isinstance(vis, list) else "visual"] = vis
             scenes.append(sc)
     data = {
-        "preset": style, "title": title,
+        "preset": [style, "shorts"] if fmt == "shorts" else style, "title": title,
         # from the creator's own words: the script's opening lines (edit before upload; add your sources)
         "description": _opening(blocks),
         "tags": _tags(title, subject, script),
-        "thumbnail": {"text": title.upper()[:40]}, "youtube": {"privacy": "private"},
+        "thumbnail": {"text": _thumb_text(title)}, "youtube": {"privacy": "private"},
         "scenes": scenes,
     }
     return "# Planned automatically by the rule-based director — edit freely, then render.\n" + \
@@ -380,7 +389,11 @@ perhaps place point quite rather really right same second seen several should sh
 sometimes still such take taken than that their them then there these they thing things think this those
 though three through time times today together took toward under until upon used using very want ways well
 went were what when where whether which while whole whose will with within without world would year years
-yet your around almost exactly enough inside outside still almost across against another""".split())
+yet your around almost exactly enough inside outside still almost across against another
+image images picture pictures photo photos photograph photographs video videos footage clip clips film shot shots
+view views look looks story stories question questions answer answers reason reasons idea ideas kind kinds sort
+type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
+past future present team teams crew crews group groups member members""".split())
 _ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Today", "This", "That", "These", "Those",
                 "There", "Here", "Nobody", "No", "One", "Every", "Each", "When", "While", "After", "Before", "If",
                 "Archaeologists", "Scientists", "Researchers", "Historians", "Experts", "We", "You", "They", "He",
@@ -425,6 +438,11 @@ def _entities(beat: str) -> list[str]:
     return sorted(out, key=lambda e: -len(e.split()))
 
 
+def _plural(w: str) -> bool:
+    """'sledges', 'wolves' yes; 'tennis', 'glass', 'virus', 'basis' no."""
+    return w.endswith("s") and not w.endswith(("ss", "is", "us", "os"))
+
+
 def _key_nouns(beat: str) -> list[str]:
     """The things the line points at: heads of noun phrases ('the oldest papyrus', 'the sledges', 'their
     bakeries'), skipping numbers, people-words and adjectives."""
@@ -453,7 +471,7 @@ def _key_nouns(beat: str) -> list[str]:
         if k < len(ws) and ok(ws[k]):
             phrase = ws[k]
             if (k + 1 < len(ws) and ok(ws[k + 1]) and not ws[k + 1].endswith(("ed", "s")) and ws[k + 1] not in _VERBS
-                    and not ws[k].endswith("s")):   # "tennis court", but not "buildings rest" (noun + verb)
+                    and not _plural(ws[k])):   # "tennis court", but not "buildings rest" (noun + verb)
                 phrase += " " + ws[k + 1]
             heads.append(phrase)
     return list(dict.fromkeys(heads))[:3]
@@ -590,11 +608,12 @@ def _ocean_visual(beat: str, main: str, n: int, creature: str) -> dict:
         "depth": 0.3 + (n % 6) * 0.1, "actors": [{"creature": creature, "x": 0.3, "y": 0.5, "to": [0.6, 0.52], "scale": 1.0}]}}
 
 
-def plan(script: str, style: str, title: str | None, director: str = "rules", model: str | None = None) -> str:
+def plan(script: str, style: str, title: str | None, director: str = "rules", model: str | None = None,
+         fmt: str = "video") -> str:
     if style not in STYLES:
         raise YtautoError(f"Unknown style {style!r} (use {', '.join(STYLES)})")
     log("Planning scenes with the built-in director (free, offline)")
-    return plan_with_rules(script, style, title)
+    return plan_with_rules(script, style, title, fmt)
 
 
 def auto_style(script: str, title: str | None = None) -> str:
@@ -624,12 +643,13 @@ def auto_style(script: str, title: str | None = None) -> str:
     return "documentary"
 
 
-def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "rules", model: str | None = None) -> Path:
+def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "rules", model: str | None = None,
+               fmt: str = "video") -> Path:
     raw = script_path.read_text(encoding="utf-8")
     if style == "auto":
         style = auto_style(raw, title)
         log(f"Style: {style} (picked from the topic; use --style to choose)")
-    text = plan(raw, style, title, director, model)
+    text = plan(raw, style, title, director, model, fmt)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "assets").mkdir(exist_ok=True)
     out = out_dir / "script.yaml"

@@ -213,6 +213,9 @@ def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     settings = _deep_merge(base, user)
     if overrides:
         settings = _deep_merge(settings, overrides)
+    if settings.pop("_preview_half", False):        # --preview: half size, same shape (16:9 stays 16:9, Shorts stay 9:16)
+        settings["width"] = max(2, int(settings["width"]) // 4 * 2)
+        settings["height"] = max(2, int(settings["height"]) // 4 * 2)
     env_voice = os.environ.get("YTAUTO_VOICE", "").strip()
     if env_voice and env_voice != "project":       # GitHub Action "voice" input
         settings["voice"] = {**settings["voice"], "profile": env_voice}

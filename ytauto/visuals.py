@@ -278,9 +278,9 @@ class ClipRenderer:
         run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"color=c={color}:s={W}x{H}:r={fps}",
              "-vf", vf, "-frames:v", str(self.frames(duration)), *self.enc_args(), out])
 
-    def _normalize(self, src: Path, duration: float, out: Path, fade_in: bool, fade_out: bool):
+    def _normalize(self, src: Path, duration: float, out: Path, fade_in: bool, fade_out: bool, pre: str = ""):
         """Re-encode an externally rendered clip to the shared format and exact length."""
-        vf = (f"{self._fit('cover')},fps={self.fps},setsar=1,tpad=stop_mode=clone:stop_duration={duration:.3f},"
+        vf = (f"{pre}{self._fit('cover')},fps={self.fps},setsar=1,tpad=stop_mode=clone:stop_duration={duration:.3f},"
               f"format=yuv420p" + self._fade(duration, fade_in, fade_out))
         run(["ffmpeg", "-y", "-v", "error", "-i", src, "-filter_complex", vf,
              "-frames:v", str(self.frames(duration)), *self.enc_args(), out])
@@ -303,7 +303,11 @@ class ClipRenderer:
             warn(f"{comp}: {exc}. Using the fallback visual instead.")
             return self._remotion(fb, duration, out, fade_in, fade_out)
         theme = {**(self.p.settings.get("theme") or {}), **(props.get("theme") or {})}
-        props.update({"durationInSeconds": duration, "width": self.W, "height": self.H, "fps": self.fps, "theme": theme})
+        # Vertical video (Shorts): the motion-graphics kit is laid out for a wide frame, so it is drawn on a square stage
+        # the width of the frame and set in the middle over a blurred, darkened copy of itself (the usual Shorts look)
+        stage = self.H > self.W * 1.2
+        sw, sh = (self.W, self.W) if stage else (self.W, self.H)
+        props.update({"durationInSeconds": duration, "width": sw, "height": sh, "fps": self.fps, "theme": theme})
         props_file = out.with_suffix(".props.json")
         props_file.write_text(json.dumps(props))
         raw = out.with_suffix(".remotion.mp4")
@@ -317,7 +321,10 @@ class ClipRenderer:
         log(f"Remotion: rendering {comp} ({duration:.1f}s)")
         run(cmd, cwd=rdir)
         # Remotion templates fade themselves; don't double-fade.
-        self._normalize(raw, duration, out, False, False)
+        pre = (f"[0:v]split[fg][bgsrc];[bgsrc]scale={self.W}:{self.H}:force_original_aspect_ratio=increase,"
+               f"crop={self.W}:{self.H},gblur=sigma=40,eq=brightness=-0.18[bg];[bg][fg]overlay=0:(H-h)/2,"
+               if stage else "")
+        self._normalize(raw, duration, out, False, False, pre)
         raw.unlink(missing_ok=True)
         props_file.unlink(missing_ok=True)
 

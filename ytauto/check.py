@@ -265,7 +265,15 @@ def check(path: Path, against: list[Path] | None = None) -> Report:
     # -- readiness
     minutes = n_words / 150
     rep.add("INFO", "readiness", f"{n_words} words, about {minutes:.1f} min of narration.")
-    if minutes < 8:
+    presets = (doc.data or {}).get("preset")
+    shorts = "shorts" in ([presets] if isinstance(presets, str) else presets or [])
+    if shorts:
+        if minutes > 3:
+            rep.add("FAIL", "readiness", f"About {minutes:.1f} min: YouTube Shorts can be at most 3 minutes. "
+                    "Trim the script or drop the shorts format.")
+        rep.add("INFO", "readiness", "Shorts: vertical 1080x1920 with burned-in captions. Shorts earn from the Shorts "
+                "ad-revenue pool, not mid-roll ads.")
+    elif minutes < 8:
         rep.add("INFO", "readiness", "Under 8 minutes: YouTube only allows mid-roll ads on videos of 8 minutes or more.")
     if len(doc.title) > 100:
         rep.add("FAIL", "readiness", f"Title is {len(doc.title)} characters; YouTube allows 100.")

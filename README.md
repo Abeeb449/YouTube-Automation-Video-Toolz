@@ -94,7 +94,12 @@ Write plain narration in a text file. Leave a blank line between paragraphs; `# 
 python -m ytauto make projects/<name>/script.txt                          # plan scenes + render (style picked from the topic)
 python -m ytauto plan projects/<name>/script.txt                          # only write script.yaml (to review/edit)
 python -m ytauto make projects/anglerfish/script.txt --style ocean        # or choose the look yourself
+python -m ytauto make projects/<name>/script.txt --format shorts          # vertical 1080x1920 Short with captions
 ```
+
+**Shorts.** `--format shorts` plans the same script as a vertical YouTube Short: 1080x1920, captions burned in,
+photos and clips filling the frame, and motion graphics on a square stage over a blurred copy of themselves.
+`ytauto check` fails a Short that runs longer than 3 minutes.
 
 **Works for any topic.** `--style auto` (the default) looks at what the script is about: any animal → `nature`
 (real photos/video of that species, 3D close-ups, date cards); anything else (history, science, space, places,
