@@ -20,7 +20,7 @@ settings:
     name: ryan
     instruct: "Narrate like a calm, deep-voiced nature documentary narrator: measured, intimate and gripping, with a sense of wonder."
   music: {source: incompetech, mood: mystery}
-  sound: {whoosh_on_cut: chapters, whoosh_volume: 0.1}
+  sound: {effects: false}   # no sound effects at all: nothing but the narrator and soft music
 
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
 youtube: {privacy: private, category_id: 15, synthetic_media: true}   # AI narration: ticks YouTube's "altered or synthetic content" box

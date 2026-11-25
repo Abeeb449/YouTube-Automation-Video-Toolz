@@ -95,7 +95,12 @@ def screen_track(path: str | Path) -> dict:
     return res
 
 
+BANNED: set[str] = set()   # tracks the post-mix audio check caught making sudden sounds under the voice
+
+
 def smooth_enough(path: str | Path, title: str = "") -> bool:
+    if title and title in BANNED:
+        return False
     try:
         r = screen_track(path)
     except Exception as exc:  # noqa: BLE001 — can't measure: don't risk it
@@ -212,11 +217,13 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
     parts: list[Path] = []
     used: list[Track] = []
     counts: dict[str, int] = {}
+    timeline: list[list] = []
     for i, (a, b, mood) in enumerate(segments):
         dur = (b - a) + (xfade if i < len(segments) - 1 else 0)
         part = work / f"part_{i:03d}.wav"
         tr = pick(mood, counts.get(mood, 0)) if mood != "none" else None
         counts[mood] = counts.get(mood, 0) + 1
+        timeline.append([a, b, tr.title if tr else None])
         if tr is None:
             run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{dur:.3f}", part])
         else:
@@ -260,6 +267,7 @@ def assemble(total: float, segments: list[tuple[float, float, str]], pick, out: 
     for p in parts:
         p.unlink(missing_ok=True)
     work.rmdir()
+    out.with_suffix(".timeline.json").write_text(json.dumps(timeline))
     return out, used
 
 

@@ -240,85 +240,100 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
 
     # 4) Audio mix: narration + sfx + ducked music + loudness normalisation -----------------
     log("Step 4/5: mixing audio")
-    inputs = ["-i", narration]
-    filters = ["[0:a]aresample=48000,aformat=channel_layouts=stereo[vo]"]
-    mix = ["[vo]"]
-    idx = 1
-    synth_events, file_events = collect_sfx(project, plans)
-    snd = st.get("sound") or {}
-    if synth_events or float(snd.get("drone", 0) or 0) > 0:
-        track = build_track(total, synth_events, float(snd.get("drone", 0) or 0), work / "sound_design.wav")
-        inputs += ["-i", track]
-        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={float(snd.get('volume', 1.0))},{SFX_SAFE}[sd]")
-        mix.append("[sd]")
-        idx += 1
-    for at, path, vol in file_events:
-        inputs += ["-i", path]
-        ms = int(max(0, at) * 1000)
-        filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},{SFX_SAFE},adelay={ms}|{ms}[s{idx}]")
-        mix.append(f"[s{idx}]")
-        idx += 1
-    music = st.get("music")
-    if isinstance(music, str):
-        music = {"file": music}
-    music_credits: list[str] = []
-    if music and (music.get("file") or music.get("generate") or music.get("source") or music.get("library")):
-        mfile, generated = None, False
-        source = music.get("source") or ("library" if music.get("library") else None)
-        if source in ("incompetech", "openverse", "library") and not music.get("file"):
-            segs = mood_segments(project, plans, music.get("mood", "wonder"))
-            try:
-                mfile, used = real_music_bed(project, segs, total, music, source)
-                music_credits = [t.credit() for t in used if t.license != "own"]
-            except Exception as exc:  # noqa: BLE001 — offline, site down… never fail the render over music
-                warn(f"music {source}: {exc} — using the generated score instead")
-                mfile = None
-                music = {**music, "generate": True}
-        if music.get("file"):
-            mfile = project.resolve(music["file"])
-            if not mfile.exists():
-                warn(f"music file not found: {mfile} — " + ("using the generated score" if music.get("generate") else "rendering without music"))
-                mfile = None
-        if mfile is None and music.get("generate"):
-            segs = mood_segments(project, plans, music.get("mood", "wonder"))
-            key = stable_hash("score-v1", segs, round(total, 2), music.get("seed", 0))
-            mfile = cache / "music" / f"score_{key}.wav"
-            if not mfile.exists():
-                mfile.parent.mkdir(parents=True, exist_ok=True)
-                log("   composing background score (" + ", ".join(sorted({m for _, _, m in segs})) + ")")
-                build_score(total, segs, mfile, seed=int(music.get("seed", 0)))
-            generated = True
-        if mfile is not None:
-            inputs += ["-stream_loop", "-1", "-i", mfile]
-            vol = float(music.get("volume", 0.5))
-            space = ",aecho=0.8:0.55:90|170|290:0.32|0.22|0.14" if generated else ""
-            # Normalise any track to the same loudness first, so `volume` means the same for every song.
-            level = "loudnorm=I=-20:TP=-2" if not music.get("source") or generated else "volume=2dB"
-            filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,{level}{space},"
-                           f"volume={vol},atrim=0:{total:.3f},afade=t=in:d=2,afade=t=out:st={max(0, total - 7):.3f}:d=7[mus]")
+    # Mix, then check: if any sudden non-voice sound remains, the music track playing at that moment is banned
+    # and the music is rebuilt without it (up to 3 rounds). Sound effects are off by default, so it is the music.
+    from . import music_library as _ml
+    mfile = None
+    for _round in range(3):
+        mfile = None
+        inputs = ["-i", narration]
+        filters = ["[0:a]aresample=48000,aformat=channel_layouts=stereo[vo]"]
+        mix = ["[vo]"]
+        idx = 1
+        synth_events, file_events = collect_sfx(project, plans)
+        snd = st.get("sound") or {}
+        if synth_events or float(snd.get("drone", 0) or 0) > 0:
+            track = build_track(total, synth_events, float(snd.get("drone", 0) or 0), work / "sound_design.wav")
+            inputs += ["-i", track]
+            filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={float(snd.get('volume', 1.0))},{SFX_SAFE}[sd]")
+            mix.append("[sd]")
             idx += 1
-            duck = music.get("duck", 0.4)
-            if duck is True:
-                duck = 0.45
-            if duck:
-                speech = speech_from_audio(narration)  # exact for every voice engine
-                env = build_duck_envelope(total, speech, float(duck), work / "duck_envelope.wav")
-                inputs += ["-i", env]
-                filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[env]")
-                filters.append("[mus][env]amultiply[musd]")
-                mix.append("[musd]")
+        for at, path, vol in file_events:
+            inputs += ["-i", path]
+            ms = int(max(0, at) * 1000)
+            filters.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},{SFX_SAFE},adelay={ms}|{ms}[s{idx}]")
+            mix.append(f"[s{idx}]")
+            idx += 1
+        music = st.get("music")
+        if isinstance(music, str):
+            music = {"file": music}
+        music_credits: list[str] = []
+        if music and (music.get("file") or music.get("generate") or music.get("source") or music.get("library")):
+            mfile, generated = None, False
+            source = music.get("source") or ("library" if music.get("library") else None)
+            if source in ("incompetech", "openverse", "library") and not music.get("file"):
+                segs = mood_segments(project, plans, music.get("mood", "wonder"))
+                try:
+                    mfile, used = real_music_bed(project, segs, total, music, source)
+                    music_credits = [t.credit() for t in used if t.license != "own"]
+                except Exception as exc:  # noqa: BLE001 — offline, site down… never fail the render over music
+                    warn(f"music {source}: {exc} — using the generated score instead")
+                    mfile = None
+                    music = {**music, "generate": True}
+            if music.get("file"):
+                mfile = project.resolve(music["file"])
+                if not mfile.exists():
+                    warn(f"music file not found: {mfile} — " + ("using the generated score" if music.get("generate") else "rendering without music"))
+                    mfile = None
+            if mfile is None and music.get("generate"):
+                segs = mood_segments(project, plans, music.get("mood", "wonder"))
+                key = stable_hash("score-v1", segs, round(total, 2), music.get("seed", 0))
+                mfile = cache / "music" / f"score_{key}.wav"
+                if not mfile.exists():
+                    mfile.parent.mkdir(parents=True, exist_ok=True)
+                    log("   composing background score (" + ", ".join(sorted({m for _, _, m in segs})) + ")")
+                    build_score(total, segs, mfile, seed=int(music.get("seed", 0)))
+                generated = True
+            if mfile is not None:
+                inputs += ["-stream_loop", "-1", "-i", mfile]
+                vol = float(music.get("volume", 0.5))
+                space = ",aecho=0.8:0.55:90|170|290:0.32|0.22|0.14" if generated else ""
+                # Normalise any track to the same loudness first, so `volume` means the same for every song.
+                level = "loudnorm=I=-20:TP=-2" if not music.get("source") or generated else "volume=2dB"
+                filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,{level}{space},"
+                               f"volume={vol},atrim=0:{total:.3f},afade=t=in:d=2,afade=t=out:st={max(0, total - 7):.3f}:d=7[mus]")
                 idx += 1
-            else:
-                mix.append("[mus]")
-    lufs = st.get("loudness", -14)
-    filters.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0[aout]")
-    premix = work / "premix.wav"
-    run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
-         "-t", f"{total:.3f}", "-c:a", "pcm_s16le", premix])
-    try:
-        audio_qc(premix, narration, build / "audio_check.txt")
-    except Exception as exc:  # noqa: BLE001 — a check must never stop the render
-        warn(f"audio check skipped: {exc}")
+                duck = music.get("duck", 0.4)
+                if duck is True:
+                    duck = 0.45
+                if duck:
+                    speech = speech_from_audio(narration)  # exact for every voice engine
+                    env = build_duck_envelope(total, speech, float(duck), work / "duck_envelope.wav")
+                    inputs += ["-i", env]
+                    filters.append(f"[{idx}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[env]")
+                    filters.append("[mus][env]amultiply[musd]")
+                    mix.append("[musd]")
+                    idx += 1
+                else:
+                    mix.append("[mus]")
+        lufs = st.get("loudness", -14)
+        filters.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0[aout]")
+        premix = work / "premix.wav"
+        run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]",
+             "-t", f"{total:.3f}", "-c:a", "pcm_s16le", premix])
+        try:
+            sudden = audio_qc(premix, narration, build / "audio_check.txt")
+        except Exception as exc:  # noqa: BLE001 — a check must never stop the render
+            warn(f"audio check skipped: {exc}")
+            sudden = []
+        tl = None
+        if sudden and mfile is not None and Path(str(mfile)).with_suffix(".timeline.json").exists():
+            tl = json.loads(Path(str(mfile)).with_suffix(".timeline.json").read_text())
+        culprits = {title for t in sudden for a0, b0, title in (tl or []) if title and a0 - 4 <= t <= b0 + 4}
+        if not culprits:
+            break
+        warn(f"audio check: removing music that made sudden sounds ({', '.join(sorted(culprits))}) and rebuilding")
+        _ml.BANNED |= culprits
     # Two-pass, linear loudness normalisation: one fixed gain for the whole video (no pumping or squashing).
     meas = run(["ffmpeg", "-v", "info", "-i", premix, "-af", f"loudnorm=I={lufs}:TP=-1.5:LRA=11:print_format=json",
                 "-f", "null", "-"])
@@ -468,7 +483,8 @@ def real_music_bed(project: Project, segs, total: float, music: dict, source: st
         merged[1] = (0.0, merged[1][1], merged[1][2])
         merged.pop(0)
     segs = merged
-    key = stable_hash("bed-v9", source, segs, round(total, 2), seed, queries, music.get("library"))
+    from .music_library import BANNED
+    key = stable_hash("bed-v9", source, segs, round(total, 2), seed, queries, music.get("library"), sorted(BANNED))
     out = cache / "music" / f"bed_{key}.wav"
     meta = out.with_suffix(".json")
     if out.exists() and meta.exists():
@@ -504,6 +520,10 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
     snd = project.settings.get("sound") or {}
     synth: list[tuple[float, str, float, float | None]] = []
     files: list[tuple[float, Path, float]] = []
+    # No sound effects at all unless a project explicitly asks for them (sound: {effects: true}): no hits, booms,
+    # whooshes or risers over the narration in any video. Scene `sfx:` lines are ignored by default.
+    if not snd.get("effects", False):
+        return synth, files
     if snd.get("whoosh_on_cut"):
         wv = float(snd.get("whoosh_volume", 0.22))
         only_chapters = snd.get("whoosh_on_cut") == "chapters"
