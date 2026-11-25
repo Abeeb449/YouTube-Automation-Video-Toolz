@@ -221,6 +221,14 @@ def find_topic(script: str, title: str) -> str:
         break
     if best:
         return best
+    # the title names nothing the script talks about ("The Notebooks Too Radioactive to Touch"): the video is about
+    # the name the script keeps returning to ("Marie" ×2 + "Marie Curie" → Marie Curie)
+    named = Counter({e: c for e, c in ents.items() if e not in _GENERIC_NAMES and e not in _BROAD_PLACES})
+    if named:
+        score = {e: sum(c for f, c in named.items() if f in e or e in f) for e in named}
+        top = max(score, key=lambda e: (score[e], len(e)))
+        if score[top] >= 2:
+            return top
     words = [w for w in tw if w.lower() not in _STOPW and w.lower() not in _VERBS and not w.lower().endswith(("ed", "ing"))]
     return " ".join(words[:3]) or title
 
@@ -252,10 +260,12 @@ def _thumb_text(title: str, limit: int = 40) -> str:
 
 
 def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "video") -> str:
+    sources = [ln.split(":", 1)[1].strip() for ln in script.splitlines() if re.match(r"\s*sources?\s*:", ln, re.I)]
     blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()
-              and not re.match(r"^\s*subject\s*:", b, re.I)]
+              and not re.match(r"^\s*(subject|sources?)\s*:", b, re.I)]
     title = title or (blocks[0].lstrip("#").strip()[:70] if blocks and blocks[0].startswith("#") else "Untitled Documentary")
-    subject = find_subject(script, title) if style in ("nature", "ocean") else find_topic(script, title)
+    narration = "\n".join(ln for ln in script.splitlines() if not re.match(r"\s*sources?\s*:", ln, re.I))
+    subject = find_subject(narration, title) if style in ("nature", "ocean") else find_topic(narration, title)
     ctx = _script_context(script, subject)
     topic_q = f"{subject} {ctx}".strip() if ctx else subject
     main = _creature(subject, None) or _creature(script, "giantSquid" if style == "ocean" else "fishSchool")
@@ -298,6 +308,7 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
         # from the creator's own words: the script's opening lines (edit before upload; add your sources)
         "description": _opening(blocks),
         "tags": _tags(title, subject, script),
+        **({"sources": [x.strip() for src in sources for x in re.split(r";\s*", src) if x.strip()]} if sources else {}),
         "thumbnail": {"text": _thumb_text(title)}, "youtube": {"privacy": "private"},
         "scenes": scenes,
     }
@@ -446,7 +457,8 @@ ancient old new great big small huge tiny vast giant early late modern famous sa
 best worst true real wet dry dark bright heavy light hidden lost secret strange golden silver thin thick
 powerful huge massive tiny distant nearby empty full narrow wide deep shallow""".split())
 _UNIT_WORDS = set("""metres meters metre meter kilometres kilometers miles feet foot inches centimetres tonnes tons kilograms
-kilos pounds degrees celsius fahrenheit percent years months weeks days hours minutes seconds light-years""".split())
+kilos pounds degrees celsius fahrenheit percent years months weeks days hours minutes seconds light-years
+gram grams milligrams micrograms litres liters millilitres gallons ounces acres hectares watts volts""".split())
 
 
 def _entities(beat: str) -> list[str]:
@@ -479,16 +491,26 @@ def _key_nouns(beat: str) -> list[str]:
     """The things the line points at: heads of noun phrases ('the oldest papyrus', 'the sledges', 'their
     bakeries'), skipping numbers, people-words and adjectives."""
     text = re.sub(r"\[[^\]]*\]", " ", beat).lower()
+    names = {w.lower() for e in _entities(beat) for w in e.split()}   # 'Marie kept…': a name, searched as an entity
     def ok(w: str) -> bool:
+        if w in names:
+            return False
         if any(part in _NUMWORDS for part in w.split("-")):   # twenty-eight
             return False
         return (len(w) > 3 and w not in _VERBS and w not in _COMMON and w not in _STOPW and w not in _NUMWORDS and w not in _PEOPLE
                 and w not in _ADJ and w not in _UNIT_WORDS and w != "ever" and not w.endswith(("ly", "ing")) and not w.isdigit())
     heads = []
+    for m in re.finditer(r"\b(?:called|named|known as)\s+([a-z][a-z'-]+(?:\s+[a-z][a-z'-]+)?)", text):   # "a mineral called pitchblende"
+        w = m.group(1).split()
+        if ok(w[0]):
+            heads.append(" ".join(w) if len(w) > 1 and ok(w[1]) else w[0])
     for m in re.finditer(r"(?:^|[.!?]\s+)([a-z][a-z'-]+)", text):   # the subject a sentence starts with ("wolves, elk…")
         if ok(m.group(1)):
             heads.append(m.group(1))
-    for m in re.finditer(r"\b([a-z]{4,}s)\s*(?:,|\band\b)", text):   # items of a list: "wolves, elk and wild horses"
+    for m in re.finditer(r"\b([a-z]{4,}s)\s*(,|\band\b)", text):   # items of a list: "wolves, elk and wild horses"
+        after = text[m.end():m.end() + 40]
+        if m.group(2) == "," and not re.search(r"\band\b", after.split(".")[0]):
+            continue   # "as the universe expands, that light…" is a clause, not a list
         if ok(m.group(1)):
             heads.append(m.group(1))
     for m in re.finditer(r"\b(?:the|a|an|their|its|his|her|this|these|those|our|of)\s+((?:[a-z'-]+(?:\s+|$|(?=[.,;:!?]))){0,3})", text):
@@ -548,10 +570,17 @@ Zimbabwe Africa Asia Europe America Antarctica Oceania Britain USA UK""".split()
 def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
     """Search alternatives for this line, most specific first, ending with the video's topic itself."""
     ents = list(_entities(beat)[:2])
-    broad = [e for e in ents if e in _BROAD_PLACES and e.lower() not in topic.lower() and topic]
+    # a place the line only mentions in passing ("visitors in Paris", "lifted off from French Guiana") or a whole
+    # country is searched after the thing the line is about
+    def passing(e: str) -> bool:
+        return bool(re.search(rf"\b(?:in|at|from|to|near|across|over|outside|inside|around)\s+(?:the\s+)?{re.escape(e)}\b", beat))
+    broad = [e for e in ents if topic and e.lower() not in topic.lower() and (e in _BROAD_PLACES or passing(e))]
     q = [e for e in ents if e not in broad]
     topic_words = set(topic.lower().split())
     for n in _key_nouns(beat)[:2]:
+        if re.search(rf"\b(?:called|named|known as)\s+{re.escape(n)}\b", beat, re.I):
+            q.append(n)   # a named thing ("a mineral called pitchblende") is searched by its own name
+            continue
         q.append((topic_q or topic or n) if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
     if topic:
         q.append(topic_q or topic)
@@ -582,8 +611,18 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
         return drawn
     query = "|".join(qs)
     if n % 2 == 0:   # a real video clip, else a checked photo, else the drawn/text shot
-        return {"stock": query, "fallback_visual": _photo(query, drawn, n=n)}
-    return _photo(query, drawn, layout="print" if n % 4 == 1 else "full", n=n)
+        shot = {"stock": query, "fallback_visual": _photo(query, drawn, n=n)}
+    else:
+        shot = _photo(query, drawn, layout="print" if n % 4 == 1 else "full", n=n)
+    # a short, punchy sentence ("It glowed blue in the dark.") lands as words on screen, so the video is not a
+    # stock montage; on two lines in three that have one, and only when the line has more to show around it
+    sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", beat) if x.strip()]
+    punchy = [x for x in sents if 2 <= len(x.split()) <= 6 and not x.endswith("?")]
+    if punchy and len(sents) > 1 and n % 3 != 2:
+        line = punchy[0].rstrip(".!")
+        card = {"remotion": "Statement", "props": {"line1": line, "at": 0.1}}
+        return [card, shot] if sents[0] == punchy[0] else [shot, card]
+    return shot
 
 
 def _doc_visual(beat: str, n: int) -> dict:

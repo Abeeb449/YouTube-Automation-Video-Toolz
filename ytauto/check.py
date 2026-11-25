@@ -129,11 +129,12 @@ def load_doc(path: Path) -> Doc:
         if sc.chapter:
             chapters.append(sc.chapter)
         own_src.append(bool(sc.raw.get("source") or sc.raw.get("sources")))
-    sources = [str(s) for s in (data.get("sources") or [])]
+    sources = list(dict.fromkeys(str(s).strip().rstrip(".") for s in (data.get("sources") or [])))
     desc = proj.description or ""
     m = re.search(r"sources?\s*:(.+)", desc, re.I | re.S)
     if m:
         sources += [s.strip(" -•\t") for s in re.split(r"[;\n]", m.group(1)) if len(s.strip(" -•\t")) > 8]
+    sources = list(dict.fromkeys(s.rstrip(".") for s in sources))
     return Doc(root, proj.title, texts, kinds, chapters, sources, desc, data, own_src, cards)
 
 
@@ -242,7 +243,7 @@ def check(path: Path, against: list[Path] | None = None) -> Report:
     if real:
         cnt = Counter(k.split("+")[0] for k in real)
         top, n = cnt.most_common(1)[0]
-        stockish = sum(1 for k in real if k.split("+")[0] in ("stock", "PhotoStory(stock)", "video"))
+        stockish = sum(1 for k in real if all(x in ("stock", "PhotoStory(stock)", "video") for x in k.split("+")))
         if n / len(real) > 0.5 and len(real) >= 8:
             rep.add("WARN", "variety", f"'{top}' is {n / len(real):.0%} of all scenes. Mix in close-ups, maps, data, clippings.")
         if stockish / len(real) > 0.7:
