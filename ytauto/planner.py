@@ -524,7 +524,7 @@ view views look looks story stories question questions answer answers reason rea
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
 past future present catch delay delays moment moments distance distances amount amounts level levels
 rate rates chance chances problem problems fact facts truth result results difference differences effect effects
-force forces night nights day mornings morning evening case cases explanation explanations theory theories idea model models
+supernatural paranormal mystery mysteries force forces night nights day mornings morning evening case cases explanation explanations theory theories idea model models
 injury injuries wound wounds body bodies corpse corpses blood death deaths remains victim victims skull skeleton
 january february march april june july august september october november december
 team teams crew crews group groups member members century centuries decade decades
@@ -683,7 +683,19 @@ def _queries(beat: str, topic: str, topic_q: str | None = None) -> list[str]:
     if topic:
         q.append(topic_q or topic)
     q += broad
-    return list(dict.fromkeys(x for x in q if x))[:5]
+    q = list(dict.fromkeys(x for x in q if x))[:5]
+    # last resort: what the line literally shows, without the story's name ("hikers tent" when there is no free
+    # photo of THE tent) — still checked by the picture check against these words, and only for concrete nouns
+    nouns = [x for x in _key_nouns(beat)[:1] if x.lower() not in topic.lower()]
+    settings = ["snow", "snowy", "winter", "ice", "icy", "desert", "jungle", "underwater", "volcano", "space", "ocean",
+                "sea", "beach", "river", "lake", "forest", "mountain", "mountains", "storm", "rain", "city", "night"]
+    found = {w.lower() for w in re.findall(r"[A-Za-z]+", beat)}
+    setting = next((w for w in settings if w in found and w not in nouns[0]), None) if nouns else None
+    if nouns:
+        generic = nouns[0] + (f" {setting}" if setting else "")
+        if generic not in q:
+            q.append(generic)
+    return q
 
 
 def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: str | None = None) -> dict | list:
