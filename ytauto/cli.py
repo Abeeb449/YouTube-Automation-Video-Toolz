@@ -161,6 +161,8 @@ def cmd_voiceover(a) -> int:
     from .utils import log, run
 
     project = load_project(a.project, {})
+    from .sound_director import direct_narration
+    direct_narration(project)   # narrator direction from the script's content (unless the project sets one)
     st = dict(project.settings)
     if a.plain:
         st["narration"] = "natural"

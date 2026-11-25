@@ -67,7 +67,7 @@ description: |
   What the video covers, in the creator's words. Sources: …
 tags: [leopard seal, sea lion, antarctica, wildlife documentary]
 settings:
-  voice: {engine: qwen, name: ryan}                 # optional instruct: "how this video should sound" (default: natural, follows each sentence)
+  voice: {engine: qwen, name: ryan}                 # narrator direction is decided from the script (instruct: "…" overrides)
   music: {source: incompetech, mood: mystery}       # real music by mood (default)
   sound: {whoosh_on_cut: auto}                        # transition sounds only where the story turns
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}

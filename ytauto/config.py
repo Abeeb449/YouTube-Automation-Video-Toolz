@@ -109,7 +109,7 @@ PRESETS: dict[str, dict] = {
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
-                  "instruct": "Narrate naturally and clearly, like a documentary narrator, following the meaning and emotion of each sentence."},
+                  "instruct": "auto"},   # narrator direction decided from the script itself (sound_director.py)
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
         "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
@@ -125,7 +125,7 @@ PRESETS: dict[str, dict] = {
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
-                  "instruct": "Narrate naturally and clearly, like a documentary narrator, following the meaning and emotion of each sentence."},
+                  "instruct": "auto"},   # narrator direction decided from the script itself (sound_director.py)
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
@@ -141,7 +141,7 @@ PRESETS: dict[str, dict] = {
         "voice_polish": {"enabled": True, "mode": "phrasing", "retakes": 2, "tempo": 1.0, "target_wpm": 150, "max_tempo": 1.12},
         "voice": {"engine": "qwen", "name": "ryan", "fallback": "kokoro", "fallback_name": "bm_george",
                   "sampling": {"temperature": 0.8, "top_p": 0.95, "subtalker_temperature": 0.8},
-                  "instruct": "Narrate naturally and clearly, like a documentary narrator, following the meaning and emotion of each sentence."},
+                  "instruct": "auto"},   # narrator direction decided from the script itself (sound_director.py)
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
         "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns

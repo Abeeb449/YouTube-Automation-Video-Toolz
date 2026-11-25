@@ -118,6 +118,11 @@ in the wild (not a zoo, aquarium or pool), and match the line's setting (`verify
 underwater"`). Video clips are checked on 5 frames. Anything that fails is skipped; if nothing passes, the scene's
 fallback is used, never a wrong picture.
 
+**The narrator follows the script too:** the narrator's overall delivery is decided from the whole script (a
+grave or tense story gets a measured, suspenseful narrator; a story of discovery a warm, curious one; history a
+confident one with gravitas), and each scene's delivery shifts with that scene's own emotion. A project's own
+`voice.instruct` or a scene's `[tone …]` wins; `voice: {follow_content: false}` turns it off.
+
 **Sound design follows the script, not a template** (`ytauto/sound_director.py`): for every scene the toolkit
 reads the narration and its `[tone …]` directions and picks the music mood (danger, tension, mystery, wonder, epic,
 calm), places soft effects at the exact word that calls for one (an impact on "crashed", a rise before "suddenly",

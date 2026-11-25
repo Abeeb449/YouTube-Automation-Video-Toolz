@@ -60,7 +60,7 @@ CUES = [
      "typing", 0.0, 0.0),
     (r"alarm|siren|alert|emergency", "alarm", 0.3, 0.0),
 ]
-QUIET = re.compile(r"\b(silent|silence|quiet|still|stillness|whisper\w*|hush\w*|peaceful|asleep)\b", re.I)
+QUIET = re.compile(r"\b(silent|silence|quiet|stillness|whisper\w*|hush\w*|peaceful|asleep)\b", re.I)
 YEAR = re.compile(r"\b(1[5-9]\d\d|20\d\d)\b|\b(nineteen|eighteen|seventeen|two thousand|twenty) [a-z\- ]*\b", re.I)
 INTENSIFIERS = re.compile(r"\b(never|nothing|only|most|every|all|always|terrifying|brutal|instantly|massive|"
                           r"enormous|deadliest|worst|first|last|ever)\b", re.I)
@@ -156,3 +156,89 @@ def direct(texts: list[str], chapters: list[str | None], given_moods: list[str |
         if chapters[k] and not info[k].quiet and (eff[k] != eff[k - 1] or abs(info[k].intensity - info[k - 1].intensity) > 0.35):
             trans[k] = True
     return moods, sfx, trans
+
+
+# ---------------------------------------------------------------------------------------------- narration
+# How the narrator should sound, decided from the content (never a fixed house tone).
+OVERALL = {
+    "danger": "measured and serious, letting tension build where the story builds it",
+    "tension": "controlled and suspenseful, unhurried, holding back where the story holds back",
+    "mystery": "low, intimate and curious, unhurried",
+    "wonder": "warm and curious, with a sense of discovery where the story reveals something",
+    "epic": "confident and resonant, with gravitas",
+    "calm": "gentle, warm and unhurried",
+}
+SCENE_TONE = {
+    "danger": "grave and controlled",
+    "tension": "quieter and tense, a little slower",
+    "mystery": "hushed and curious",
+    "wonder": "awed and warm",
+    "epic": "strong and confident",
+    "calm": "soft and gentle",
+}
+
+
+def narration_style(texts: list[str]) -> str:
+    """The narrator's overall direction for THIS script: from the balance of emotions across its scenes and how
+    much of it is facts and numbers. Used when the project doesn't set its own `voice.instruct`."""
+    info = [analyse(t) for t in texts]
+    counts: dict[str, float] = {}
+    gravity = {"danger": 1.6, "tension": 1.4}   # a grave or tense story is grave overall even with lighter moments
+    for i in info:
+        if i.mood:
+            counts[i.mood] = counts.get(i.mood, 0) + (1 + i.intensity) * gravity.get(i.mood, 1.0)
+    total = sum(counts.values()) or 1
+    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    serious = counts.get("danger", 0) + counts.get("tension", 0)
+    if ranked and ranked[0][0] not in ("danger", "tension") and serious >= ranked[0][1]:
+        # danger and tension together are the story's main thread: lead with the stronger of the two
+        lead = "danger" if counts.get("danger", 0) >= counts.get("tension", 0) else "tension"
+        ranked = [(lead, serious)] + [kv for kv in ranked if kv[0] not in ("danger", "tension")]
+    parts = []
+    if ranked and ranked[0][1] / total >= 0.35:
+        parts.append(OVERALL[ranked[0][0]])
+        if len(ranked) > 1 and ranked[1][1] / total >= 0.25:
+            parts.append(f"turning {SCENE_TONE[ranked[1][0]]} where the story does")
+    else:
+        parts.append("clear and engaging, letting each passage's own emotion come through")
+    plain = " ".join(re.sub(r"\[[^\]]*\]", " ", t) for t in texts)
+    facts = len(re.findall(r"\b\d[\d,.]*\b|\b(percent|million|billion)\b", plain, re.I))
+    if facts / max(1, len(plain.split())) > 0.04:
+        parts.append("precise and clear on facts and numbers")
+    return "Narrate as a documentary narrator: " + "; ".join(parts) + "."
+
+
+def scene_tones(texts: list[str], given: list[bool]) -> list[str | None]:
+    """Per-scene delivery that follows each scene's own emotion (None = no change). `given`: the scene already
+    has the writer's own [tone …] direction, which wins."""
+    out: list[str | None] = []
+    cur = None
+    for t, g in zip(texts, given):
+        i = analyse(t)
+        cur = i.mood or cur          # a scene with no emotion words of its own carries the current one
+        if g:
+            out.append(None)
+            continue
+        tone = SCENE_TONE.get(cur or "")
+        if tone and cur in ("danger", "tension") and i.intensity > 0.6:
+            tone += ", with quiet urgency"
+        out.append(tone)
+    return out
+
+
+def direct_narration(project) -> None:
+    """Set the narrator's direction from the content, before the voice is recorded: the overall style (unless the
+    project sets voice.instruct itself) and a per-scene tone (unless a scene has its own [tone …] or voice tone)."""
+    st = project.settings
+    snd = st.get("sound") or {}
+    voice = st.get("voice") or {}
+    if snd.get("director", True) is False or voice.get("follow_content") is False:
+        return
+    texts = [s.text or "" for s in project.scenes]
+    if not voice.get("instruct") or str(voice.get("instruct")).strip().lower() == "auto":
+        voice["instruct"] = narration_style(texts)
+        st["voice"] = voice
+    given = [bool(re.search(r"\[tone ", s.text or "", re.I)) or bool((s.voice or {}).get("tone")) for s in project.scenes]
+    for s, tone in zip(project.scenes, scene_tones(texts, given)):
+        if tone:
+            s.voice = {**(s.voice or {}), "tone": tone}

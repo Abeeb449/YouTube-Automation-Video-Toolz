@@ -174,6 +174,10 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
 
     # 1) Voiceover --------------------------------------------------------------------------
     log("Step 1/5: generating voiceover")
+    from .sound_director import direct_narration
+    direct_narration(project)   # how the narrator sounds, from the script's own content
+    if (st.get("voice") or {}).get("engine") in ("qwen", "chatterbox"):
+        log(f"   narrator: {st['voice'].get('instruct')}")
     voice_cache = cache / "tts"
 
     def do_audio(scene):
