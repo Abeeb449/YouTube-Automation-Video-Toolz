@@ -593,6 +593,21 @@ _rejected: set[str] = set()   # candidates that failed the picture check (never 
 
 
 def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wanted: str | None = None) -> tuple[Path, str]:
+    """`query` may list alternatives, most specific first: "Great Pyramid of Giza|pharaoh Khufu|pyramid". Each is
+    searched (and every result picture-checked against THAT alternative) until one gives a usable picture."""
+    alts = [q.strip() for q in query.split("|") if q.strip()]
+    if len(alts) <= 1:
+        return _fetch_stock_one(query.strip(), kind, cache, width, nth, wanted)
+    errors = []
+    for q in alts:
+        try:
+            return _fetch_stock_one(q, kind, cache, width, nth, wanted)
+        except YtautoError as exc:
+            errors.append(f"[{q}] {str(exc)[:160]}")
+    raise YtautoError("Stock search failed for every alternative: " + " ; ".join(errors))
+
+
+def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 0, wanted: str | None = None) -> tuple[Path, str]:
     """Return (local_path, 'video'|'image') for a stock search: search each provider in order, keep only
     commercial-use licences, download the best unused result, CHECK THAT IT SHOWS THE SUBJECT (ytauto/verify.py)
     and record its credit. `wanted` = a more exact description to check against ("sea lions on a rocky beach")."""

@@ -41,8 +41,8 @@ PARTS = re.compile(r"\b(teeth|tooth|jaws?|fangs?|canines?|bite|claws?|talons?|ey
                    r"suckers?|stingers?|stings?|venom|horns?|tusks?|beaks?|bills?|wings?|feathers?|skin|scales|fur|whiskers?|"
                    r"legs?|feet|paws?|hooves|mandibles?|antennae?|shells?|spines?|quills?|trunk|snout|nose|tongue|gills?|"
                    r"armou?r|plates|crest|mane|stripes|spots)\b", re.I)
-DATE = re.compile(r"\b(?:in|by|since|until|during|on)\s+((?:(?:January|February|March|April|May|June|July|August|September|October|"
-                  r"November|December)\s+)?(?:1[5-9]\d\d|20\d\d)s?)\b", re.I)
+DATE = re.compile(r"\b(?:in|by|since|until|during|on|around|about|circa|from)\s+((?:(?:January|February|March|April|May|June|"
+                  r"July|August|September|October|November|December)\s+(?:\d{1,2},?\s+)?)?(?:(?:1[0-9]\d\d|20\d\d)s?|\d{1,4}\s?(?:BC|BCE|AD|CE)))\b", re.I)
 PLACE = re.compile(r"\b(?:in|at|near|off|on|from)\s+((?:the\s+)?[A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|of|de|del))*)")
 # 3D models with known anatomy points (x, y inside the visible model, 0-1). Add an entry when a model is added.
 ANATOMY_3D = {
@@ -311,7 +311,120 @@ def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "") ->
         if g is not None:
             return g
         return drawn
-    return _ocean_visual(beat, main, n, creature) if style == "ocean" else _doc_visual(beat, n)
+    if style == "ocean":
+        return _ocean_visual(beat, main, n, creature)
+    return _general_beat_visual(beat, n, subject, _doc_visual(beat, n))
+
+
+# ---------------------------------------------------------------------------------- what is THIS line about?
+# Any topic: the named things in the line (people, places, objects, events) and its key nouns become the
+# picture searched for, most specific first; every result is picture-checked (ytauto/verify.py).
+_COMMON = set("""about above after again against almost along already also although always among another
+around because become been before began begin being below between beyond both bring brought called came
+cannot could course different does doing done during each early either enough even every everything example
+except far fact few find first found from further gave give given going gone good great half having here high
+however just keep kept known large last later least less like little long made make many may means might
+more most much must near nearly need never next nothing number often only other others over part people
+perhaps place point quite rather really right same second seen several should show since small some something
+sometimes still such take taken than that their them then there these they thing things think this those
+though three through time times today together took toward under until upon used using very want ways well
+went were what when where whether which while whole whose will with within without world would year years
+yet your around almost exactly enough inside outside still almost across against another""".split())
+_ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Today", "This", "That", "These", "Those",
+                "There", "Here", "Nobody", "No", "One", "Every", "Each", "When", "While", "After", "Before", "If",
+                "Archaeologists", "Scientists", "Researchers", "Historians", "Experts", "We", "You", "They", "He",
+                "She", "His", "Her", "Its", "Their", "A", "An", "As", "By", "From", "With", "Some", "Most", "Many",
+                "BC", "BCE", "AD", "CE", "January", "February", "March", "April", "May", "June", "July", "August",
+                "September", "October", "November", "December", "Monday", "Tuesday", "Wednesday", "Thursday",
+                "Friday", "Saturday", "Sunday"}
+
+
+_NUMWORDS = set("""one two three four five six seven eight nine ten eleven twelve twenty thirty forty fifty sixty
+seventy eighty ninety hundred hundreds thousand thousands million millions billion billions dozen dozens half
+quarter percent""".split())
+_PEOPLE = set("""people person archaeologists scientists researchers historians experts someone everyone anyone
+nobody man men woman women""".split())
+_ADJ = set("""oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
+ancient old new great big small huge tiny vast giant early late modern famous same other own single main final
+best worst true real wet dry dark bright heavy light hidden lost secret strange""".split())
+
+
+def _entities(beat: str) -> list[str]:
+    """Named things in the line: 'Great Pyramid of Giza', 'Khufu', 'Nile' (capitalised runs, joined by of/the/de).
+    A single capitalised word at the start of a sentence is just a sentence start ('Teams', 'Wet'), not a name."""
+    text = re.sub(r"\[[^\]]*\]", " ", beat)
+    out = []
+    for m in re.finditer(r"\b([A-Z][\w'-]+(?:\s+(?:of|the|de|del|da|von|van|al|el|and)?\s*[A-Z][\w'-]+)*)", text):
+        before = text[:m.start()].rstrip()
+        sentence_start = not before or before[-1] in ".!?:;\"“"
+        if sentence_start and len(m.group(1).split()) == 1:
+            continue
+        words = m.group(1).split()
+        while words and words[0] in _ENTITY_SKIP:
+            words = words[1:]
+        while words and words[-1].lower() in ("of", "the", "de", "and"):
+            words = words[:-1]
+        ent = " ".join(words)
+        if ent and len(ent) > 2 and ent not in out:
+            out.append(ent)
+    return sorted(out, key=lambda e: -len(e.split()))
+
+
+def _key_nouns(beat: str) -> list[str]:
+    """The things the line points at: heads of noun phrases ('the oldest papyrus', 'the sledges', 'their
+    bakeries'), skipping numbers, people-words and adjectives."""
+    text = re.sub(r"\[[^\]]*\]", " ", beat).lower()
+    def ok(w: str) -> bool:
+        return (len(w) > 3 and w not in _COMMON and w not in _STOPW and w not in _NUMWORDS and w not in _PEOPLE
+                and w not in _ADJ and not w.endswith(("ly", "ing")) and not w.isdigit())
+    heads = []
+    for m in re.finditer(r"\b(?:the|a|an|their|its|his|her|this|these|those|our|of)\s+((?:[a-z'-]+\s+){0,3})", text):
+        for w in m.group(1).split():
+            if w in _ADJ or w in _NUMWORDS or w in ("the", "a", "an", "their", "its", "his", "her", "this", "these",
+                                                      "those", "our", "front", "side", "middle", "top", "bottom", "kind", "sort", "part"):
+                continue
+            if ok(w):
+                heads.append(w)
+            break
+    return list(dict.fromkeys(heads))[:3]
+
+
+def _queries(beat: str, topic: str) -> list[str]:
+    """Search alternatives for this line, most specific first, ending with the video's topic itself."""
+    q = list(_entities(beat)[:2])
+    topic_words = set(topic.lower().split())
+    for n in _key_nouns(beat)[:2]:
+        q.append(n if n.rstrip("s") in {t.rstrip("s") for t in topic_words} else f"{n} {topic}".strip())
+    if topic:
+        q.append(topic)
+    return list(dict.fromkeys(x for x in q if x))[:5]
+
+
+def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict) -> dict | list:
+    """Any topic: dates → a typed date card; percentages/numbers → data graphics; otherwise a real video clip
+    (every other line) or photo of what the line is about, each with the drawn/text shot as fallback."""
+    numeric = words_to_digits(beat)
+    d = DATE.search(numeric)
+    if d:
+        place = _entities(DATE.sub("", beat))
+        stamp = {"remotion": "DateStamp", "props": {"date": d.group(1).upper(), "at": 0.2,
+                                                    **({"place": place[0]} if place else {})}}
+        rest = _general_beat_visual(DATE.sub("", beat), n + 1, topic, drawn)
+        return [stamp, rest if isinstance(rest, dict) else rest[-1]]
+    m = NUMBER.search(numeric)
+    if m and not _entities(beat):
+        val = _num(m.group(1))
+        if m.group(2).lower() in ("%", "percent") and val <= 100:
+            return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
+                                                     "count": 100, "highlight": int(val)}}
+        return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": m.group(1).split(",")[0]}}
+    qs = _queries(beat, topic)
+    if not qs:
+        return drawn
+    query = "|".join(qs)
+    if n % 2 == 0:   # a real video clip, else a checked photo, else the drawn/text shot
+        return {"stock": query, "fallback_visual": _photo(query, drawn, n=n)}
+    return _photo(query, drawn, layout="print" if n % 4 == 1 else "full", n=n)
 
 
 def _doc_visual(beat: str, n: int) -> dict:
