@@ -217,6 +217,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         clips = list(ex.map(do_clip, jobs))
 
     # 3) Join video + narration ------------------------------------------------------------
+    from .verify import shutdown as _verify_shutdown
+    _verify_shutdown()   # free the picture-check model before the heavy joins
     log("Step 3/5: joining clips and narration")
     work = cache / "work"
     work.mkdir(parents=True, exist_ok=True)

@@ -23,7 +23,7 @@ settings:
   sound: {whoosh_on_cut: chapters, whoosh_volume: 0.1}
 
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
-youtube: {privacy: private, category_id: 15}
+youtube: {privacy: private, category_id: 15, synthetic_media: true}   # AI narration: ticks YouTube's "altered or synthetic content" box
 
 scenes:
   # ─────────────────────────────── HOOK ───────────────────────────────
@@ -47,7 +47,7 @@ scenes:
       props:
         layout: full
         photos:
-          - {photo: "stock:southern ocean", focus: [0.5, 0.5]}
+          - {photo: "stock:southern ocean antarctica", verify: "the icy Southern Ocean off Antarctica, cold grey sea", focus: [0.5, 0.5]}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -59,12 +59,15 @@ scenes:
 
   - text: "It has been watching the water for a long time. [tone tense, building suspense] Because somewhere under that surface is the one animal that every sea lion and fur seal in this part of the world has learned to fear."
     visual:
-      remotion: OceanScene
-      props:
-        split: {y: 0.36, land: rocks, landWidth: 0.32, sky: storm}
-        actors:
-          - {creature: seaLion, x: 0.22, y: 0.27, scale: 0.3, detail: {pup: true, rest: true}}
-          - {creature: leopardSeal, x: 0.95, y: 0.74, to: [0.62, 0.72], scale: 1.0, silhouette: "#071118", opacity: 0.85, at: "somewhere", enter: fade}
+      stock: "antarctica sea ice"
+      verify: "icy polar sea with floating sea ice"
+      fallback_visual:
+        remotion: OceanScene
+        props:
+          split: {y: 0.36, land: rocks, landWidth: 0.32, sky: storm}
+          actors:
+            - {creature: seaLion, x: 0.22, y: 0.27, scale: 0.3, detail: {pup: true, rest: true}}
+            - {creature: leopardSeal, x: 0.95, y: 0.74, to: [0.62, 0.72], scale: 1.0, silhouette: "#071118", opacity: 0.85, at: "somewhere", enter: fade}
     sfx: [{sound: swell, at: "fear", volume: 0.35}]
 
   - text: "[tone low and menacing] It does not chase you across the open ocean. [pause 0.5] It waits right here, at the edge."
@@ -112,7 +115,7 @@ scenes:
       props:
         layout: full
         photos:
-          - {photo: "stock:leopard seal", focus: [0.55, 0.45], mono: true, colorAt: "leopard"}
+          - {photo: "stock:leopard seal", verify: "a photo of a wild leopard seal", focus: [0.55, 0.45], mono: true, colorAt: "leopard"}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -159,7 +162,7 @@ scenes:
       props:
         layout: print
         photos:
-          - {photo: "stock:sea lion", caption: "Loud, social and agile on land"}
+          - {photo: "stock:sea lion", verify: "sea lions on land on a rocky shore", caption: "Loud, social and agile on land"}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -175,14 +178,17 @@ scenes:
 
   - text: "Most of the time, the ocean is where they are strongest. [pause 0.5] [tone darker, quieter] But far to the south, where the ice begins, that changes."
     visual:
-      remotion: OceanScene
-      props:
-        depth: 0.2
-        depthTo: 0.7
-        actors:
-          - {creature: seaLion, x: 0.3, y: 0.45, to: [0.65, 0.5], scale: 0.8}
-        callout: "Where the ice begins"
-        calloutAt: "ice"
+      stock: "antarctica ice"
+      verify: "Antarctic icebergs and sea ice"
+      fallback_visual:
+        remotion: OceanScene
+        props:
+          depth: 0.2
+          depthTo: 0.7
+          actors:
+            - {creature: seaLion, x: 0.3, y: 0.45, to: [0.65, 0.5], scale: 0.8}
+          callout: "Where the ice begins"
+          calloutAt: "ice"
 
   - mood: mystery
     text: "Antarctic fur seals breed on rocky beaches around the islands off the Antarctic Peninsula."
@@ -203,8 +209,8 @@ scenes:
       props:
         layout: pile
         photos:
-          - {photo: "stock:antarctic fur seal pup", caption: "A fur seal pup, left on shore", at: 0.2}
-          - {photo: "stock:fur seal mother", caption: "Mothers leave to feed at sea", at: "leave", pick: 1}
+          - {photo: "stock:antarctic fur seal pup", verify: "a fur seal pup on a rocky beach", caption: "A fur seal pup, left on shore", at: 0.2}
+          - {photo: "stock:antarctic fur seal", verify: "an adult fur seal on a rocky beach", caption: "Mothers leave to feed at sea", at: "leave", pick: 1}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -218,15 +224,18 @@ scenes:
             - {text: "Left on shore for days", at: "days"}
   - text: "For weeks, a pup's whole world is a strip of rock and the water's edge. [pause 0.4] [tone ominous, slow] And sooner or later, it has to learn to swim."
     visual:
-      remotion: OceanScene
-      props:
-        split: {y: 0.42, land: rocks, landWidth: 0.48, sky: storm}
-        zoom: [1.0, 1.25]
-        focus: [0.42, 0.42]
-        actors:
-          - {creature: seaLion, x: 0.4, y: 0.34, scale: 0.3, detail: {rest: true, pup: true}}
-        callout: "It has to learn to swim"
-        calloutAt: "learn"
+      stock: "sea lion"
+      verify: "sea lions on rocks at the water's edge"
+      fallback_visual:
+        remotion: OceanScene
+        props:
+          split: {y: 0.42, land: rocks, landWidth: 0.48, sky: storm}
+          zoom: [1.0, 1.25]
+          focus: [0.42, 0.42]
+          actors:
+            - {creature: seaLion, x: 0.4, y: 0.34, scale: 0.3, detail: {rest: true, pup: true}}
+          callout: "It has to learn to swim"
+          calloutAt: "learn"
 
   # ─────────────────────────────── MEET THE LEOPARD SEAL ───────────────────────────────
   - chapter: Meet the leopard seal
@@ -341,9 +350,9 @@ scenes:
         layout: pile
         title: "Warm-blooded prey"
         photos:
-          - {photo: "stock:crabeater seal", caption: "Crabeater seal", at: "Crabeater"}
-          - {photo: "stock:antarctic fur seal", caption: "Antarctic fur seal", at: "Fur"}
-          - {photo: "stock:sea lion pup", caption: "Young sea lion", at: "young"}
+          - {photo: "stock:crabeater seal", verify: "a photo of a wild crabeater seal", caption: "Crabeater seal", at: "Crabeater"}
+          - {photo: "stock:antarctic fur seal", verify: "a photo of a wild fur seal", caption: "Antarctic fur seal", at: "Fur"}
+          - {photo: "stock:sea lion pup", verify: "a sea lion pup", caption: "Young sea lion", at: "young"}
       fallback_visual:
         remotion: SourceList
         props:
@@ -374,7 +383,7 @@ scenes:
       props:
         layout: full
         photos:
-          - {photo: "stock:leopard seal ice", parallax: true, zoom: [1.02, 1.15]}
+          - {photo: "stock:leopard seal ice", verify: "a leopard seal resting on sea ice", parallax: true, zoom: [1.02, 1.15]}
         callout: "A solitary hunter"
         calloutAt: "alone"
       fallback_visual:
@@ -388,39 +397,45 @@ scenes:
           calloutAt: "alone"
   - text: "On land it looks clumsy, almost lazy. [tone energised] In the water, it is a different animal: long front flippers, a flexible body, and sudden bursts of speed that most of its prey never see coming."
     visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-          - {photo: "stock:leopard seal", focus: [0.5, 0.45]}
+      stock: "leopard seal"
+      verify: "a wild leopard seal swimming"
       fallback_visual:
-        remotion: OceanScene
+        remotion: PhotoStory
         props:
-          depth: 0.55
-          actors:
-            - {creature: leopardSeal, x: -0.1, y: 0.6, to: [1.15, 0.45], scale: 1.1, at: "water"}
-            - {creature: fishSchool, x: 0.75, y: 0.35, to: [0.85, 0.25], scale: 0.6}
-          facts:
-            - {text: "Long front flippers", at: "flippers"}
-            - {text: "Sudden bursts of speed", at: "bursts", red: true}
+          layout: full
+          photos:
+            - {photo: "stock:leopard seal", verify: "a photo of a wild leopard seal", focus: [0.5, 0.45]}
+        fallback_visual:
+          remotion: OceanScene
+          props:
+            depth: 0.55
+            actors:
+              - {creature: leopardSeal, x: -0.1, y: 0.6, to: [1.15, 0.45], scale: 1.1, at: "water"}
+              - {creature: fishSchool, x: 0.75, y: 0.35, to: [0.85, 0.25], scale: 0.6}
+            facts:
+              - {text: "Long front flippers", at: "flippers"}
+              - {text: "Sudden bursts of speed", at: "bursts", red: true}
     sfx: [{sound: whoosh, at: "bursts", volume: 0.4}]
 
   - text: "Almost nothing hunts the leopard seal in return. Its main natural enemy is the orca."
     visual:
-      remotion: PhotoStory
-      props:
-        layout: print
-        photos:
-          - {photo: "stock:orca", caption: "The orca: its main natural enemy"}
+      stock: "orca"
+      verify: "wild orcas swimming in the open ocean"
       fallback_visual:
-        remotion: OceanScene
+        remotion: PhotoStory
         props:
-          depth: 0.5
-          actors:
-            - {creature: leopardSeal, x: 0.35, y: 0.62, scale: 0.8}
-            - {creature: orca, x: 1.1, y: 0.35, to: [0.62, 0.33], scale: 1.1, at: "orca", enter: fade}
-          callout: "Its main enemy: the orca"
-          calloutAt: "orca"
+          layout: print
+          photos:
+            - {photo: "stock:orca", verify: "a wild orca in the ocean", caption: "The orca: its main natural enemy"}
+        fallback_visual:
+          remotion: OceanScene
+          props:
+            depth: 0.5
+            actors:
+              - {creature: leopardSeal, x: 0.35, y: 0.62, scale: 0.8}
+              - {creature: orca, x: 1.1, y: 0.35, to: [0.62, 0.33], scale: 1.1, at: "orca", enter: fade}
+            callout: "Its main enemy: the orca"
+            calloutAt: "orca"
 
   # ─────────────────────────────── THE HUNT ───────────────────────────────
   - chapter: The hunt
@@ -444,7 +459,7 @@ scenes:
       props:
         layout: full
         photos:
-          - {photo: "stock:antarctic fur seal", focus: [0.5, 0.5]}
+          - {photo: "stock:antarctic fur seal", verify: "fur seals at the water's edge", focus: [0.5, 0.5]}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -495,8 +510,8 @@ scenes:
       props:
         layout: pile
         photos:
-          - {photo: "stock:adelie penguin", caption: "Penguins gather at the ice edge"}
-          - {photo: "stock:gentoo penguin", caption: "and hesitate before diving in", at: "hesitate"}
+          - {photo: "stock:adelie penguin", verify: "Adelie penguins on ice or rocks", caption: "Penguins gather at the ice edge"}
+          - {photo: "stock:gentoo penguin", verify: "gentoo penguins on ice or rocks", caption: "and hesitate before diving in", at: "hesitate"}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -575,7 +590,7 @@ scenes:
       props:
         layout: print
         photos:
-          - {photo: "stock:antarctic fur seal", caption: "Counted every season for decades"}
+          - {photo: "stock:antarctic fur seal", verify: "fur seals on a beach", caption: "Counted every season for decades"}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -708,14 +723,17 @@ scenes:
         source: "Laundré, Hernández & Altendorf (2001), Canadian Journal of Zoology"
   - text: "For an eared seal, the water's edge becomes somewhere to cross quickly, never somewhere to linger. [pause 0.4] [tone grave] The shoreline that should be a nursery becomes a gauntlet."
     visual:
-      remotion: OceanScene
-      props:
-        split: {y: 0.4, land: rocks, landWidth: 0.35, sky: storm}
-        actors:
-          - {creature: seaLion, x: 0.3, y: 0.46, to: [0.95, 0.5], scale: 0.5, color: "#5a4a3c"}
-          - {creature: leopardSeal, x: 0.7, y: 0.78, scale: 0.85, silhouette: "#071118", opacity: 0.75}
-        bigText: "A GAUNTLET"
-        bigAt: "gauntlet"
+      stock: "sea lion"
+      verify: "sea lions on a rocky shore by the sea"
+      fallback_visual:
+        remotion: OceanScene
+        props:
+          split: {y: 0.4, land: rocks, landWidth: 0.35, sky: storm}
+          actors:
+            - {creature: seaLion, x: 0.3, y: 0.46, to: [0.95, 0.5], scale: 0.5, color: "#5a4a3c"}
+            - {creature: leopardSeal, x: 0.7, y: 0.78, scale: 0.85, silhouette: "#071118", opacity: 0.75}
+          bigText: "A GAUNTLET"
+          bigAt: "gauntlet"
 
   # ─────────────────────────────── LEOPARD SEALS AND US ───────────────────────────────
   - chapter: Leopard seals and us
@@ -726,7 +744,7 @@ scenes:
       props:
         layout: full
         photos:
-          - {photo: "stock:leopard seal underwater", focus: [0.5, 0.45]}
+          - {photo: "stock:leopard seal underwater", verify: "a wild leopard seal swimming underwater", focus: [0.5, 0.45]}
       fallback_visual:
         remotion: OceanScene
         props:
@@ -823,36 +841,42 @@ scenes:
   - mood: mystery
     text: "[tone reflective, a little uneasy] The story is not finished. As Antarctica warms and its sea ice changes, the balance between hunter and hunted is shifting too, and scientists are still working out what that will mean for both."
     visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-          - {photo: "stock:antarctic sea ice", focus: [0.5, 0.5]}
+      stock: "antarctic sea ice"
+      verify: "floating sea ice in the polar ocean"
       fallback_visual:
-        remotion: OceanScene
+        remotion: PhotoStory
         props:
-          split: {y: 0.45, land: ice, landWidth: 0.35, sky: dusk}
-          depth: 0.5
-          actors:
-            - {creature: leopardSeal, x: 0.65, y: 0.7, scale: 0.8}
-            - {creature: seaLion, x: 0.22, y: 0.39, scale: 0.28, detail: {rest: true, pup: true}}
-          callout: "The balance is shifting"
-          calloutAt: "balance"
+          layout: full
+          photos:
+            - {photo: "stock:antarctic sea ice", verify: "Antarctic sea ice", focus: [0.5, 0.5]}
+        fallback_visual:
+          remotion: OceanScene
+          props:
+            split: {y: 0.45, land: ice, landWidth: 0.35, sky: dusk}
+            depth: 0.5
+            actors:
+              - {creature: leopardSeal, x: 0.65, y: 0.7, scale: 0.8}
+              - {creature: seaLion, x: 0.22, y: 0.39, scale: 0.28, detail: {rest: true, pup: true}}
+            callout: "The balance is shifting"
+            calloutAt: "balance"
 
   - text: "[tone hushed, slow, haunting] Somewhere in the Southern Ocean right now, a pup is looking at the water. [pause 0.7] [speed 0.88] And something beneath the ice is looking back."
     duration: 9
     visual:
-      remotion: OceanScene
-      props:
-        split: {y: 0.4, land: ice, landWidth: 0.45, sky: dusk}
-        zoom: [1.0, 1.2]
-        focus: [0.5, 0.6]
-        actors:
-          - {creature: seaLion, x: 0.35, y: 0.34, scale: 0.28, detail: {rest: true, pup: true}}
-          - {creature: leopardSeal, x: 0.62, y: 0.68, scale: 1.0, silhouette: "#05090d", opacity: 0.95, flip: true, at: "beneath"}
-        bigText: "LOOKING BACK."
-        bigAt: "back"
-        bigColor: "#e6edf2"
+      stock: "sea ice"
+      verify: "floating sea ice in a dark polar ocean"
+      fallback_visual:
+        remotion: OceanScene
+        props:
+          split: {y: 0.4, land: ice, landWidth: 0.45, sky: dusk}
+          zoom: [1.0, 1.2]
+          focus: [0.5, 0.6]
+          actors:
+            - {creature: seaLion, x: 0.35, y: 0.34, scale: 0.28, detail: {rest: true, pup: true}}
+            - {creature: leopardSeal, x: 0.62, y: 0.68, scale: 1.0, silhouette: "#05090d", opacity: 0.95, flip: true, at: "beneath"}
+          bigText: "LOOKING BACK."
+          bigAt: "back"
+          bigColor: "#e6edf2"
     sfx: [{sound: swell, at: "beneath", volume: 0.35}]
 
   - mood: wonder
