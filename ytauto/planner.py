@@ -126,6 +126,14 @@ def words_to_digits(text: str) -> str:
         base = m.group(1)
         n = float(base) if base.isdigit() else float(_words_to_digits(base).strip() or 0)
         return _numstr((n + 0.5) * _SCALES.get((m.group(2) or "").lower(), 1))
+    # spoken years: 'nineteen ninety' → 1990, 'eighteen ninety-eight' → 1898, 'twenty twenty-one' → 2021
+    def year(m: re.Match) -> str:
+        hi = _UNITS.get(m.group(1).lower()) or _TENS.get(m.group(1).lower(), 0)
+        lo = _TENS[m.group(2).lower()] + (_UNITS[m.group(3).lower()] if m.group(3) else 0)
+        return str(hi * 100 + lo)
+    text = re.sub(r"\b(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+"
+                  r"(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[\s-](one|two|three|four|five|six|seven|eight|nine))?\b",
+                  year, text, flags=re.I)
     text = _HALF.sub(half, text)
     text = _HALF_A.sub(lambda m: _numstr(0.5 * _SCALES[m.group(1).lower()]), text)
     return _words_to_digits(text)
@@ -399,7 +407,9 @@ def _general_visual(beat: str, style: str, main: str, n: int, subject: str, draw
         place = PLACE.search(beat)
         stamp = {"remotion": "DateStamp", "props": {"date": d.group(1).upper(), "at": 0.2,
                                                     **({"place": place.group(1)} if place and place.group(1) not in d.group(1) else {})}}
-        rest = _general_visual(DATE.sub("", beat), style, main, n + 1, subject, drawn) or drawn
+        # what the line shows besides its date (the date removed from the number-normalised text, so a spelled-out
+        # year like 'nineteen ninety' can never be found again and loop forever)
+        rest = _general_visual(DATE.sub("", numeric), style, main, n + 1, subject, drawn) or drawn
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     p = PARTS.search(beat)
     if p:
@@ -633,7 +643,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
         place = _entities(DATE.sub("", beat))
         stamp = {"remotion": "DateStamp", "props": {"date": d.group(1).upper(), "at": 0.2,
                                                     **({"place": place[0]} if place else {})}}
-        rest = _general_beat_visual(DATE.sub("", beat), n + 1, topic, drawn, topic_q)
+        rest = _general_beat_visual(DATE.sub("", numeric), n + 1, topic, drawn, topic_q)
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     m = NUMBER.search(numeric)
     figure = None
