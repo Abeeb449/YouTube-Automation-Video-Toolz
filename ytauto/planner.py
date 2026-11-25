@@ -139,11 +139,45 @@ def find_subject(script: str, title: str) -> str:
             if any(g in _STOPW for g in (grams[0], grams[-1])):
                 continue
             phrase = " ".join(grams)
-            stem = re.sub(r"(?<!s)s$", "", phrase)
+            stem = re.sub(r"ies$", "y", phrase) if phrase.endswith("ies") else re.sub(r"(?<!s)s$", "", phrase)
             c = len(re.findall(r"\b" + re.escape(stem), body)) * (1 + 0.6 * (n - 1))
             if c > score:
                 best, score = stem, c
     return best or "wildlife"
+
+
+_GENERIC_NAMES = {"Earth", "World", "Universe", "God", "Christmas", "Christmas Day", "Christmas Eve", "Easter",
+                  "New Year", "New Year's Day", "Celsius", "Fahrenheit", "Kelvin", "Today", "Mr", "Mrs", "Dr"}
+
+
+def find_topic(script: str, title: str) -> str:
+    """What a non-animal video is about: a "Subject: …" line wins; otherwise the named thing in the script that the
+    title also names, widened with neighbouring title words the script uses ("Webb" → "Webb Telescope");
+    otherwise the title phrase the script repeats most."""
+    m = re.search(r"^\s*subject\s*:\s*(.+)$", script, re.I | re.M)
+    if m:
+        return m.group(1).strip()
+    tw = re.findall(r"[A-Za-z][\w'-]*", title)
+    low = [w.lower() for w in tw]
+    body = " ".join(b for b in re.split(r"\n\s*\n", script) if not b.strip().startswith("#")).lower()
+    from collections import Counter
+    ents = Counter(e for b in re.split(r"\n\s*\n", script) if not b.strip().startswith("#") for e in _entities(b))
+    best = ""
+    for e, _c in ents.most_common():
+        ew = [w.lower() for w in e.split()]
+        if e in _GENERIC_NAMES or not all(w in low for w in ew):
+            continue
+        i, j = low.index(ew[0]), low.index(ew[-1]) + 1
+        def used(w: str) -> bool:   # the script uses this exact word (a plural may appear as its singular)
+            forms = [w] + ([w[:-1]] if w.endswith("s") and not w.endswith(("ss", "es")) else [])
+            return any(re.search(rf"\b{re.escape(f)}\b", body) for f in forms)
+        while j < len(low) and low[j] not in _STOPW and used(low[j]):
+            j += 1
+        while i > 0 and low[i - 1] not in _STOPW and used(low[i - 1]):
+            i -= 1
+        best = " ".join(tw[i:j])
+        break
+    return best or find_subject(script, title)
 
 
 def _opening(blocks: list[str]) -> str:
@@ -154,11 +188,12 @@ def _opening(blocks: list[str]) -> str:
     return " ".join(sents[:2])[:300]
 
 
-def _tags(title: str, subject: str) -> list[str]:
-    words = [w for w in re.findall(r"[a-z][a-z'-]+", title.lower())
-             if w not in _STOPW and len(w) > 3 and w not in {"were", "built", "made", "became", "happened", "does", "nothing",
-                                                          "never", "every", "really", "inside", "about"}]
-    out = list(dict.fromkeys([subject] + words + ["documentary"]))
+def _tags(title: str, subject: str, script: str = "") -> list[str]:
+    """The video's topic plus the names the script itself keeps mentioning."""
+    from collections import Counter
+    ents = Counter(e for b in re.split(r"\n\s*\n", script) if not b.strip().startswith("#") for e in _entities(b))
+    names = [e for e, c in ents.most_common(6) if e.lower() not in subject.lower()]
+    out = list(dict.fromkeys([subject.lower()] + [n.lower() for n in names] + ["documentary"]))
     return [t for t in out if t][:12]
 
 
@@ -166,7 +201,7 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
     blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()
               and not re.match(r"^\s*subject\s*:", b, re.I)]
     title = title or (blocks[0].lstrip("#").strip()[:70] if blocks and blocks[0].startswith("#") else "Untitled Documentary")
-    subject = find_subject(script, title)
+    subject = find_subject(script, title) if style in ("nature", "ocean") else find_topic(script, title)
     ctx = _script_context(script, subject)
     topic_q = f"{subject} {ctx}".strip() if ctx else subject
     main = _creature(subject, None) or _creature(script, "giantSquid" if style == "ocean" else "fishSchool")
@@ -208,7 +243,7 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
         "preset": style, "title": title,
         # from the creator's own words: the script's opening lines (edit before upload; add your sources)
         "description": _opening(blocks),
-        "tags": _tags(title, subject if style in ("nature", "ocean") else ""),
+        "tags": _tags(title, subject, script),
         "thumbnail": {"text": title.upper()[:40]}, "youtube": {"privacy": "private"},
         "scenes": scenes,
     }
@@ -341,14 +376,18 @@ _ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Tod
                 "Friday", "Saturday", "Sunday"}
 
 
-_NUMWORDS = set("""one two three four five six seven eight nine ten eleven twelve twenty thirty forty fifty sixty
+_NUMWORDS = set("""one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen
+seventeen eighteen nineteen twenty thirty forty fifty sixty
 seventy eighty ninety hundred hundreds thousand thousands million millions billion billions dozen dozens half
 quarter percent""".split())
 _PEOPLE = set("""people person archaeologists scientists researchers historians experts someone everyone anyone
 nobody man men woman women""".split())
 _ADJ = set("""oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
 ancient old new great big small huge tiny vast giant early late modern famous same other own single main final
-best worst true real wet dry dark bright heavy light hidden lost secret strange""".split())
+best worst true real wet dry dark bright heavy light hidden lost secret strange golden silver thin thick
+powerful huge massive tiny distant nearby""".split())
+_UNIT_WORDS = set("""metres meters metre meter kilometres kilometers miles feet foot inches centimetres tonnes tons kilograms
+kilos pounds degrees celsius fahrenheit percent years months weeks days hours minutes seconds light-years""".split())
 
 
 def _entities(beat: str) -> list[str]:
@@ -366,8 +405,8 @@ def _entities(beat: str) -> list[str]:
             words = words[1:]
         while words and words[-1].lower() in ("of", "the", "de", "and"):
             words = words[:-1]
-        ent = " ".join(words)
-        if ent and len(ent) > 2 and ent not in out:
+        ent = re.sub(r"'s$", "", " ".join(words))
+        if ent and len(ent) > 2 and ent not in out and ent not in _GENERIC_NAMES:
             out.append(ent)
     return sorted(out, key=lambda e: -len(e.split()))
 
@@ -378,16 +417,20 @@ def _key_nouns(beat: str) -> list[str]:
     text = re.sub(r"\[[^\]]*\]", " ", beat).lower()
     def ok(w: str) -> bool:
         return (len(w) > 3 and w not in _COMMON and w not in _STOPW and w not in _NUMWORDS and w not in _PEOPLE
-                and w not in _ADJ and not w.endswith(("ly", "ing")) and not w.isdigit())
+                and w not in _ADJ and w not in _UNIT_WORDS and w != "ever" and not w.endswith(("ly", "ing")) and not w.isdigit())
     heads = []
     for m in re.finditer(r"\b(?:the|a|an|their|its|his|her|this|these|those|our|of)\s+((?:[a-z'-]+\s+){0,3})", text):
-        for w in m.group(1).split():
-            if w in _ADJ or w in _NUMWORDS or w in ("the", "a", "an", "their", "its", "his", "her", "this", "these",
-                                                      "those", "our", "front", "side", "middle", "top", "bottom", "kind", "sort", "part"):
-                continue
-            if ok(w):
-                heads.append(w)
-            break
+        ws = m.group(1).split()
+        k = 0
+        while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or ws[k] in (
+                "the", "a", "an", "their", "its", "his", "her", "this", "these", "those", "our", "front", "side",
+                "middle", "top", "bottom", "kind", "sort", "part", "size", "layer", "piece", "number", "group")):
+            k += 1
+        if k < len(ws) and ok(ws[k]):
+            phrase = ws[k]
+            if k + 1 < len(ws) and ok(ws[k + 1]) and not ws[k + 1].endswith(("ed", "s")):   # "tennis court"
+                phrase += " " + ws[k + 1]
+            heads.append(phrase)
     return list(dict.fromkeys(heads))[:3]
 
 
@@ -404,6 +447,9 @@ def _script_context(script: str, topic: str) -> str:
     if not ents:
         return ""
     # a name contained in longer names counts for them too ("Giza" in "Great Pyramid of Giza")
+    ents = Counter({e: c for e, c in ents.items() if e not in _GENERIC_NAMES})
+    if not ents:
+        return ""
     score = {e: sum(c for f, c in ents.items() if e in f) for e in ents}
     best = max(score, key=lambda e: (score[e], -len(e)))
     if score[best] < 2 or best.lower() in topic.lower():
@@ -534,6 +580,14 @@ def auto_style(script: str, title: str | None = None) -> str:
     subject = find_subject(script, title)
     if re.search(r"^\s*subject\s*:", script, re.I | re.M) or _creature(subject) or _creature(title):
         return "nature"
+    # an animal-like name alone is not enough ("telescope" is also a sea snail): the script itself must read like
+    # it is about a living creature
+    bio = len(re.findall(r"\b(eat|eats|eating|ate|hunt\w*|prey|predator\w*|species|habitat|breed\w*|mat(e|es|ing)|"
+                         r"nest\w*|pups?|cubs?|chicks?|calves|young|feed\w*|swim\w*|fly|flies|wings?|fur|feathers?|"
+                         r"scales|teeth|claws?|wild|animal\w*|mammal\w*|bird\w*|fish|reptile\w*|insect\w*|venom\w*)\b",
+                         script, re.I))
+    if bio < 3:
+        return "documentary"
     try:  # is the subject a living species? (iNaturalist knows every named animal)
         from .stock import _inat_taxon
         tx, _ = _inat_taxon(subject)
