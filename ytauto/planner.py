@@ -447,10 +447,15 @@ def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "", to
                 num = words_to_digits(beat)
                 return {"remotion": "Counter", "props": {**_counter_value(val, num[:m.start()]), "label": m.group(2),
                                                          "countAt": _spoken(beat, m.group(1))}}
-            sents = [x for x in re.split(r"(?<=[.!?])\s+", beat) if x.strip()]
-            if any(len(x.split()) <= 5 for x in sents) and n % 2 == 0:
-                line = [x for x in sents if len(x.split()) <= 5][-1].rstrip(".!")
-                return {"remotion": "Statement", "props": {"line1": line}}
+            sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", beat) if x.strip()]
+            punchy = [x for x in sents if 2 <= len(x.split()) <= 5 and not x.endswith("?")]
+            if punchy and n % 3 != 2:
+                card = {"remotion": "Statement", "props": {"line1": punchy[-1].rstrip(".!"), "at": 0.1}}
+                if len(sents) == 1:
+                    return card
+                shot = _general_visual(beat, style, main, n, subject or main, drawn)
+                if isinstance(shot, dict):   # the animal, then the line's punch (or the punch first when it leads)
+                    return [card, shot] if sents[0] == punchy[-1] else [shot, card]
         else:
             drawn = _ocean_visual(beat, main, n, creature)
         g = _general_visual(beat, style, main, n, subject or main, drawn)
