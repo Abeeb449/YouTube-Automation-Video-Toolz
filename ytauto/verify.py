@@ -71,8 +71,10 @@ def lookalikes(query: str) -> tuple[str, ...]:
         from .stock import _inat_get, _inat_taxon
         import urllib.parse
         tx, _ = _inat_taxon(query)
-        if not tx:
-            tx = _loose_animal(query)
+        if not tx:   # no exact species: a group whose whole name is in the query ("fur seal" in "fur seal mother")
+            lo = _loose_animal(query)
+            if lo and _names_fit(lo, query):
+                tx = lo
         if not tx:
             return ()
         full = _inat_get(f"https://api.inaturalist.org/v1/taxa/{tx['id']}").get("results", [{}])[0]
@@ -116,7 +118,26 @@ def _is_animal(query: str) -> bool:
     if tx and tx.get("iconic_taxon_name") in ANIMAL_ICONIC or lookalikes(query):
         return True
     lo = _loose_animal(query)
-    return bool(lo and _words(lo.get("preferred_common_name") or lo.get("matched_term") or "") <= _words(query))
+    return bool(lo and _names_fit(lo, query))
+
+
+def _names_fit(tx: dict, query: str) -> bool:
+    """The taxon's whole name is in the query, or the query's first two words are in the taxon's name
+    ("fur seal mother" ~ "Fur Seals and Sea Lions"; but "antarctic sea ice" !~ "Antarctic Krill")."""
+    from .stock import _DETAIL
+    names = [tx.get("preferred_common_name") or "", tx.get("matched_term") or ""]
+    qw = _words(query)
+    for n in names:
+        nw = _words(n)
+        # a one-word name only counts if the rest of the query is detail words ("orca teeth"), not a place
+        # ("Sahara desert", "Amazon rainforest" and "Roman empire" all have a fish or parrot alias)
+        if nw and nw <= qw and (len(nw) >= 2 or (qw - nw) <= _DETAIL):
+            return True
+    # looser: a GROUP (family, genus…) whose name starts with the query's first words ("Fur Seals and Sea Lions")
+    stem = lambda t: [w.rstrip("s") for w in re.findall(r"[a-z]+", t.lower())]
+    head = stem(query)[:2]
+    group = tx.get("rank") not in ("species", "subspecies", "variety", "form")
+    return group and any(stem(n)[:len(head)] == head for n in names if n)
 
 
 def _loose_animal(query: str) -> dict | None:

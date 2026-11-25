@@ -246,6 +246,17 @@ def _inat_get(url: str) -> dict:
     return _retry_json(url, tries=3)
 
 
+# words that describe a detail of an animal (so "orca teeth" is still about the orca), not a place or thing
+_DETAIL = {w.rstrip("s") for w in """teeth tooth jaw jaws mouth head eye eyes ear ears nose snout whisker whiskers skin fur
+    feather feathers scale scales fin fins flipper flippers tail tails claw claws paw paws leg legs wing wings beak horn horns
+    tusk tusks shell spine spines tentacle tentacles stinger venom body face closeup close portrait profile
+    pup pups cub cubs calf calves chick chicks baby babies juvenile young mother mothers female females male males adult
+    colony colonies herd herds pod pods flock flocks school schools swarm group pair family nest nests egg eggs
+    pride prides pack packs troop troops den dens burrow mating courtship migration
+    hunting hunt hunts attack attacking feeding eating swimming diving flying running sleeping resting sunbathing basking
+    underwater surface water ice land beach shore rock rocks wild skeleton""".split()}
+
+
 @functools.lru_cache(maxsize=512)
 def _inat_taxon(query: str) -> tuple[dict | None, bool]:
     """Find the species named in the query: "leopard seal teeth" → Leopard Seal (exact=False, extra words left over)."""
@@ -259,6 +270,11 @@ def _inat_taxon(query: str) -> tuple[dict | None, bool]:
         for tx in data.get("results", []):
             names = [tx.get("matched_term") or "", tx.get("preferred_common_name") or "", tx.get("name") or ""]
             if any({w.rstrip("s") for w in _words(nm)} == want for nm in names):
+                # words were dropped ("sahara desert" -> "sahara"): a one-word leftover only counts if it is a
+                # well-known animal ("orca teeth" -> orca), not an obscure taxon that shares a place name
+                dropped = {w.rstrip("s") for w in _words(" ".join(words[n:]))}
+                if n < len(words) and len(want) < 2 and not dropped <= _DETAIL:
+                    continue
                 return tx, n == len(words)
     return None, False
 
