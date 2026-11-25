@@ -294,7 +294,9 @@ def _inat_taxon(query: str) -> tuple[dict | None, bool]:
         for tx in results:
             names = [tx.get("matched_term") or "", tx.get("preferred_common_name") or "", tx.get("name") or ""]
             # group names list their members: "Hawks, Eagles, and Kites" matches "eagle"
-            parts = [p for nm in names for p in re.split(r",\s*|\s+and\s+", nm) if p.strip()]
+            # ("Emperor, Royal, Moon, and Giant Silk Moths": 'Moon' only describes the moths)
+            parts = [p for nm in names for p in re.split(r",\s*|\s+and\s+", nm)
+                     if p.strip() and p.strip().split()[-1].lower().endswith("s")]
             if any({w.rstrip("s") for w in _words(nm)} == want for nm in names + parts):
                 # words were dropped ("sahara desert" -> "sahara"): a one-word leftover only counts if it is a
                 # well-known animal ("orca teeth" -> orca), not an obscure taxon that shares a place name
@@ -645,7 +647,11 @@ def provider_order(kind: str) -> list[str]:
     raw = os.environ.get(f"YTAUTO_STOCK_{kind.upper()}") or os.environ.get("YTAUTO_STOCK_FREE") and (
         "pexels,pixabay,unsplash," + os.environ["YTAUTO_STOCK_FREE"]) or default
     keyed = {"pexels": "PEXELS_API_KEY", "pixabay": "PIXABAY_API_KEY", "unsplash": "UNSPLASH_ACCESS_KEY"}
-    return [p.strip() for p in raw.split(",") if p.strip() and (p.strip() not in keyed or os.environ.get(keyed[p.strip()]))]
+    return [p.strip() for p in raw.split(",") if p.strip() and (p.strip() not in keyed or os.environ.get(keyed[p.strip()]))
+            and not (p.strip() == "inaturalist" and not species_photos)]
+
+
+species_photos = True   # set per project (settings.species_photos): only animal/nature videos use iNaturalist
 
 
 _rejected: set[str] = set()

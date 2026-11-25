@@ -212,6 +212,10 @@ def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     if isinstance(user.get("voice"), str):          # settings: {voice: deep-british}
         user["voice"] = {"profile": user["voice"]}
     settings = _deep_merge(base, user)
+    names = [data["preset"]] if isinstance(data.get("preset"), str) else list(data.get("preset") or [])
+    # living-world videos (an animal is the subject) may use iNaturalist's expert-identified species photos;
+    # other topics never do ('Moon' is also a family of moths, 'Mercury' a plant)
+    settings.setdefault("species_photos", any(n in ("nature", "ocean") for n in names))
     if overrides:
         settings = _deep_merge(settings, overrides)
     if settings.pop("_preview_half", False):        # --preview: half size, same shape (16:9 stays 16:9, Shorts stay 9:16)
