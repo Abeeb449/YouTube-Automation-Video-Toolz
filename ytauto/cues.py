@@ -37,7 +37,17 @@ def find_word_time(cue: str, words: list) -> float | None:
             hits += 1
             if hits == nth:
                 return words[i].start + off
+    # a spelled-out number cue ("twenty") when the transcript wrote it in digits ("20,000"): the first number said
+    if len(phrase) == 1 and phrase[0] in _NUMBER_WORDS:
+        digits = [i for i, t in enumerate(toks) if t[:1].isdigit()]
+        if len(digits) >= nth:
+            return words[digits[nth - 1]].start + off
     return None
+
+
+_NUMBER_WORDS = set("""one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen
+seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand million billion
+half a""".split()) - {"a"}
 
 
 def resolve_cues(obj: Any, words: list, clip_offset: float, clip_dur: float, where: str = "") -> Any:

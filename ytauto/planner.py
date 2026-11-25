@@ -61,7 +61,9 @@ WONDER = re.compile(r"\b(largest|biggest|incredible|amazing|beautiful|record|lon
 MYSTERY = re.compile(r"\b(mystery|unknown|nobody|never been|dark|darkness|deep|abyss|strange|secret)\b", re.I)
 DEPTH = re.compile(r"(\d[\d,\.]*)\s*(metres|meters|m)\b[^.]*\b(deep|down|below|depth)|\b(depth|deep|below)[^.]*?(\d[\d,\.]*)\s*(metres|meters|m)\b", re.I)
 DB = re.compile(r"(\d[\d,\.]*)\s*(decibels|dB)\b", re.I)
-NUMBER = re.compile(r"\b(\d[\d,\.]*)\s*(metres|meters|tonnes|tons|kilograms|kg|years|kilometres|km|feet|centimetres|cm|%|percent|hearts|teeth)\b", re.I)
+NUMBER = re.compile(r"\b(\d[\d,\.]*)\s*(metres|meters|tonnes|tons|kilograms|kg|years|kilometres|kilometers|km|miles|feet|"
+                    r"centimetres|cm|millimetres|mm|%|percent|hearts|teeth|microseconds|milliseconds|seconds|minutes|"
+                    r"hours|days|degrees|times|litres|liters|gallons|watts|volts|light-years|people|species|workers)\b", re.I)
 
 
 _UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
@@ -73,12 +75,42 @@ _HALF = re.compile(rf"\b((?:(?:{_NUMW}|\d+)[\s-]+)*?(?:{_NUMW}|\d+)) and a half(
 _HALF_A = re.compile(r"\bhalf an? (hundred|thousand|million|billion)\b", re.I)
 
 
+def _counter_value(val: float, before: str) -> dict:
+    """Counter props that read the way the narrator says the number: 6.5 (not 7), 1.5 million, 13 billion,
+    and a minus sign for 'minus 200 degrees'."""
+    props: dict = {}
+    if re.search(r"(?:\bminus|\bnegative|−|-)\s*$", before.strip()[-10:] + " ", re.I) or re.search(r"\bminus\s*$", before, re.I):
+        props["prefix"] = "−"
+    for big, word in ((1e9, "billion"), (1e6, "million")):
+        if val >= big and (val / big) * 10 == int((val / big) * 10):
+            val = val / big
+            props["suffix"] = f" {word}"
+            break
+    props["to"] = val
+    if val != int(val):
+        props["decimals"] = 1 if (val * 10) == int(val * 10) else 2
+    return props
+
+
 def _spoken(beat: str, digits: str) -> str:
     """The word the narrator actually says for a number (a cue must be a spoken word): '1,500' if written in
     digits, else the first number word ('one and a half million' → 'one')."""
     first = digits.split(",")[0]
     if re.search(rf"\b{re.escape(first)}", beat):
         return first
+    # the spelled-out number that IS this value ('twenty thousand' for 20000, not the 'thirty' earlier in the line)
+    try:
+        target = float(digits.replace(",", ""))
+    except ValueError:
+        target = None
+    run = re.compile(rf"\b(?:{_NUMW}|half|a)(?:[\s-]+(?:{_NUMW}|and|a|half))*\b", re.I)
+    for m in run.finditer(beat):
+        phrase = m.group(0)
+        if not re.search(rf"\b(?:{_NUMW}|half)\b", phrase, re.I):
+            continue
+        val = re.findall(r"\d+(?:\.\d+)?", words_to_digits(phrase))
+        if target is not None and val and abs(float(val[0]) - target) < 1e-6:
+            return re.split(r"[\s-]", phrase)[0] if not phrase.lower().startswith("a ") else re.split(r"[\s-]", phrase)[1]
     w = re.search(rf"\b({_NUMW}|half|a dozen)\b", beat, re.I)
     return w.group(1).split()[0] if w else first
 
@@ -402,7 +434,9 @@ def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "", to
                 if m.group(2).lower() in ("%", "percent") and val <= 100:
                     return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
                                                              "count": 100, "highlight": int(val)}}
-                return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": _spoken(beat, m.group(1))}}
+                num = words_to_digits(beat)
+                return {"remotion": "Counter", "props": {**_counter_value(val, num[:m.start()]), "label": m.group(2),
+                                                         "countAt": _spoken(beat, m.group(1))}}
             sents = [x for x in re.split(r"(?<=[.!?])\s+", beat) if x.strip()]
             if any(len(x.split()) <= 5 for x in sents) and n % 2 == 0:
                 line = [x for x in sents if len(x.split()) <= 5][-1].rstrip(".!")
@@ -435,7 +469,9 @@ yet your around almost exactly enough inside outside still almost across against
 image images picture pictures photo photos photograph photographs video videos footage clip clips film shot shots
 view views look looks story stories question questions answer answers reason reasons idea ideas kind kinds sort
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
-past future present team teams crew crews group groups member members century centuries decade decades
+past future present catch delay delays moment moments distance distances amount amounts level levels
+rate rates chance chances problem problems fact facts truth result results difference differences effect effects
+team teams crew crews group groups member members century centuries decade decades
 hour hours minute minutes week weeks month months era eras age ages""".split())
 _ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Today", "This", "That", "These", "Those",
                 "There", "Here", "Nobody", "No", "One", "Every", "Each", "When", "While", "After", "Before", "If",
@@ -600,13 +636,27 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
         rest = _general_beat_visual(DATE.sub("", beat), n + 1, topic, drawn, topic_q)
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     m = NUMBER.search(numeric)
-    if m and not _entities(beat) and not _key_nouns(beat):
+    figure = None
+    if m:
         val = _num(m.group(1))
         if m.group(2).lower() in ("%", "percent") and val <= 100:
-            return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
-                                                     "count": 100, "highlight": int(val)}}
-        return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": _spoken(beat, m.group(1))}}
+            figure = {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
+                                                       "count": 100, "highlight": int(val)}}
+        else:
+            figure = {"remotion": "Counter", "props": {**_counter_value(val, numeric[:m.start()]), "label": m.group(2),
+                                                       "countAt": _spoken(beat, m.group(1))}}
+        if not _entities(beat) and not _key_nouns(beat):
+            return figure
     qs = _queries(beat, topic, topic_q)
+    if figure and qs:
+        # the line names a thing AND a figure: show the thing, then the number as it is said (or the other way round
+        # when the number comes first), each for half the line
+        early = m.start() < len(numeric) / 2
+        q = "|".join(qs)
+        shot = {"stock": q, "fallback_visual": _photo(q, drawn, n=n)} if n % 2 == 0 else _photo(q, drawn, n=n)
+        return [figure, shot] if early else [shot, figure]
+    if figure:
+        return figure
     if not qs:
         return drawn
     query = "|".join(qs)
@@ -628,7 +678,8 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
 def _doc_visual(beat: str, n: int) -> dict:
     m = NUMBER.search(beat)
     if m:
-        return {"remotion": "Counter", "props": {"to": _num(m.group(1)), "label": m.group(2), "countAt": _spoken(beat, m.group(1))}}
+        return {"remotion": "Counter", "props": {**_counter_value(_num(m.group(1)), beat[:m.start()]), "label": m.group(2),
+                                                 "countAt": _spoken(beat, m.group(1))}}
     if n % 4 == 0:
         return {"remotion": "Statement", "props": {"line1": " ".join(beat.split()[:4]), "line2": " ".join(beat.split()[4:8])}}
     return {"remotion": "KineticText", "props": {}}

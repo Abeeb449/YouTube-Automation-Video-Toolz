@@ -241,7 +241,7 @@ def check(path: Path, against: list[Path] | None = None) -> Report:
     # -- variety
     real = [k for k in doc.templates if k != "?"]
     if real:
-        cnt = Counter(k.split("+")[0] for k in real)
+        cnt = Counter(x for k in real for x in k.split("+"))
         top, n = cnt.most_common(1)[0]
         stockish = sum(1 for k in real if all(x in ("stock", "PhotoStory(stock)", "video") for x in k.split("+")))
         if n / len(real) > 0.5 and len(real) >= 8:
