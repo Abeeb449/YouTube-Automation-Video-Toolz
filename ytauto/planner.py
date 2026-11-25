@@ -76,6 +76,16 @@ _HALF = re.compile(rf"\b((?:(?:{_NUMW}|\d+)[\s-]+)*?(?:{_NUMW}|\d+)) and a half(
 _HALF_A = re.compile(r"\bhalf an? (hundred|thousand|million|billion)\b", re.I)
 
 
+def _figure_heading(beat: str, cue: str) -> dict:
+    """The words around a figure, shown as the counter's heading from the first frame ('GPS would drift by around
+    ten kilometres every single day'), so the screen says what the number is before it counts."""
+    clause = _clause_with(beat, cue)
+    if not clause or clause == cue:
+        return {}
+    clause = clause if len(clause) <= 64 else clause[:64].rsplit(" ", 1)[0] + "…"
+    return {"heading": clause}
+
+
 def _counter_value(val: float, before: str) -> dict:
     """Counter props that read the way the narrator says the number: 6.5 (not 7), 1.5 million, 13 billion,
     and a minus sign for 'minus 200 degrees'."""
@@ -459,8 +469,9 @@ def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "", to
                     return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
                                                              "count": 100, "highlight": int(val)}}
                 num = words_to_digits(beat)
+                cue = _spoken(beat, m.group(1))
                 return {"remotion": "Counter", "props": {**_counter_value(val, num[:m.start()]), "label": m.group(2),
-                                                         "countAt": _spoken(beat, m.group(1))}}
+                                                         "countAt": cue, **_figure_heading(beat, cue)}}
             sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", beat) if x.strip()]
             punchy = [x for x in sents if 2 <= len(x.split()) <= 5 and not x.endswith("?")]
             if punchy and n % 3 != 2:
@@ -673,15 +684,18 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
             figure = {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
                                                        "count": 100, "highlight": int(val)}}
         else:
+            cue = _spoken(beat, m.group(1))
             figure = {"remotion": "Counter", "props": {**_counter_value(val, numeric[:m.start()]), "label": m.group(2),
-                                                       "countAt": _spoken(beat, m.group(1))}}
+                                                       "countAt": cue, **_figure_heading(beat, cue)}}
         if not _entities(beat) and not _key_nouns(beat):
             return figure
     qs = _queries(beat, topic, topic_q)
     if figure and qs:
         # the line names a thing AND a figure: show the thing, then the number as it is said (or the other way round
         # when the number comes first), each for half the line
-        early = m.start() < len(numeric) / 2
+        # the counter first only when the number opens the line; otherwise it follows the shot, so it never sits
+        # empty waiting for its number (a cue already passed simply shows the count under way)
+        early = m.start() < len(numeric) * 0.15
         q = "|".join(qs)
         shot = {"stock": q, "fallback_visual": _photo(q, drawn, n=n)} if n % 2 == 0 else _photo(q, drawn, n=n)
         return [figure, shot] if early else [shot, figure]
