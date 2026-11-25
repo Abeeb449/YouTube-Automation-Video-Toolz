@@ -67,11 +67,39 @@ NUMBER = re.compile(r"\b(\d[\d,\.]*)\s*(metres|meters|tonnes|tons|kilograms|kg|y
 _UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
                                       "fifteen sixteen seventeen eighteen nineteen".split())}
 _TENS = {w: 10 * (i + 2) for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
-_SCALES = {"hundred": 100, "thousand": 1000, "million": 1_000_000}
+_SCALES = {"hundred": 100, "thousand": 1000, "million": 1_000_000, "billion": 1_000_000_000}
+_NUMW = "|".join(sorted([*_UNITS, *_TENS, "hundred", "thousand", "million", "billion"], key=len, reverse=True))
+_HALF = re.compile(rf"\b((?:(?:{_NUMW}|\d+)[\s-]+)*?(?:{_NUMW}|\d+)) and a half(?:\s+(hundred|thousand|million|billion))?\b", re.I)
+_HALF_A = re.compile(r"\bhalf an? (hundred|thousand|million|billion)\b", re.I)
+
+
+def _spoken(beat: str, digits: str) -> str:
+    """The word the narrator actually says for a number (a cue must be a spoken word): '1,500' if written in
+    digits, else the first number word ('one and a half million' → 'one')."""
+    first = digits.split(",")[0]
+    if re.search(rf"\b{re.escape(first)}", beat):
+        return first
+    w = re.search(rf"\b({_NUMW}|half|a dozen)\b", beat, re.I)
+    return w.group(1).split()[0] if w else first
+
+
+def _numstr(v: float) -> str:
+    return str(int(v)) if v == int(v) else f"{v:g}"
 
 
 def words_to_digits(text: str) -> str:
-    """'two thousand metres' → '2000 metres' so number rules can see spelled-out numbers."""
+    """'two thousand metres' → '2000 metres' so number rules can see spelled-out numbers.
+    'one and a half million' → '1500000', 'six and a half metres' → '6.5 metres', 'half a million' → '500000'."""
+    def half(m: re.Match) -> str:
+        base = m.group(1)
+        n = float(base) if base.isdigit() else float(_words_to_digits(base).strip() or 0)
+        return _numstr((n + 0.5) * _SCALES.get((m.group(2) or "").lower(), 1))
+    text = _HALF.sub(half, text)
+    text = _HALF_A.sub(lambda m: _numstr(0.5 * _SCALES[m.group(1).lower()]), text)
+    return _words_to_digits(text)
+
+
+def _words_to_digits(text: str) -> str:
     tokens = re.split(r"(\s+|-)", text)
     out, buf, total, cur = [], [], 0, 0
 
@@ -101,8 +129,11 @@ def words_to_digits(text: str) -> str:
                 out.append(tok)
         else:
             if buf:
+                dangling = buf[-1].lower() == "and"   # "one and the other": the 'and' is not part of the number
+                if dangling:
+                    buf.pop()
                 flush()
-                out.append(" ")
+                out.append(" and " if dangling else " ")
             out.append(tok)
     flush()
     return re.sub(r"\s+", " ", "".join(out))
@@ -360,7 +391,7 @@ def _rule_visual(beat: str, style: str, main: str, n: int, subject: str = "", to
                 if m.group(2).lower() in ("%", "percent") and val <= 100:
                     return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
                                                              "count": 100, "highlight": int(val)}}
-                return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": m.group(1).split(",")[0]}}
+                return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": _spoken(beat, m.group(1))}}
             sents = [x for x in re.split(r"(?<=[.!?])\s+", beat) if x.strip()]
             if any(len(x.split()) <= 5 for x in sents) and n % 2 == 0:
                 line = [x for x in sents if len(x.split()) <= 5][-1].rstrip(".!")
@@ -393,7 +424,8 @@ yet your around almost exactly enough inside outside still almost across against
 image images picture pictures photo photos photograph photographs video videos footage clip clips film shot shots
 view views look looks story stories question questions answer answers reason reasons idea ideas kind kinds sort
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
-past future present team teams crew crews group groups member members""".split())
+past future present team teams crew crews group groups member members century centuries decade decades
+hour hours minute minutes week weeks month months era eras age ages""".split())
 _ENTITY_SKIP = {"The", "It", "In", "On", "At", "For", "But", "And", "Then", "Today", "This", "That", "These", "Those",
                 "There", "Here", "Nobody", "No", "One", "Every", "Each", "When", "While", "After", "Before", "If",
                 "Archaeologists", "Scientists", "Researchers", "Historians", "Experts", "We", "You", "They", "He",
@@ -528,7 +560,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
         if m.group(2).lower() in ("%", "percent") and val <= 100:
             return {"remotion": "DotGrid", "props": {"value": f"{val:g}%", "label": _clause_with(beat, m.group(2))[:60],
                                                      "count": 100, "highlight": int(val)}}
-        return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": m.group(1).split(",")[0]}}
+        return {"remotion": "Counter", "props": {"to": val, "label": m.group(2), "countAt": _spoken(beat, m.group(1))}}
     qs = _queries(beat, topic, topic_q)
     if not qs:
         return drawn
@@ -541,7 +573,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
 def _doc_visual(beat: str, n: int) -> dict:
     m = NUMBER.search(beat)
     if m:
-        return {"remotion": "Counter", "props": {"to": _num(m.group(1)), "label": m.group(2), "countAt": m.group(1).split(",")[0]}}
+        return {"remotion": "Counter", "props": {"to": _num(m.group(1)), "label": m.group(2), "countAt": _spoken(beat, m.group(1))}}
     if n % 4 == 0:
         return {"remotion": "Statement", "props": {"line1": " ".join(beat.split()[:4]), "line2": " ".join(beat.split()[4:8])}}
     return {"remotion": "KineticText", "props": {}}
@@ -560,7 +592,7 @@ def _ocean_visual(beat: str, main: str, n: int, creature: str) -> dict:
             "actors": [{"creature": "diver", "x": 0.42, "y": 0.3, "to": [0.45, 0.55], "scale": 0.5, "rotate": 30}]}}
     m = DB.search(numeric)
     if m:
-        return {"remotion": "Meter", "props": {"title": "How loud?", "to": _num(m.group(1)), "unit": "dB", "countAt": "decibels" if "decibel" in beat.lower() else m.group(1).split(",")[0]}}
+        return {"remotion": "Meter", "props": {"title": "How loud?", "to": _num(m.group(1)), "unit": "dB", "countAt": "decibels" if "decibel" in beat.lower() else _spoken(beat, m.group(1))}}
     if punchy and not beat.strip().endswith("?"):
         # a short punchy line becomes a big reveal word over the creature
         line = punchy[-1]

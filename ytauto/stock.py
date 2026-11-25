@@ -564,6 +564,35 @@ def _fetch(cid: str, url: str, kind: str, query: str, cache: Path) -> Path:
     return path
 
 
+def _good_part(path: Path) -> Path:
+    """Only the stretch of a stock video that the picture check approved (verify.check_video), so a long
+    clip is never shown from its title card, interview or end slate, even when the scene loops it."""
+    import subprocess
+    from .utils import ffprobe_duration
+    from .verify import best_start
+    start = best_start(path)
+    try:
+        span = float(json.loads(path.with_name(path.name + ".start.json").read_text())["span"])
+    except Exception:  # noqa: BLE001
+        return path
+    d = ffprobe_duration(path)
+    if start is None or (start < 0.5 and span >= d * 0.9):
+        return path
+    out = path.with_name(f"{path.stem}.good{int(start * 10)}.mp4")
+    if not out.exists():
+        tmp = out.with_suffix(".part.mp4")
+        r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-i", str(path), "-t", f"{span:.2f}",
+                            "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p",
+                            str(tmp)], check=False)
+        if r.returncode != 0 or not tmp.exists():
+            return path
+        tmp.replace(out)
+    with _lock:
+        if str(path) in _path_ids:
+            _path_ids[str(out)] = _path_ids[str(path)]
+    return out
+
+
 def _fetch_file(cid: str, url: str, kind: str, query: str, cache: Path) -> Path:
     ext = ".mp4" if kind == "video" else ".jpg"
     src_ext = Path(urllib.parse.urlparse(url).path).suffix.lower()
@@ -639,7 +668,7 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
             ok, why = (verify.check_video(path, query, cache, wanted) if kind == "video"
                        else verify.check(path, query, cache, wanted, trusted=(prov == "inaturalist")))
             if ok:
-                return path
+                return _good_part(path) if kind == "video" else path
             log(f"   skipped {cid} for '{query}': {why}")
             with _lock:
                 _used.discard(cid)

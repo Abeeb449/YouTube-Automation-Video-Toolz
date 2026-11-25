@@ -203,6 +203,11 @@ WILD = ["an animal outdoors in nature, on rocks, ice, sand, grass or in the open
         "an animal in a man-made tank or pool with smooth blue walls, or behind a zoo fence"]
 WILD_MIN = 0.5
 KIND = KIND_A
+# Question 2b (every topic but animals): baseline descriptions of "any picture at all"
+BASE = ["a photo", "a photo of something", "a picture", "an image"]
+MARGIN_MIN = 0.06
+USE_S = 10.0          # seconds of a stock video that are checked closely and used
+MAX_VIDEO_S = 1200.0  # longer than 20 min: a live stream or a full programme, not b-roll
 
 
 def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bool) -> dict:
@@ -210,38 +215,53 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     global _disabled_reason
     pos, negs = prompts(query, wanted, trusted)
     animal = _is_animal(query)
-    key = stable_hash("verify-v6", str(image), image.stat().st_size, pos, negs, trusted, animal)
+    key = stable_hash("verify-v7", str(image), image.stat().st_size, pos, negs, trusted, animal)
     memo_file = _memo_path(cache)
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
     if key in memo:
         return memo[key]
-    groups = [KIND_A, KIND_B, [pos, *negs]] + ([WILD] if animal else [])
+    groups = [KIND_A, KIND_B, [pos, *negs], BASE] + ([WILD] if animal else [])
     try:
         res = _clip().run({"images": [str(image)], "groups": groups})
     except Exception as exc:  # noqa: BLE001
         _disabled_reason = str(exc)
         warn(f"photo check unavailable ({exc}); using text matching only")
-        return {"ok": True, "reason": "check unavailable", "kind": 1.0, "subject": 1.0, "wild": 1.0}
+        return {"ok": True, "reason": "check unavailable", "kind": 1.0, "subject": 1.0, "wild": 1.0,
+                "subject_ok": True, "margin": 1.0}
     kind = max(res["groups"][0][0][0], res["groups"][1][0][0])
     probs = res["groups"][2][0]
-    wild = res["groups"][3][0][0] if animal else 1.0
+    wild = res["groups"][4][0][0] if animal else 1.0
     best = max(range(len(probs)), key=lambda i: probs[i])
     p = probs[0]
     need = 0.25 if trusted else 0.45
     subject_ok = best == 0 and p >= need or (trusted and p >= 0.5)
+    # How much better does the line's description fit than a description of nothing in particular? A softmax
+    # against unrelated scenes says 100% for almost anything; this margin is what separates "the telescope" from
+    # "ships in the harbour it arrived at" or "a woman in a cleanroom" (calibrated: right pictures >= 0.06,
+    # off-topic ones <= 0.055). Animals already face their look-alikes, so this guards every other topic.
+    sims = res["sims"][0]
+    i_pos = len(KIND_A) + len(KIND_B)
+    i_base = i_pos + 1 + len(negs)
+    margin = sims[i_pos] - max(sims[i_base:i_base + len(BASE)])
+    general = not animal and not trusted
+    if general and subject_ok and margin < MARGIN_MIN:
+        subject_ok = False
     if kind < KIND_MIN:
         k2 = max(range(1, len(KIND_B)), key=lambda i: res["groups"][1][0][i])
         reason = f"not a real photo: looks like {KIND_B[k2]} ({res['groups'][1][0][k2]:.0%})"
     elif animal and wild < WILD_MIN:
         reason = f"captive animal (zoo/aquarium/pool, {1 - wild:.0%})"
+    elif not subject_ok and general and best == 0 and p >= need:
+        reason = f"doesn't clearly show '{pos}' (fits it only {margin:+.3f} better than any picture)"
     elif not subject_ok:
         reason = (f"not sure enough it shows '{pos}' ({p:.0%})" if best == 0 else
                   f"looks more like '{([pos] + negs)[best]}' ({probs[best]:.0%}) than '{pos}' ({p:.0%})")
     else:
         reason = f"matches ({p:.0%}; real photo {kind:.0%}" + (f"; wild {wild:.0%})" if animal else ")")
     out = {"ok": kind >= KIND_MIN and (not animal or wild >= WILD_MIN) and subject_ok, "reason": reason,
-           "kind": round(kind, 3), "subject": round(p, 3), "wild": round(wild, 3), "subject_ok": subject_ok}
+           "kind": round(kind, 3), "subject": round(p, 3), "wild": round(wild, 3), "subject_ok": subject_ok,
+           "margin": round(margin, 3)}
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
         memo[key] = out
@@ -250,26 +270,63 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     return out
 
 
+def best_start(clip: Path) -> float | None:
+    """Where the checked good stretch of a stock clip begins (written by check_video), or None."""
+    f = clip.with_name(clip.name + ".start.json")
+    try:
+        return float(json.loads(f.read_text())["start"])
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def check_video(clip: Path, query: str, cache: Path, wanted: str | None = None) -> tuple[bool, str]:
-    """A clip passes only if EVERY sampled frame (15/35/50/65/85 %) is real footage (no maps, charts, cartoons) and,
-    for animals, wild; and the subject is shown in at least 4 of the 5 frames."""
+    """Stock videos are often long (briefings, explainers, live streams) and only part of them shows the subject.
+    1) A coarse scan samples 5-12 frames across the clip. 2) Where the good frames are, a close check samples a
+    frame every 2.5 s over the 10 s that will be used; every one must be real footage (no maps, charts,
+    cartoons, screenshots), wild for animals, and show the subject. The approved stretch is saved so the video is
+    cut from there, never from a title card, an interview or an end slate."""
     import subprocess
     from .utils import ffprobe_duration
     d = ffprobe_duration(clip)
-    rs = []
-    for k, f in enumerate((0.15, 0.35, 0.5, 0.65, 0.85)):
-        frame = clip.with_name(f"{clip.stem}.v{k}.jpg")
-        if not frame.exists():
-            subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{d * f:.2f}", "-i", str(clip), "-frames:v", "1",
-                            "-vf", "scale=640:-2", str(frame)], check=False)
-        if frame.exists():
-            rs.append(_judge(frame, query, cache, wanted, False))
-    if not rs:
+    clip.with_name(clip.name + ".start.json").unlink(missing_ok=True)   # a fresh verdict, never a stale one
+    if d > MAX_VIDEO_S:
+        return False, f"too long to be b-roll ({d / 60:.0f} min: a stream or a full programme)"
+
+    def frame_at(t: float, tag: str) -> dict | None:
+        f = clip.with_name(f"{clip.stem}.{tag}.jpg")
+        if not f.exists():
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.2f}", "-i", str(clip), "-frames:v", "1",
+                            "-vf", "scale=640:-2", str(f)], check=False)
+        return _judge(f, query, cache, wanted, False) if f.exists() else None
+
+    def good(r: dict | None) -> bool:
+        return r is not None and r["kind"] >= KIND_MIN and r["wild"] >= WILD_MIN and r["subject_ok"]
+
+    n = max(5, min(12, int(d / 4)))
+    times = [d * (0.03 + 0.94 * (k + 0.5) / n) for k in range(n)]
+    rs = [frame_at(t, f"w{k}of{n}") for k, t in enumerate(times)]
+    if not any(rs):
         return False, "no frames"
-    bad = [r for r in rs if r["kind"] < KIND_MIN or r["wild"] < WILD_MIN]
-    if bad:
-        return False, bad[0]["reason"]
-    hits = sum(1 for r in rs if r["subject_ok"])
-    if hits < max(1, len(rs) - 1):
-        return False, f"subject seen in only {hits} of {len(rs)} frames ({rs[0]['reason']})"
-    return True, f"all {len(rs)} frames real footage, subject in {hits}"
+    want = min(USE_S, d * 0.8)
+    # candidate starts: each good coarse frame, best (longest run of good neighbours, then strongest match) first
+    oks = [k for k, r in enumerate(rs) if good(r)]
+    if not oks:
+        bad = next((r for r in rs if r is not None), None)
+        return False, f"no stretch shows the subject ({bad['reason']})" if bad else "no frames"
+    def run_len(k: int) -> int:
+        j = k
+        while j + 1 < n and good(rs[j + 1]):
+            j += 1
+        return j - k
+    cands = sorted(oks, key=lambda k: (-run_len(k), -(rs[k].get("margin") or 0), k))[:3]
+    last = ""
+    for k in cands:
+        start = max(0.0, min(times[k] - 1.0, d - want))
+        checks = [start + x for x in (0.5, 2.5, 5.0, 7.5, 9.5) if x < want]
+        rr = [frame_at(t, f"c{int(t * 10)}") for t in checks]
+        bad = next((r for r in rr if not good(r)), None)
+        if bad is None:
+            clip.with_name(clip.name + ".start.json").write_text(json.dumps({"start": round(start, 2), "span": round(want, 1)}))
+            return True, f"{want:.0f}s of checked footage from {start:.0f}s ({len(oks)} of {n} scan frames good)"
+        last = bad["reason"] if bad else "no frame"
+    return False, f"no {want:.0f}s stretch shows the subject throughout ({last})"
