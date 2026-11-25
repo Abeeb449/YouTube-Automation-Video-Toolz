@@ -20,6 +20,7 @@ licence, and `credit_for()` gives the short on-screen chip ("Jane Doe · CC BY 4
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -30,7 +31,10 @@ from pathlib import Path
 
 from .utils import YtautoError, log, stable_hash
 
-UA = {"User-Agent": "ytauto-documentary-tool/1.0 (open-source video tool)"}
+# Wikimedia's robot policy asks automated tools to identify themselves with contact details (a URL or email);
+# without them, downloads may be refused. Set YTAUTO_CONTACT (e.g. your channel URL or an email) to comply.
+_CONTACT = os.environ.get("YTAUTO_CONTACT", "").strip()
+UA = {"User-Agent": "ytauto-documentary-tool/1.0 (open-source video tool" + (f"; {_CONTACT}" if _CONTACT else "") + ")"}
 _lock = threading.Lock()
 _used: set[str] = set()          # avoid repeating the same stock clip inside one render
 _credits: dict[str, dict] = {}   # id -> {title, author, license, license_url, url, provider}
@@ -115,6 +119,7 @@ def _retry_json(url: str, tries: int = 4, headers: dict | None = None) -> dict:
     return {}
 
 
+_warned_contact: list[int] = []
 _wm_lock = threading.Lock()   # Wikimedia asks bots for few concurrent requests: one download at a time
 
 
@@ -137,6 +142,10 @@ def download(url: str, dst: Path, tries: int = 3) -> Path:
             break
         except urllib.error.HTTPError as exc:
             if exc.code == 429 and wikimedia:
+                if not _CONTACT and not _warned_contact:
+                    _warned_contact.append(1)
+                    warn("Wikimedia refused a download (robot policy). Set YTAUTO_CONTACT to your channel URL or an "
+                         "email so the toolkit can identify itself as Wikimedia asks; other sources are used meanwhile.")
                 raise   # rate-limited: move on to the next photo/source now instead of waiting
             if exc.code in (429, 500, 502, 503, 504) and k < tries - 1:
                 time.sleep(4 * (k + 1) ** 2)
@@ -151,6 +160,27 @@ _STOP = {"a", "an", "the", "of", "in", "on", "at", "and", "or", "with", "to", "f
 
 def _words(text: str) -> list[str]:
     return [w for w in re.findall(r"[a-z]+", (text or "").lower()) if w not in _STOP and len(w) > 2]
+
+
+@functools.lru_cache(maxsize=512)
+def _subject(query: str) -> tuple[str, ...]:
+    """Words that MUST all appear in a caption: the animal's full name if the query names one
+    ("leopard seal underwater" → leopard, seal), else the first two content words."""
+    try:
+        tx, _ = _inat_taxon(query)
+    except Exception:  # noqa: BLE001
+        tx = None
+    if tx:
+        name = (tx.get("preferred_common_name") or "").lower()
+        ws = tuple(w.rstrip("s") for w in _words(name))
+        if ws and all(w in " ".join(_words(query)) for w in ws):
+            return ws
+    return tuple(w.rstrip("s") for w in _words(query)[:2])
+
+
+def _on_subject(query: str, text: str) -> bool:
+    t = (text or "").lower()
+    return all(w in t for w in _subject(query))
 
 
 def _relevant(query: str, text: str, need_all: bool = False) -> bool:
@@ -216,6 +246,7 @@ def _inat_get(url: str) -> dict:
     return _retry_json(url, tries=3)
 
 
+@functools.lru_cache(maxsize=512)
 def _inat_taxon(query: str) -> tuple[dict | None, bool]:
     """Find the species named in the query: "leopard seal teeth" → Leopard Seal (exact=False, extra words left over)."""
     words = query.split()
@@ -302,7 +333,7 @@ def _openverse_photo(query: str) -> list[tuple[str, str]]:
         code = license_code(r.get("license") or "")
         if not _license_ok(code) or not r.get("url") or (r.get("width") or 1200) < 1000:
             continue
-        if not _relevant(query, f"{r.get('title')} {' '.join(t.get('name', '') for t in r.get('tags') or [])}"):
+        if not _on_subject(query, f"{r.get('title')} {' '.join(t.get('name', '') for t in r.get('tags') or [])}"):
             continue
         cid = f"openverse-{r['id']}"
         _credit(cid, "openverse", r.get("title") or "Photo", r.get("creator") or "unknown", code,
@@ -341,7 +372,7 @@ def _commons(query: str, kind: str, width: int) -> list[tuple[str, str]]:
             if w0 < 1200 or w0 < (info.get("height") or 1):
                 continue
             url = _wm_thumb(info.get("url") or "", w0) or info.get("thumburl") or info.get("url")
-        if not _relevant(query, pg.get("title", "") + " " + (meta.get("ObjectName") or {}).get("value", "")):
+        if not _on_subject(query, pg.get("title", "") + " " + (meta.get("ObjectName") or {}).get("value", "")):
             continue
         cid = f"commons-{pg['pageid']}"
         page = "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(pg["title"].replace(" ", "_"))
@@ -541,22 +572,44 @@ def provider_order(kind: str) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip() and (p.strip() not in keyed or os.environ.get(keyed[p.strip()]))]
 
 
-def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0) -> tuple[Path, str]:
+_rejected: set[str] = set()   # candidates that failed the picture check (never retried in this render)
+
+
+def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wanted: str | None = None) -> tuple[Path, str]:
     """Return (local_path, 'video'|'image') for a stock search: search each provider in order, keep only
-    commercial-use licences, download the best unused result and record its credit."""
+    commercial-use licences, download the best unused result, CHECK THAT IT SHOWS THE SUBJECT (ytauto/verify.py)
+    and record its credit. `wanted` = a more exact description to check against ("sea lions on a rocky beach")."""
+    from . import verify
     errors = []
     later: list[tuple[str, list]] = []   # species photos when the query also asks for a detail ("seal teeth")
 
     def attempt(prov: str, cands: list) -> Path | None:
         rot = cands[nth % len(cands):] + cands[:nth % len(cands)]
-        for k in range(min(3, len(rot))):
-            cid, url = _pick(rot[k:])
+        rot = [c for c in rot if c[0] not in _rejected]
+        tries = 0
+        while rot and tries < 8:
+            cid, url = _pick(rot)
+            rot = [c for c in rot if c[0] != cid]
+            tries += 1
             try:
-                return _fetch(cid, url, kind, query, cache)
+                path = _fetch(cid, url, kind, query, cache)
             except Exception as exc:  # noqa: BLE001 — try the next result
                 with _lock:
                     _used.discard(cid)
                 errors.append(f"{prov}: {cid} {str(exc)[:80]}")
+                continue
+            ok, why = (verify.check_video(path, query, cache, wanted) if kind == "video"
+                       else verify.check(path, query, cache, wanted, trusted=(prov == "inaturalist")))
+            if ok:
+                return path
+            log(f"   skipped {cid} for '{query}': {why}")
+            with _lock:
+                _used.discard(cid)
+                _rejected.add(cid)
+            ids = getattr(_tl, "ids", None)
+            if ids is not None and cid in ids:
+                ids.remove(cid)
+            errors.append(f"{prov}: {cid} rejected by picture check")
         return None
 
     for prov in provider_order(kind):

@@ -520,7 +520,7 @@ class _Worker:
 
         if not Path(self.python).exists():
             raise YtautoError(f"{self.name} is not installed (expected {self.python}); see README → Voices")
-        log(f"Starting {self.name} voice engine (first line loads the model, this can take a minute) …")
+        log(f"Starting {self.name}{'' if 'check' in self.name else ' voice engine'} (first use loads the model, this can take a minute) …")
         self.proc = subprocess.Popen([self.python, "-u", self.script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, text=True, bufsize=1)
         if self._read() is None:

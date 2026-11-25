@@ -196,7 +196,7 @@ class ClipRenderer:
             query = spec.pop("stock")
             kind = "image" if spec.pop("type", "video") in ("photo", "image") else "video"
             try:
-                local, kind = fetch_stock(query, kind, self.cache, self.W, nth=seq)
+                local, kind = fetch_stock(query, kind, self.cache, self.W, nth=seq, wanted=spec.pop("verify", None))
                 spec[kind] = str(local)
             except Exception as exc:  # noqa: BLE001
                 fb = spec.get("fallback_visual")
@@ -373,7 +373,8 @@ class ClipRenderer:
                 if k == "footage" and low.startswith(("pexels:", "stock:", "pexels-photo:")):
                     query = v.split(":", 1)[1].strip()
                     try:
-                        src, _ = fetch_stock(query, "video", self.cache, self.W, nth=len(query))
+                        src, _ = fetch_stock(query, "video", self.cache, self.W, nth=len(query),
+                                             wanted=obj.get("footage_verify"))
                     except Exception as exc:  # noqa: BLE001 — no key / no network: fall back to the drawn backdrop
                         warn(f"B-roll '{query}': {exc}. Using the drawn background instead.")
                         for fk, fv in (obj.get("fallback") or {}).items():  # e.g. drawn actors for the same beat
@@ -395,7 +396,8 @@ class ClipRenderer:
                 if low.startswith(("stock:", "photo:", "pexels-photo:")):
                     query = v.split(":", 1)[1].strip()
                     try:
-                        src, _ = fetch_stock(query, "image", self.cache, self.W, nth=int(obj.get("pick", 0)))
+                        src, _ = fetch_stock(query, "image", self.cache, self.W, nth=int(obj.get("pick", 0)),
+                                             wanted=obj.get("verify"))
                     except Exception as exc:  # noqa: BLE001
                         raise YtautoError(f"photo '{query}': {exc}") from exc
                     from .stock import credit_for
