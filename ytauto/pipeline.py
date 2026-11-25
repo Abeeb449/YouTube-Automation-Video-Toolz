@@ -271,6 +271,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
 
     # 4) Audio mix: narration + sfx + ducked music + loudness normalisation -----------------
     log("Step 4/5: mixing audio")
+    _apply_sound_director(project, plans)
     # Mix, then check: if any sudden non-voice sound remains, the music track playing at that moment is banned
     # and the music is rebuilt without it (up to 3 rounds). Moments right at a planned effect are not counted.
     from . import music_library as _ml
@@ -549,6 +550,33 @@ def mood_segments(project: Project, plans: list[ScenePlan], default: str) -> lis
     return segs
 
 
+def _apply_sound_director(project: Project, plans: list[ScenePlan]) -> None:
+    """Moods and effects from what each scene says (ytauto/sound_director.py). Hand-written mood:/sfx: win."""
+    snd = project.settings.get("sound") or {}
+    if snd.get("director", True) is False:
+        return
+    from .sound_director import direct
+    order = [p.scene_index for p in plans]
+    seen = list(dict.fromkeys(order))
+    dur = {i: 0.0 for i in seen}
+    for p in plans:
+        dur[p.scene_index] += p.duration
+    scenes = [project.scenes[i] for i in seen]
+    moods, sfx, trans = direct([s.text or "" for s in scenes], [s.chapter for s in scenes],
+                               [s.raw.get("mood") for s in scenes], [bool(s.sfx) for s in scenes],
+                               durations=[dur[i] for i in seen])
+    n_fx = 0
+    for s, m, fx, tr in zip(scenes, moods, sfx, trans):
+        if m and not s.raw.get("mood"):
+            s.raw["mood"] = m
+        if fx and not s.sfx:
+            s.sfx = fx
+            n_fx += len(fx)
+        s.raw["_transition"] = tr
+    log(f"   sound director: {sum(1 for m in moods if m)} mood changes, {n_fx} effects, "
+        f"{sum(trans)} chapter transitions (from the script's own words)")
+
+
 def collect_sfx(project: Project, plans: list[ScenePlan]):
     """Scene `sfx` → (synth events, file events). Also adds automatic whooshes on cuts."""
     snd = project.settings.get("sound") or {}
@@ -558,9 +586,17 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
         return synth, files
     if snd.get("whoosh_on_cut"):
         wv = float(snd.get("whoosh_volume", 0.22))
-        only_chapters = snd.get("whoosh_on_cut") == "chapters"
+        mode = snd.get("whoosh_on_cut")
+        first_seen: set[int] = set()
         for plan in plans[1:]:
-            if only_chapters and not project.scenes[plan.scene_index].chapter:
+            sc = project.scenes[plan.scene_index]
+            if plan.scene_index in first_seen:
+                continue
+            first_seen.add(plan.scene_index)
+            if mode == "auto":     # only where the sound director heard the mood or energy change
+                if not sc.raw.get("_transition"):
+                    continue
+            elif mode == "chapters" and not sc.chapter:
                 continue
             synth.append((plan.start, "whoosh", wv, None))
     for plan in plans:
@@ -578,7 +614,7 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
                     warn(f"scene {plan.scene_index + 1}: sfx cue {at!r} not found in narration")
                     wt = 0.0
                 at = wt
-            t = plan.start + float(at)
+            t = max(0.0, plan.start + float(at) + float(it.get("offset", 0)))
             vol = float(it.get("volume", 0.7))
             if it.get("sound"):
                 if it["sound"] not in BUILTIN:

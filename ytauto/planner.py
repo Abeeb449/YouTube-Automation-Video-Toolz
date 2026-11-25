@@ -180,12 +180,8 @@ def plan_with_rules(script: str, style: str, title: str | None) -> str:
             if chapter:
                 sc["chapter"] = chapter
                 chapter = None
-            mood = "danger" if DANGER.search(beat) else "wonder" if WONDER.search(beat) else "mystery" if MYSTERY.search(beat) else None
-            if n == 1:
-                mood = mood or "calm"
-            if mood and mood != mood_prev:
-                sc["mood"] = mood
-                mood_prev = mood
+            # music mood and sound effects are left to the sound director (ytauto/sound_director.py), which reads
+            # every scene's words and emotion at render time; write mood:/sfx: by hand only to override it
             sc["text"] = beat
             vis = _rule_visual(beat, style, main, n, subject)
             sc["visuals" if isinstance(vis, list) else "visual"] = vis

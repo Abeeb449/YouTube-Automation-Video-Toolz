@@ -118,6 +118,12 @@ in the wild (not a zoo, aquarium or pool), and match the line's setting (`verify
 underwater"`). Video clips are checked on 5 frames. Anything that fails is skipped; if nothing passes, the scene's
 fallback is used, never a wrong picture.
 
+**Sound design follows the script, not a template** (`ytauto/sound_director.py`): for every scene the toolkit
+reads the narration and its `[tone …]` directions and picks the music mood (danger, tension, mystery, wonder, epic,
+calm), places soft effects at the exact word that calls for one (an impact on "crashed", a rise before "suddenly",
+a swell on a reveal, ticks on a date, typing on "records"), only when the line is intense enough and never in quiet
+passages, and plays a transition only where a new chapter changes the mood. Hand-written `mood:` / `sfx:` win.
+
 **Sound that never jumps over the voice:** every music track is measured before use and plucky or percussive tracks
 are skipped; sound effects are soft swells capped below the narrator; after the mix, `build/audio_check.txt` lists any
 sudden non-voice sound.
