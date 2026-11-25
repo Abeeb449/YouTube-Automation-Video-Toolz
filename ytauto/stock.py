@@ -124,7 +124,15 @@ _warned_contact: list[int] = []
 _wm_lock = threading.Lock()   # Wikimedia asks bots for few concurrent requests: one download at a time
 
 
-def download(url: str, dst: Path, tries: int = 3) -> Path:
+class TooLarge(Exception):
+    pass
+
+
+MAX_VIDEO_MB = float(os.environ.get("YTAUTO_MAX_VIDEO_MB", "400"))   # b-roll; NASA also lists hours-long streams
+MAX_IMAGE_MB = 60.0
+
+
+def download(url: str, dst: Path, tries: int = 3, max_mb: float | None = None) -> Path:
     import contextlib
     import time
     import urllib.error
@@ -137,10 +145,21 @@ def download(url: str, dst: Path, tries: int = 3) -> Path:
         try:
             req = urllib.request.Request(url, headers=UA)
             with (_wm_lock if wikimedia else contextlib.nullcontext()):
-                with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
-                    while chunk := r.read(1 << 20):
-                        f.write(chunk)
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    size = int(r.headers.get("Content-Length") or 0)
+                    if max_mb and size > max_mb * 1e6:
+                        raise TooLarge(f"{size / 1e6:.0f} MB is over the {max_mb:.0f} MB limit")
+                    got = 0
+                    with open(tmp, "wb") as f:
+                        while chunk := r.read(1 << 20):
+                            got += len(chunk)
+                            if max_mb and got > max_mb * 1e6:
+                                raise TooLarge(f"over the {max_mb:.0f} MB limit")
+                            f.write(chunk)
             break
+        except TooLarge:
+            tmp.unlink(missing_ok=True)
+            raise
         except urllib.error.HTTPError as exc:
             if exc.code == 429 and wikimedia:
                 if not _CONTACT and not _warned_contact:
@@ -605,12 +624,12 @@ def _fetch_file(cid: str, url: str, kind: str, query: str, cache: Path) -> Path:
         _unsplash_track(cid)
     if kind == "video" and src_ext not in (".mp4", ".mov"):
         from .utils import run
-        raw = download(url, dst.with_suffix(src_ext or ".webm"))
+        raw = download(url, dst.with_suffix(src_ext or ".webm"), max_mb=MAX_VIDEO_MB)
         run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-t", "90", "-an", "-c:v", "libx264", "-crf", "18",
              "-preset", "veryfast", "-pix_fmt", "yuv420p", dst])
         raw.unlink(missing_ok=True)
         return dst
-    return download(url, dst)
+    return download(url, dst, max_mb=MAX_VIDEO_MB if kind == "video" else MAX_IMAGE_MB)
 
 
 def provider_order(kind: str) -> list[str]:
@@ -658,6 +677,11 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
             cid, url = _pick(rot)
             rot = [c for c in rot if c[0] != cid]
             tries += 1
+            known = cache / "stock" / f"{cid}_{stable_hash(url)}{'.mp4' if kind == 'video' else '.jpg'}.rejected"
+            if known.exists() and known.read_text().split("\t")[0] == query:
+                with _lock:
+                    _used.discard(cid)
+                continue   # already checked and turned down for this exact search
             try:
                 path = _fetch(cid, url, kind, query, cache)
             except Exception as exc:  # noqa: BLE001 — try the next result
@@ -670,6 +694,9 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
             if ok:
                 return _good_part(path) if kind == "video" else path
             log(f"   skipped {cid} for '{query}': {why}")
+            if kind == "video":   # don't keep gigabytes of rejected footage; remember the verdict instead
+                path.with_name(path.name + ".rejected").write_text(f"{query}\t{why}\n")
+                path.unlink(missing_ok=True)
             with _lock:
                 _used.discard(cid)
                 _rejected.add(cid)
