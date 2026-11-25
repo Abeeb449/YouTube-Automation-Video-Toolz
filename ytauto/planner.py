@@ -41,8 +41,8 @@ PARTS = re.compile(r"\b(teeth|tooth|jaws?|fangs?|canines?|bite|claws?|talons?|ey
                    r"suckers?|stingers?|stings?|venom|horns?|tusks?|beaks?|bills?|wings?|feathers?|skin|scales|fur|whiskers?|"
                    r"legs?|feet|paws?|hooves|mandibles?|antennae?|shells?|spines?|quills?|trunk|snout|nose|tongue|gills?|"
                    r"armou?r|plates|crest|mane|stripes|spots)\b", re.I)
-DATE = re.compile(r"\b(?:in|by|since|until|during|on|around|about|circa|from)\s+((?:(?:January|February|March|April|May|June|"
-                  r"July|August|September|October|November|December)\s+(?:\d{1,2},?\s+)?)?(?:(?:1[0-9]\d\d|20\d\d)s?|\d{1,4}\s?(?:BC|BCE|AD|CE)))\b", re.I)
+DATE = re.compile(r"\b(?:in|by|since|until|during|on|around|about|circa|from|of)\s+((?:(?:January|February|March|April|May|June|"
+                  r"July|August|September|October|November|December)\s+(?:\d{1,2}(?:st|nd|rd|th)?,?\s+)?)?(?:(?:1[0-9]\d\d|20\d\d)s?|\d{1,4}\s?(?:BC|BCE|AD|CE)))\b", re.I)
 PLACE = re.compile(r"\b(?:in|at|near|off|on|from)\s+((?:the\s+)?[A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|of|de|del))*)")
 # 3D models with known anatomy points (x, y inside the visible model, 0-1). Add an entry when a model is added.
 ANATOMY_3D = {
@@ -317,7 +317,7 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
     title = title or (blocks[0].lstrip("#").strip()[:70] if blocks and blocks[0].startswith("#") else "Untitled Documentary")
     narration = "\n".join(ln for ln in script.splitlines() if not re.match(r"\s*sources?\s*:", ln, re.I))
     subject = find_subject(narration, title) if style in ("nature", "ocean") else find_topic(narration, title)
-    ctx = _script_context(script, subject)
+    ctx = _script_context(narration, subject)
     topic_q = f"{subject} {ctx}".strip() if ctx else subject
     if style not in ("nature", "ocean") and re.fullmatch(r"[A-Z0-9]{2,5}", subject or ""):
         # an acronym alone ('GPS', 'MRI') finds devices, logos and diagrams: search it with the thing the script
@@ -524,6 +524,8 @@ view views look looks story stories question questions answer answers reason rea
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
 past future present catch delay delays moment moments distance distances amount amounts level levels
 rate rates chance chances problem problems fact facts truth result results difference differences effect effects
+force forces night nights day mornings morning evening case cases explanation explanations theory theories idea model models
+injury injuries wound wounds body bodies corpse corpses blood death deaths remains victim victims skull skeleton
 january february march april june july august september october november december
 team teams crew crews group groups member members century centuries decade decades
 hour hours minute minutes week weeks month months era eras age ages""".split())
@@ -556,7 +558,7 @@ def _entities(beat: str) -> list[str]:
     A single capitalised word at the start of a sentence is just a sentence start ('Teams', 'Wet'), not a name."""
     text = re.sub(r"\[[^\]]*\]", " ", beat)
     out = []
-    for m in re.finditer(r"\b([A-Z][\w'-]+(?:\s+(?:of|the|de|del|da|von|van|al|el|and)?\s*[A-Z][\w'-]+)*)", text):
+    for m in re.finditer(r"\b([A-Z][\w'-]+(?:\s+(?:of|the|de|del|da|von|van|al|el)?\s*[A-Z][\w'-]+)*)", text):
         before = text[:m.start()].rstrip()
         sentence_start = not before or before[-1] in ".!?:;\"“"
         if sentence_start and len(m.group(1).split()) == 1:
@@ -608,11 +610,14 @@ def _key_nouns(beat: str) -> list[str]:
         ws = m.group(1).split()
         k = 0
         def adjective(i: int) -> bool:   # "hexagonal mirror", "wooden piles": a describing word before a noun
-            return (ws[i].endswith(("al", "ic", "ous", "ful", "ive", "ish", "en")) and i + 1 < len(ws) and ok(ws[i + 1]))
+            return (ws[i].endswith(("al", "ic", "ous", "ful", "ive", "ish", "en", "ed")) and i + 1 < len(ws) and ok(ws[i + 1]))
         while k < len(ws) and (ws[k] in _ADJ or ws[k] in _NUMWORDS or adjective(k) or (ws[k] in names and k + 1 < len(ws)) or ws[k] in (
                 "the", "a", "an", "their", "its", "his", "her", "this", "these", "those", "our", "front", "side",
                 "middle", "top", "bottom", "kind", "sort", "part", "size", "layer", "piece", "number", "group")):
             k += 1
+        if (k + 1 < len(ws) and ws[k].endswith(("al", "ic", "ous", "ful", "ive", "ish", "ed")) and ws[k + 1].isalpha()
+                and not ok(ws[k + 1])):
+            continue   # "a physical explanation": the describing word of a noun that isn't a subject itself
         if k < len(ws) and ok(ws[k]):
             phrase = ws[k]
             if (k + 1 < len(ws) and ok(ws[k + 1]) and not ws[k + 1].endswith(("ed", "s")) and ws[k + 1] not in _VERBS
@@ -653,7 +658,8 @@ Ethiopia Finland France Germany Ghana Greece Hungary Iceland India Indonesia Ira
 Jordan Kenya Korea Latvia Lebanon Libya Lithuania Malaysia Mexico Mongolia Morocco Nepal Netherlands Nigeria Norway
 Pakistan Peru Philippines Poland Portugal Romania Russia Scotland Senegal Serbia Singapore Slovakia Somalia Spain
 Sudan Sweden Switzerland Syria Tanzania Thailand Tunisia Turkey Uganda Ukraine Venezuela Vietnam Wales Yemen Zambia
-Zimbabwe Africa Asia Europe America Antarctica Oceania Britain USA UK""".split()) | {
+Zimbabwe Africa Asia Europe America Antarctica Oceania Britain USA UK Soviet Russian American British French German
+Chinese Japanese Italian Spanish European African Asian""".split()) | {
     "United States", "United Kingdom", "Soviet Union", "South Africa", "New Zealand", "Saudi Arabia", "North America",
     "South America", "Atlantic", "Pacific", "Indian Ocean", "Atlantic Ocean", "Pacific Ocean", "Arctic", "Mediterranean"}
 
