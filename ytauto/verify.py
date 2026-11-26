@@ -288,6 +288,8 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     animal = _is_animal(query)
     from .stock import _subject
     want_details = _details(wanted or query, _subject(query) if animal else ())
+    if "state" not in want_details and re.search(DEAD_WORDS, query.lower()):
+        want_details["state"] = [0]       # the search words themselves ask for a stranding / a necropsy
     # the script itself asks for a dead animal (a stranding, a carcass): such a picture is then allowed, gore never is
     asked_dead = 0 in want_details.get("state", [])
     key = stable_hash("verify-v11", str(image), image.stat().st_size, pos, negs, trusted, animal, want_details)
