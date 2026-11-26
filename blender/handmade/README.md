@@ -16,10 +16,15 @@ Blender from code with the kit in `blender/kit3d.py`, so it renders the same eve
 3. **Built with Blender's proper tools**, not rough shapes: lathe for anything turned, bevels on every hard edge,
    subdivision surfaces for organic forms, boolean cuts for openings, arrays for repeated parts, displacement for
    weathering, procedural PBR materials (colour variation, roughness, bump, block joints).
-4. **Checked from every side.** `python -m ytauto model "<name>"` renders the front, both sides, the back and the
+4. **Looks real, not like a diagram.** Build what a camera would see: masonry as individual stones with uneven
+   sizes, broken corners, gaps and their own shades (`k.mesh_from_arrays` + `k.stone_material`), wear where the
+   real thing is worn, rubble where it has fallen. Outdoor subjects stand on ground (`k.desert_ground`, which
+   fades away with distance and toward the picture's edges) under a low sun: `SUN = {"azimuth", "elevation",
+   "strength"}` gives one hard, warm light with sky light in the shadows, so every joint casts a shadow.
+5. **Checked from every side.** `python -m ytauto model "<name>"` renders the front, both sides, the back and the
    top into one sheet. Compare it with reference photos part by part and fix what differs before the model is
    used. Send the sheet to the creator with the list of facts, so they can confirm it.
-5. **Named.** `NAMES` lists what a script may call it; `model: "<any of those names>"` (or a video about it) then
+6. **Named.** `NAMES` lists what a script may call it; `model: "<any of those names>"` (or a video about it) then
    uses this model before any library.
 
 ## A model file
@@ -32,6 +37,9 @@ NAMES = ["great pyramid of giza", "great pyramid", "pyramid of khufu"]
 TITLE = "Great Pyramid of Giza"
 FRONT = 180          # degrees: turn this side to the camera
 ELEVATION = 12       # camera height angle
+# optional: SIZE = "1920x1080" (frame size), MARGIN = 1.5 (room around the subject), SWING = 32 (degrees the
+# camera swings to each side), SUN = {"azimuth": 68, "elevation": 27, "strength": 4.2} (outdoor light; azimuth
+# 0 = from behind the camera, 90 = from the right)
 
 def build():
     ...              # make the objects, give them materials, return them

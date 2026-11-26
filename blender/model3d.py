@@ -27,6 +27,7 @@ ap.add_argument("--frames", type=int, default=96)
 ap.add_argument("--size", default="1280x720")
 ap.add_argument("--swing", type=float, default=32.0)      # degrees to each side
 ap.add_argument("--elevation", type=float, default=14.0)  # camera height angle
+ap.add_argument("--margin", type=float, default=1.22)     # room around the subject (1 = touching the frame)
 ap.add_argument("--front", type=float, default=0.0)       # turn the model's front (degrees about the vertical)
 ap.add_argument("--tint", default="#cfc6b4")
 ap.add_argument("--engine", default="EEVEE")
@@ -76,6 +77,8 @@ def world_bounds(meshes):
 
 
 def main():
+    global W, H
+    sun_cfg = None
     # empty scene
     for o in list(bpy.data.objects):
         bpy.data.objects.remove(o, do_unlink=True)
@@ -88,9 +91,12 @@ def main():
         mod = runpy.run_path(args.build)
         mod["build"]()
         new = [o for o in bpy.data.objects if o not in before]
-        for name, attr in (("FRONT", "front"), ("ELEVATION", "elevation"), ("SWING", "swing")):
+        for name, attr in (("FRONT", "front"), ("ELEVATION", "elevation"), ("SWING", "swing"), ("MARGIN", "margin")):
             if name in mod:
                 setattr(args, attr, float(mod[name]))
+        if "SIZE" in mod and not args.views:
+            args.size = str(mod["SIZE"])
+        sun_cfg = mod.get("SUN")
     elif args.model:
         new = import_model(Path(args.model))
     else:
@@ -102,9 +108,11 @@ def main():
         if o.type in ("CAMERA", "LIGHT"):
             bpy.data.objects.remove(o, do_unlink=True)
     bpy.context.view_layer.update()
+    # scenery (the ground a hand-built subject stands on) is rendered but not framed: the camera frames the subject
+    subject = [o for o in meshes if not o.get("scenery")] or meshes
 
     # one pivot for the whole model: centre it, stand it on z = 0, scale its longest side to 2 units
-    lo, hi = world_bounds(meshes)
+    lo, hi = world_bounds(subject)
     size = hi - lo
     longest = max(size.x, size.y, size.z) or 1.0
     pivot = bpy.data.objects.new("pivot", None)
@@ -121,7 +129,7 @@ def main():
     pivot.parent = turn
     turn.rotation_euler = (0, 0, math.radians(args.front))
     bpy.context.view_layer.update()
-    lo, hi = world_bounds(meshes)
+    lo, hi = world_bounds(subject)
     height = hi.z - lo.z
     radius = max(hi.x - lo.x, hi.y - lo.y) / 2
 
@@ -142,6 +150,7 @@ def main():
                 p.use_smooth = True
 
     # render settings
+    W, H = (int(x) for x in args.size.lower().split("x"))
     sc.render.resolution_x, sc.render.resolution_y = W, H
     sc.render.resolution_percentage = 100
     sc.render.film_transparent = True
@@ -155,9 +164,14 @@ def main():
         sc.cycles.use_denoising = bool(getattr(bpy.app.build_options, "openimagedenoise", False))
     else:
         sc.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in engines else "BLENDER_EEVEE"
-        for attr, val in (("taa_render_samples", args.samples), ("use_gtao", True), ("use_soft_shadows", True)):
+        for attr, val in (("taa_render_samples", args.samples), ("use_gtao", True), ("use_soft_shadows", True),
+                          ("gtao_distance", 0.06), ("gtao_factor", 1.4), ("shadow_cascade_size", "4096"),
+                          ("shadow_cube_size", "2048"), ("use_shadow_high_bitdepth", True)):
             if hasattr(sc.eevee, attr):
-                setattr(sc.eevee, attr, val)
+                try:
+                    setattr(sc.eevee, attr, val)
+                except Exception:  # noqa: BLE001 — an option this Blender version doesn't have
+                    pass
     try:
         sc.view_settings.view_transform = "Filmic"
         sc.view_settings.look = "Medium High Contrast"
@@ -182,9 +196,33 @@ def main():
         ob.rotation_euler = (mid - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
         return ob
 
-    area("key", (2.6, -3.4, height + 2.6), 420, 3.2, (1.0, 0.95, 0.88))
-    area("rim", (-2.8, 3.6, height + 1.4), 520, 2.6, (0.62, 0.82, 1.0))
-    area("fill", (-3.4, -2.2, height * 0.6), 120, 4.5, (0.82, 0.88, 1.0))
+    if sun_cfg:
+        # an outdoor subject: one low sun (hard, warm, raking across the surface) and blue sky light in the shadows.
+        # azimuth is seen from the camera's middle position: 0 = from behind the camera, 90 = from the right
+        az = math.radians(float(sun_cfg.get("azimuth", 60)) + 18)
+        el = math.radians(float(sun_cfg.get("elevation", 30)))
+        sd = bpy.data.lights.new("sun", "SUN")
+        sd.energy = float(sun_cfg.get("strength", 4.0))
+        sd.color = tuple(sun_cfg.get("colour", (1.0, 0.86, 0.68)))
+        sd.angle = math.radians(1.2)
+        for attr, val in (("use_contact_shadow", True), ("contact_shadow_distance", 0.05), ("contact_shadow_thickness", 0.01),
+                          ("shadow_cascade_count", 4), ("shadow_cascade_max_distance", 30.0), ("shadow_buffer_bias", 0.02)):
+            if hasattr(sd, attr):
+                try:
+                    setattr(sd, attr, val)
+                except Exception:  # noqa: BLE001
+                    pass
+        so = bpy.data.objects.new("sun", sd)
+        sc.collection.objects.link(so)
+        direction = Vector((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))   # toward the sun
+        so.rotation_euler = (-direction).to_track_quat("-Z", "Y").to_euler()
+        sky = sun_cfg.get("sky", (0.20, 0.30, 0.48))
+        bg.inputs[0].default_value = (sky[0], sky[1], sky[2], 1)
+        bg.inputs[1].default_value = float(sun_cfg.get("sky_strength", 0.55))
+    else:
+        area("key", (2.6, -3.4, height + 2.6), 420, 3.2, (1.0, 0.95, 0.88))
+        area("rim", (-2.8, 3.6, height + 1.4), 520, 2.6, (0.62, 0.82, 1.0))
+        area("fill", (-3.4, -2.2, height * 0.6), 120, 4.5, (0.82, 0.88, 1.0))
 
     # camera on a rig that swings around the vertical axis
     cam_d = bpy.data.cameras.new("cam")
@@ -201,7 +239,7 @@ def main():
     half_h = max(height / 2, 0.05)
     fov_h = 2 * math.atan(36 / 2 / cam_d.lens)
     fov_v = 2 * math.atan((36 * H / W) / 2 / cam_d.lens)
-    dist = max(half_w / math.tan(fov_h / 2), half_h / math.tan(fov_v / 2)) * 1.22 + radius
+    dist = max(half_w / math.tan(fov_h / 2), half_h / math.tan(fov_v / 2)) * args.margin + radius
     el = math.radians(args.elevation)
     cam.location = (0, -dist * math.cos(el), dist * math.sin(el))
     cam.rotation_euler = (math.radians(90) - el, 0, 0)
