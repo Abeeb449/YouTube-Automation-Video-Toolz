@@ -562,7 +562,8 @@ def _chapter_mark(vis, chapter: str, number: int | None):
             "model" in v or v.get("remotion") in ("StatCards", "MapScene", "DotGrid", "Anatomy")):
         props = dict(v.get("props") or {})
         if not props.get("heading") and not props.get("title"):
-            props["heading"] = chapter[:48]
+            props["heading"] = _thumb_text(chapter, 56).title() if chapter.isupper() else (
+                chapter if len(chapter) <= 56 else chapter[:57].rsplit(" ", 1)[0] + "…")
             if number:
                 props["kicker"] = f"CHAPTER {number}"
             shots[0] = {**v, "props": props}
