@@ -28,6 +28,10 @@ on:
         description: "Re-plan scenes from script.txt even if script.yaml exists"
         type: boolean
         default: false
+      collect_only:
+        description: "Only find and check the b-roll and 3D models (about 15 minutes, no video): gives you the review sheet first"
+        type: boolean
+        default: false
       preview:
         description: "Fast 480p preview instead of full quality"
         type: boolean
@@ -149,8 +153,15 @@ jobs:
               # Pre-render review (originality, sources, variety); printed in the log, never blocks the render
               python -m ytauto check "$P" > "$P/check.txt" 2>&1 || echo "::warning::ytauto check found issues to fix in $P (see build/check.txt)"
               cat "$P/check.txt"
-              # stop cleanly before the job limit so the finished parts are saved to the cache below
-              timeout -s INT 325m python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
+              if [ "${{ inputs.collect_only }}" = "true" ]; then
+                # only the collection step: every 3D model, photo and clip is found, checked and listed for review
+                python -m ytauto broll "$P"
+              else
+                # stop cleanly before the job limit so the finished parts are saved to the cache below; a video too
+                # long for one run (roughly over 11 minutes) is finished by running the workflow a second time
+                timeout -s INT 325m python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
+              fi
+              mkdir -p "$P/build"
               mv "$P/check.txt" "$P/build/check.txt" 2>/dev/null || true
               cp "$P/script.yaml" "$P/build/script.yaml"   # the plan travels with the video, so you can tweak and re-render
             '
@@ -183,15 +194,21 @@ jobs:
           echo "tag=video-$name-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           {
             echo "### 🎬 ${name}"
-            echo '```json'
-            cat "${{ matrix.project }}/build/manifest.json"
-            echo '```'
+            if [ -f "${{ matrix.project }}/build/manifest.json" ]; then
+              echo '```json'
+              cat "${{ matrix.project }}/build/manifest.json"
+              echo '```'
+            else
+              echo '```'
+              cat "${{ matrix.project }}/build/broll_report.txt" 2>/dev/null || echo "No video in this run."
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.meta.outputs.name }}-video
+          name: ${{ steps.meta.outputs.name }}-${{ inputs.collect_only && 'review' || 'video' }}
           path: ${{ matrix.project }}/build/
           retention-days: 14
           compression-level: 0
