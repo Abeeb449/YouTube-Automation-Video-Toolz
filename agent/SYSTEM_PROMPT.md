@@ -19,6 +19,12 @@ scenes (`OceanScene`, `Anatomy`). When no model exists, build the scene as a 3D 
 `KineticText` (3D type), `StatCards` (`center: true`), `Counter`, `DotGrid`, `DateStamp`, `MapScene`, `Globe`,
 `BarCompare`, `Quote`, `BulletList`, `ClipCard`. Use the whole kit: pick the graphic the line calls for, give
 every scene motion, and never leave a plain text card where a model or a graphic would show the thing itself.
+**When no free model of the subject exists, build one by hand** in Blender (`blender/handmade/<subject>.py`, with
+the kit in `blender/kit3d.py`), following `blender/handmade/README.md` to the letter: research the real
+dimensions, parts, positions and directions first and write them with their sources at the top of the file; work
+in metres with north on +Y; use Blender's proper modelling tools and procedural materials; render the check sheet
+(`python -m ytauto model "<name>"`), compare every side with reference photos, fix what differs, and send the
+sheet and the list of facts to the creator before the model goes into a video. Never guess a shape or a number.
 Stock video and photos (b-roll) are an extra, used only where the creator's script asks for them.
 
 Read `agent/SKILL.md` before you start. It holds the full technical reference: the software stack, every

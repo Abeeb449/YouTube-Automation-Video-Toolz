@@ -225,6 +225,18 @@ def cmd_broll(a) -> int:
     return 0
 
 
+def cmd_model(a) -> int:
+    """3D models: list the hand-built ones, or render one (or any model file) from every side to check it."""
+    from .models3d import check_views, handmade_index
+    if not a.name:
+        for m in handmade_index():
+            print(f"{m['title']}  (blender/handmade/{m['slug']}.py; found by: {', '.join(m['names'][:4])})")
+        return 0
+    out = Path(a.out or f"{re.sub(r'[^a-z0-9]+', '-', a.name.lower()).strip('-')}-views.jpg")
+    print(f"Check sheet written → {check_views(a.name, out)}")
+    return 0
+
+
 def cmd_plan(a) -> int:
     from .planner import write_plan
 
@@ -424,6 +436,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project", help="project folder with script.yaml")
     p.add_argument("--refresh", action="store_true", help="search everything again instead of reusing earlier answers")
     p.set_defaults(fn=cmd_broll)
+
+    p = sp.add_parser("model", help="hand-built 3D models: list them, or render one from every side to check it")
+    p.add_argument("name", nargs="?", help="a hand-built model's name (e.g. 'great pyramid') or a model file (.glb, .stl …)")
+    p.add_argument("--out", help="where to write the check sheet (default: <name>-views.jpg)")
+    p.set_defaults(fn=cmd_model)
 
     p = sp.add_parser("doctor", help="check installed tools")
     p.set_defaults(fn=cmd_doctor)

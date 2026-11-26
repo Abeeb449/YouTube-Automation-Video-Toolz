@@ -19,7 +19,9 @@ from mathutils import Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ap = argparse.ArgumentParser()
-ap.add_argument("--model", required=True)
+ap.add_argument("--model")
+ap.add_argument("--build")       # a hand-built model: a script in blender/handmade/ with a build() function
+ap.add_argument("--views", action="store_true")   # check sheet: front, right, back, left and from above (5 stills)
 ap.add_argument("--out", required=True)
 ap.add_argument("--frames", type=int, default=96)
 ap.add_argument("--size", default="1280x720")
@@ -78,10 +80,24 @@ def main():
     for o in list(bpy.data.objects):
         bpy.data.objects.remove(o, do_unlink=True)
     sc = bpy.context.scene
-    new = import_model(Path(args.model))
+    if args.build:
+        # a hand-built model: run its script (it uses blender/kit3d.py) and take what it made
+        import runpy
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        before = set(bpy.data.objects)
+        mod = runpy.run_path(args.build)
+        mod["build"]()
+        new = [o for o in bpy.data.objects if o not in before]
+        for name, attr in (("FRONT", "front"), ("ELEVATION", "elevation"), ("SWING", "swing")):
+            if name in mod:
+                setattr(args, attr, float(mod[name]))
+    elif args.model:
+        new = import_model(Path(args.model))
+    else:
+        raise SystemExit("Give --model FILE or --build SCRIPT")
     meshes = [o for o in new if o.type == "MESH" and len(o.data.polygons)]
     if not meshes:
-        raise SystemExit("The model file holds no surfaces to render")
+        raise SystemExit("The model holds no surfaces to render")
     for o in new:                       # cameras, lights and helpers that came with the file are not wanted
         if o.type in ("CAMERA", "LIGHT"):
             bpy.data.objects.remove(o, do_unlink=True)
@@ -190,6 +206,19 @@ def main():
     cam.location = (0, -dist * math.cos(el), dist * math.sin(el))
     cam.rotation_euler = (math.radians(90) - el, 0, 0)
 
+    if args.views:      # the builder's check sheet: every side, then from above
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        for i, (turn_deg, el_deg) in enumerate([(0, args.elevation), (90, args.elevation), (180, args.elevation),
+                                                (270, args.elevation), (35, 58)]):
+            e = math.radians(el_deg)
+            cam.location = (0, -dist * math.cos(e), dist * math.sin(e))
+            cam.rotation_euler = (math.radians(90) - e, 0, 0)
+            rig.rotation_euler = (0, 0, math.radians(turn_deg))
+            sc.render.filepath = str(out / f"{i + 1:04d}.png")
+            bpy.ops.render.render(write_still=True)
+        print(f"model3d: 5 check views → {out}")
+        return
     n = 1 if args.still else max(2, args.frames)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

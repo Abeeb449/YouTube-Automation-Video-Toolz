@@ -5,6 +5,7 @@
            {model: assets/my-model.glb}                       your own file (glb, gltf, stl, obj, ply, fbx)
 
 Where the models come from (first that has one; only licences that allow commercial use):
+  handmade      models built by hand for this channel in blender/handmade/ (made when no free model exists)
   smithsonian   Smithsonian Open Access 3D (CC0): spacecraft, aircraft, fossils, skulls, historic objects
   polyhaven     Poly Haven (CC0): everyday objects, tools, furniture, plants, rocks
   sketchfab     Sketchfab (CC0 / CC BY, the largest library) — only with a free account token in SKETCHFAB_TOKEN
@@ -131,6 +132,21 @@ def _commons(query: str) -> list[dict]:
     return out
 
 
+def _sketchfab_license(label: str) -> str | None:
+    """Sketchfab's licence labels → cc0 | by | by-sa | None. Only the Creative Commons ones that allow commercial
+    use and changes can pass; "NonCommercial", "NoDerivs", "Editorial", "Standard" and anything unknown cannot."""
+    t = label.strip().lower()
+    if not t.startswith("cc"):
+        return None
+    if "noncommercial" in t or "noderiv" in t:
+        return None
+    if t.startswith("cc0"):
+        return "cc0"
+    if "sharealike" in t:
+        return "by-sa"
+    return "by" if t in ("cc attribution", "cc-by", "cc by") else None
+
+
 def _sketchfab(query: str) -> list[dict]:
     """Needs a free Sketchfab account token (SKETCHFAB_TOKEN): downloads are only given to signed-in users."""
     token = os.environ.get("SKETCHFAB_TOKEN", "").strip()
@@ -142,7 +158,7 @@ def _sketchfab(query: str) -> list[dict]:
     for r in data.get("results", []):
         lic = r.get("license") or {}
         label = lic.get("label") or lic.get("slug") or ""
-        code = stock.license_code(label.replace("Attribution", "by").replace("CC ", "cc-")) or stock.license_code(lic.get("slug", ""))
+        code = _sketchfab_license(label)
         if not stock._license_ok(code) or not _names(query, r.get("name", "")):
             continue
         out.append({"cid": f"sketchfab-{r['uid']}", "provider": "sketchfab", "title": r.get("name", ""), "sketchfab": r["uid"],
@@ -151,16 +167,57 @@ def _sketchfab(query: str) -> list[dict]:
     return out[:6]
 
 
-PROVIDERS = {"smithsonian": _smithsonian, "polyhaven": _polyhaven, "sketchfab": _sketchfab, "commons": _commons}
+HANDMADE_DIR = REPO_ROOT / "blender" / "handmade"
+
+
+def handmade_index() -> list[dict]:
+    """The hand-built models in blender/handmade/: {slug, path, names, title} (read without starting Blender)."""
+    import ast
+    out = []
+    for f in sorted(HANDMADE_DIR.glob("*.py")):
+        names, title = [], f.stem.replace("_", " ").title()
+        try:
+            for node in ast.parse(f.read_text(encoding="utf-8")).body:
+                if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                    if node.targets[0].id == "NAMES":
+                        names = [str(x).lower() for x in ast.literal_eval(node.value)]
+                    elif node.targets[0].id == "TITLE":
+                        title = str(ast.literal_eval(node.value))
+        except Exception:  # noqa: BLE001
+            continue
+        if names:
+            out.append({"slug": f.stem, "path": f, "names": names, "title": title})
+    return out
+
+
+def _handmade(query: str) -> list[dict]:
+    """A model built by hand for this subject (when no free model existed): matched by its listed names."""
+    q = set(_words(query))
+    out = []
+    for m in handmade_index():
+        for name in m["names"]:
+            n = set(_words(name))
+            if n and (n <= q or q <= n):          # the search names this model, or is one of its names in short
+                out.append({"cid": f"handmade-{m['slug']}", "provider": "handmade", "title": m["title"], "build": m["path"],
+                            "ext": ".py", "author": "built for this channel", "code": "own", "license": "own work",
+                            "page": ""})
+                break
+    return out
+
+
+PROVIDERS = {"handmade": _handmade, "smithsonian": _smithsonian, "polyhaven": _polyhaven, "sketchfab": _sketchfab,
+             "commons": _commons}
 
 
 def provider_order() -> list[str]:
-    raw = os.environ.get("YTAUTO_MODEL_SOURCES") or "smithsonian,polyhaven,sketchfab,commons"
+    raw = os.environ.get("YTAUTO_MODEL_SOURCES") or "handmade,smithsonian,polyhaven,sketchfab,commons"
     return [p.strip() for p in raw.split(",") if p.strip() in PROVIDERS]
 
 
 # ------------------------------------------------------------------------------------------------ download
 def _download(c: dict, cache: Path) -> Path:
+    if c.get("build"):
+        return Path(c["build"])
     d = cache / "models" / c["cid"]
     d.mkdir(parents=True, exist_ok=True)
     if c.get("polyhaven"):
@@ -249,7 +306,8 @@ def render_model(model: Path, key: str, tint: str | None = None, front: float = 
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
     log(f"Rendering 3D model {model.name} ({FRAMES} frames) with Blender …")
-    cmd = [blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "model3d.py", "--", "--model", model,
+    cmd = [blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "model3d.py", "--",
+           "--build" if model.suffix == ".py" else "--model", model,
            "--out", tmp, "--frames", str(FRAMES), "--size", SIZE, "--front", str(front)]
     if tint:
         cmd += ["--tint", tint]
@@ -303,7 +361,8 @@ def _memo(cache: Path) -> Path:
 def find_model(query: str, cache: Path) -> dict:
     """A rendered 3D model for these search words (alternatives with |): {key, meta, cid, credit}. Remembered, so
     the collection step finds it once and the render reuses it."""
-    key_q = stable_hash("model-v1", query, sorted(stock.allowed_licenses()), provider_order(), bool(os.environ.get("SKETCHFAB_TOKEN")))
+    key_q = stable_hash("model-v1", query, sorted(stock.allowed_licenses()), provider_order(), bool(os.environ.get("SKETCHFAB_TOKEN")),
+                        [(m["slug"], m["path"].stat().st_mtime_ns) for m in handmade_index()])
     memo = {}
     try:
         memo = json.loads(_memo(cache).read_text())
@@ -331,13 +390,17 @@ def find_model(query: str, cache: Path) -> dict:
             for c in cands[:3]:
                 try:
                     path = _download(c, cache)
-                    key = "model-" + stable_hash(c["cid"])[:12]
+                    # a hand-built model is rendered again whenever its script (or the kit) changes
+                    stamp = (path.read_text(encoding="utf-8"), (REPO_ROOT / "blender" / "kit3d.py").read_text(encoding="utf-8")) \
+                        if c.get("build") else ()
+                    key = "model-" + stable_hash(c["cid"], *stamp)[:12]
                     meta = render_model(path, key, cache=cache)
                 except Exception as exc:  # noqa: BLE001
                     errors.append(f"{prov}: {c['cid']} {str(exc)[:90]}")
                     continue
                 from . import verify
-                ok, why = verify.check_model(sprite_dir(key) / f"{max(1, meta['frames'] // 8):04d}.webp", alt, cache)
+                ok, why = (True, "hand-built and checked by eye") if c.get("build") else \
+                    verify.check_model(sprite_dir(key) / f"{max(1, meta['frames'] // 8):04d}.webp", alt, cache)
                 if not ok:
                     log(f"   skipped 3D model {c['cid']} for '{alt}': {why}")
                     errors.append(f"{prov}: {c['cid']} rejected by the model check")
@@ -359,6 +422,8 @@ def find_model(query: str, cache: Path) -> dict:
 
 
 def _register(rec: dict) -> None:
+    if rec["credit"].get("code") == "own":      # the channel's own model: nothing to credit
+        return
     with stock._lock:
         stock._credits.setdefault(rec["cid"], rec["credit"])
         stock._used.add(rec["cid"])
@@ -391,10 +456,44 @@ def model_shot(spec: dict, project, seq: int = 0) -> dict:
     else:
         got = find_model(src, project.cache_dir)
         key, meta = got["key"], got["meta"]
-        if got["credit"]["code"] not in stock.NO_CREDIT_NEEDED and not props.get("source"):
+        if got["credit"]["code"] not in (*stock.NO_CREDIT_NEEDED, "own") and not props.get("source"):
             props["source"] = f"3D model: {got['credit']['author']} · {got['credit']['license']}"
     shot = props.pop("shot", None) or list(SHOTS)[seq % 2]        # turn / push by default
     zoom = props.pop("zoom", None) or SHOTS.get(shot, [])
     return {"remotion": "Anatomy",
             "props": {"backdrop": "dark", **props, "sprite": {"creature": key, "view": "orbit"},
                       "sprites": {key: {"orbit": meta}}, "zoom": zoom}}
+
+
+def check_views(source: str, out: Path) -> Path:
+    """Render a model from the front, both sides, the back and above into one labelled sheet, to compare with
+    reference photos before it is used. `source`: a hand-built model's name, or a model file."""
+    blender = os.environ.get("YTAUTO_BLENDER") or which("blender")
+    if not blender:
+        raise YtautoError("Blender is needed to render 3D models")
+    hm = _handmade(source)
+    path = Path(hm[0]["build"]) if hm else Path(source)
+    if not path.exists():
+        raise YtautoError(f"No hand-built model is named '{source}' and no such file exists. Hand-built models: "
+                          + ", ".join(m["title"] for m in handmade_index()))
+    tmp = out.parent / (out.stem + ".views")
+    shutil.rmtree(tmp, ignore_errors=True)
+    text = run([blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "model3d.py", "--",
+                "--build" if path.suffix == ".py" else "--model", path, "--out", tmp, "--views", "--size", "1280x720"])
+    pngs = sorted(tmp.glob("*.png"))
+    if len(pngs) < 5:
+        last = [ln for ln in text.strip().splitlines() if ln.strip()][-4:]
+        raise YtautoError("Blender could not render the model: " + " / ".join(last)[:300])
+    from PIL import Image, ImageDraw
+    labels = ["FRONT", "its RIGHT side (camera moved a quarter turn)", "BACK", "its LEFT side", "FROM ABOVE"]
+    sheet = Image.new("RGB", (3 * 640, 2 * 360), (14, 22, 34))
+    d = ImageDraw.Draw(sheet)
+    for i, (p, lab) in enumerate(zip(pngs, labels)):
+        im = Image.open(p).convert("RGBA").resize((640, 360))
+        x, y = (i % 3) * 640, (i // 3) * 360
+        sheet.paste(im, (x, y), im)
+        d.text((x + 8, y + 8), lab, fill="yellow")
+    sheet.save(out, quality=90)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return out
+

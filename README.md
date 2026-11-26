@@ -125,7 +125,9 @@ Open Access 3D (CC0), Poly Haven (CC0), Wikimedia Commons, and Sketchfab if you 
 `SKETCHFAB_TOKEN`. Blender lights it and renders it turning (`blender/model3d.py`); scenes then push in, move
 around it and label it. A model is used only if its own title names the subject and the render passes a check that
 it looks like it; its credit goes in the description. Animals the toolkit models itself (seals, sea lions, whales,
-squid, sharks, penguins…) are animated 3D scenes. Where no model exists, the scene is a 3D motion graphic: kinetic
+squid, sharks, penguins…) are animated 3D scenes. **When no free model exists, one is built by hand** in Blender
+(`blender/handmade/`, checked against the real thing from every side with `python -m ytauto model "<name>"`); the
+Great Pyramid of Giza is the first. Where no model exists, the scene is a 3D motion graphic: kinetic
 type in a 3D space, stat cards, counters, date cards, maps, quote and list cards, each chosen from what the line
 itself says (several figures → stat cards, a country → a map, quoted words → a quote card, a list → a list card).
 
