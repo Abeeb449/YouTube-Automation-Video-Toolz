@@ -63,7 +63,8 @@ DEPTH = re.compile(r"(\d[\d,\.]*)\s*(metres|meters|m)\b[^.]*\b(deep|down|below|d
 DB = re.compile(r"(\d[\d,\.]*)\s*(decibels|dB)\b", re.I)
 NUMBER = re.compile(r"\b(\d[\d,\.]*)\s*(metres|meters|tonnes|tons|kilograms|kg|years|kilometres|kilometers|km|miles|feet|"
                     r"centimetres|cm|millimetres|mm|%|percent|hearts|teeth|microseconds|milliseconds|seconds|minutes|"
-                    r"hours|days|degrees|times|litres|liters|gallons|watts|volts|light-years|people|species|workers)\b", re.I)
+                    r"hours|days|degrees|times|litres|liters|gallons|watts|volts|light-years|people|species|workers|"
+                    r"dollars|euros|yen|rupees|naira|pesos|customers|users|employees|copies|units|fans)\b", re.I)
 
 
 _UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
@@ -147,6 +148,7 @@ def words_to_digits(text: str) -> str:
                   year, text, flags=re.I)
     text = _HALF.sub(half, text)
     text = _HALF_A.sub(lambda m: _numstr(0.5 * _SCALES[m.group(1).lower()]), text)
+    text = re.sub(r"\ba (hundred|thousand|million|billion)\b", lambda m: _numstr(_SCALES[m.group(1).lower()]), text, flags=re.I)
     return _words_to_digits(text)
 
 
@@ -454,7 +456,8 @@ def _general_visual(beat: str, style: str, main: str, n: int, subject: str, draw
                                                     **({"place": place.group(1)} if place and place.group(1) not in d.group(1) else {})}}
         # what the line shows besides its date (the date removed from the number-normalised text, so a spelled-out
         # year like 'nineteen ninety' can never be found again and loop forever)
-        rest = _general_visual(DATE.sub("", numeric), style, main, n + 1, subject, drawn) or drawn
+        rest = _general_visual(DATE.sub("", beat) if DATE.search(beat) else DATE.sub("", numeric),
+                               style, main, n + 1, subject, drawn) or drawn
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     p = PARTS.search(beat)
     if p:
@@ -532,6 +535,7 @@ view views look looks story stories question questions answer answers reason rea
 type types lot lots bit bits piece pieces side sides end ends way kind version moment moments
 past future present catch delay delays moment moments distance distances amount amounts level levels
 rate rates chance chances problem problems fact facts truth result results difference differences effect effects
+company companies business businesses decision decisions dollars money profit profits brand spare
 first second third fourth fifth sixth tenth quarter danger dangers threat threats risk risks machine machines thing world supernatural paranormal mystery mysteries force forces night nights day mornings morning evening case cases explanation explanations theory theories idea model models
 injury injuries wound wounds body bodies corpse corpses blood death deaths remains victim victims skull skeleton
 january february march april june july august september october november december
@@ -553,7 +557,7 @@ seventy eighty ninety hundred hundreds thousand thousands million millions billi
 quarter percent""".split())
 _PEOPLE = set("""people person archaeologists scientists researchers historians experts someone everyone anyone
 nobody man men woman women""".split())
-_ADJ = set("""wild tiny huge giant little strange ancient modern famous oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
+_ADJ = set("""spare simple wild tiny huge giant little strange ancient modern famous oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
 ancient old new great big small huge tiny vast giant early late modern famous same other own single main final
 best worst true real wet dry dark bright heavy light hidden lost secret strange golden silver thin thick
 powerful huge massive tiny distant nearby empty full narrow wide deep shallow""".split())
@@ -610,12 +614,13 @@ def _key_nouns(beat: str) -> list[str]:
         w = m.group(1).split()
         if ok(w[0]):
             heads.append(" ".join(w) if len(w) > 1 and ok(w[1]) else w[0])
-    for m in re.finditer(r"\b([a-z]{4,}s)\s*(,|\band\b)", text):   # items of a list: "wolves, elk and wild horses"
+    for m in re.finditer(r"(?:\b([a-z]{3,})\s+)?\b([a-z]{4,}s)\s*(,|\band\b)", text):   # list items: "wolves, elk and wild horses"
         after = text[m.end():m.end() + 40]
-        if m.group(2) == "," and not re.search(r"\band\b", after.split(".")[0]):
+        if m.group(3) == "," and not re.search(r"\band\b", after.split(".")[0]):
             continue   # "as the universe expands, that light…" is a clause, not a list
-        if ok(m.group(1)):
-            heads.append(m.group(1))
+        mod, item = m.group(1), m.group(2)
+        if ok(item):   # "theme parks", "video games": keep the noun that names the kind
+            heads.append(f"{mod} {item}" if mod and ok(mod) and not _plural(mod) and mod not in _ADJ else item)
     for m in re.finditer(r"(?:^|[.!?]\s+)([a-z][a-z'-]+)(?:\s+([a-z][a-z'-]+))?", text):   # the subject a sentence starts with
         first, second = m.group(1), m.group(2) or ""
         if first.endswith(("al", "ic", "ous", "ful", "ive", "ish", "ed")) and ok(second):
@@ -675,7 +680,8 @@ Jordan Kenya Korea Latvia Lebanon Libya Lithuania Malaysia Mexico Mongolia Moroc
 Pakistan Peru Philippines Poland Portugal Romania Russia Scotland Senegal Serbia Singapore Slovakia Somalia Spain
 Sudan Sweden Switzerland Syria Tanzania Thailand Tunisia Turkey Uganda Ukraine Venezuela Vietnam Wales Yemen Zambia
 Zimbabwe Africa Asia Europe America Antarctica Oceania Britain USA UK Soviet Russian American British French German
-Chinese Japanese Italian Spanish European African Asian""".split()) | {
+Chinese Japanese Italian Spanish European African Asian Danish Swedish Norwegian Dutch Indian Mexican
+Brazilian Canadian Australian Korean Egyptian Greek Turkish Irish Scottish""".split()) | {
     "United States", "United Kingdom", "Soviet Union", "South Africa", "New Zealand", "Saudi Arabia", "North America",
     "South America", "Atlantic", "Pacific", "Indian Ocean", "Atlantic Ocean", "Pacific Ocean", "Arctic", "Mediterranean"}
 
@@ -727,7 +733,10 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
         place = _entities(DATE.sub("", beat))
         stamp = {"remotion": "DateStamp", "props": {"date": d.group(1).upper(), "at": 0.2,
                                                     **({"place": place[0]} if place else {})}}
-        rest = _general_beat_visual(DATE.sub("", numeric), n + 1, topic, drawn, topic_q)
+        # the rest of the line in the narrator's own words when the date is written in digits (so headings and cues
+        # quote what is said); the number-normalised text only when the date itself was spelled out
+        rest_text = DATE.sub("", beat) if DATE.search(beat) else DATE.sub("", numeric)
+        rest = _general_beat_visual(rest_text, n + 1, topic, drawn, topic_q)
         return [stamp, rest if isinstance(rest, dict) else rest[-1]]
     m = next((x for x in NUMBER.finditer(numeric)
               if not re.match(r"\s*(?:later|ago|after|before|earlier|on|afterwards)\b", numeric[x.end():], re.I)), None)
