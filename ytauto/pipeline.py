@@ -12,7 +12,7 @@ from pathlib import Path
 from .config import Project
 from .cues import find_word_time, resolve_cues
 from .music import MOODS, build_duck_envelope, build_score, speech_from_audio
-from .sound import ALLOWED, BUILTIN, TRANSITION, build_track
+from .sound import ALLOWED, BUILTIN, TRANSITION, TRANSITION_FILE, build_track
 from .tts import Cue, SceneAudio, build_scene_audio, lead_in, narration_inputs, shutdown_workers, strip_directives
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
@@ -287,7 +287,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
             # Word cues (at: "Hiroshima") → seconds within this clip, in the visual AND in its fallbacks
             # (a fallback that still held cue words crashed the animation when a stock search failed).
             # In the scene that carries the opening, timings written in seconds count from the first word, not from
-            # the start of the music (a label "at 0.2" must not pop up 30 s before the narrator speaks).
+            # the start of the music (a label "at 0.2" must not pop up before the narrator speaks).
             if vi == 0 and scene.raw.get("_lead"):
                 spec = _shift_numeric_cues(spec, float(scene.raw["_lead"]))
             spec = _resolve_spec_cues(spec, plan.audio.words, offset_frames / fps, fr / fps, f"scene {plan.scene_index + 1}")
@@ -686,6 +686,9 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
                     continue
                 synth.append((t, it["sound"], vol, it.get("dur")))
             elif it.get("file"):
+                if TRANSITION_FILE.search(Path(str(it["file"])).name):
+                    dropped += 1
+                    continue
                 path = project.resolve(it["file"])
                 if path.exists():
                     files.append((t, path, vol))

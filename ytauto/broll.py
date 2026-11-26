@@ -38,7 +38,9 @@ def _first_request(spec) -> tuple[str, str, str | None]:
         for ph in (spec.get("props") or {}).get("photos") or []:
             v = str(ph.get("photo", ""))
             if v.lower().startswith(("stock:", "photo:", "pexels-photo:")):
-                return "photo", v.split(":", 1)[1].strip(), ph.get("verify")
+                fb = spec.get("fallback_visual")
+                both = isinstance(fb, dict) and "stock" in fb
+                return ("photo or video" if both else "photo"), v.split(":", 1)[1].strip(), ph.get("verify")
         foot = (spec.get("props") or {}).get("footage")
         if isinstance(foot, str) and foot.lower().startswith(("stock:", "pexels:")):
             return "video", foot.split(":", 1)[1].strip(), (spec.get("props") or {}).get("footage_verify")

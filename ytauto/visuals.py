@@ -140,8 +140,7 @@ class ClipRenderer:
 
     def _render(self, spec: Any, duration: float, seq: int, fade_in: bool, fade_out: bool, ids: list) -> Path:
         from . import stock
-        spec = normalize_spec(spec)
-        spec = self._resolve_sources(spec, seq)
+        spec = self._settle(spec, seq)
         fingerprint = None
         for k in ("image", "video"):
             if k in spec:
@@ -184,6 +183,28 @@ class ClipRenderer:
         side.write_text(json.dumps(stock.records_for(ids)))
         return out
 
+    # ------------------------------------------------------------------ which visual is actually shown
+    def _rdir(self) -> Path:
+        rdir = REPO_ROOT / "remotion"
+        if not (rdir / "node_modules").exists() and os.environ.get("YTAUTO_REMOTION_DIR"):
+            rdir = Path(os.environ["YTAUTO_REMOTION_DIR"])
+        return rdir
+
+    def _settle(self, spec: Any, seq: int) -> dict:
+        """Walk a visual's fallback chain to the first one whose material is really there: a stock clip that
+        passed the check, else (say) a photo, else a clip of the other kind, else the drawn/3D shot. Any mix of
+        stock video, photo templates and drawn scenes can follow one another as fallbacks."""
+        spec = self._resolve_sources(normalize_spec(spec), seq)
+        fb = spec.get("fallback_visual") if isinstance(spec, dict) else None
+        if isinstance(spec, dict) and "remotion" in spec and isinstance(fb, (dict, str)) and re.search(
+                r'"(?:stock|photo|pexels-photo|pexels|pixabay):', json.dumps(spec.get("props") or {})):
+            try:
+                self._stage_assets(spec.get("props") or {}, self._rdir())
+            except YtautoError as exc:
+                warn(f"{spec['remotion']}: {str(exc)[:200]}. Using the fallback visual instead.")
+                return self._settle(fb, seq)
+        return spec
+
     # ------------------------------------------------------------------ collecting b-roll before the edit
     def collect(self, spec: Any, seq: int) -> None:
         """Find, check and download every stock photo/clip this visual needs, exactly as the render will ask for it
@@ -191,16 +212,7 @@ class ClipRenderer:
         render uses these very files."""
         from . import stock
         with stock.track():
-            spec = self._resolve_sources(normalize_spec(spec), seq)
-            while isinstance(spec, dict) and "remotion" in spec:
-                rdir = REPO_ROOT / "remotion"
-                if not (rdir / "node_modules").exists() and os.environ.get("YTAUTO_REMOTION_DIR"):
-                    rdir = Path(os.environ["YTAUTO_REMOTION_DIR"])
-                try:
-                    self._stage_assets(spec.get("props") or {}, rdir)
-                    return
-                except YtautoError:
-                    spec = spec.get("fallback_visual")     # the render falls back the same way
+            self._settle(spec, seq)
 
     # ------------------------------------------------------------------ sources
     def _resolve_sources(self, spec: dict, seq: int) -> dict:

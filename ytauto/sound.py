@@ -22,6 +22,8 @@ BUILTIN = {"whoosh", "swell", "riser", "hit", "boom", "thud", "tick", "ticks", "
 # wherever it was asked for (a scene's sfx list, a preset, the sound director).
 TRANSITION = {"whoosh", "swell", "riser", "glitch"}
 ALLOWED = BUILTIN - TRANSITION
+# …and a sound FILE whose name says it is one (assets/whoosh.mp3, swoosh-transition.wav) is left out as well
+TRANSITION_FILE = __import__("re").compile(r"who+sh|swo+sh|swish|riser|swell|sweep|transition|glitch|stinger", __import__("re").I)
 
 
 def _env(n: int, attack: float, decay: float) -> np.ndarray:

@@ -92,7 +92,7 @@ Write the narration in a text file. Leave a blank line between paragraphs; `# He
 Your own directions go in the same file as short labelled lines. They are never read aloud:
 
 ```text
-Intro: 30
+Intro: 4
 Photo: antarctic coastline with icebergs | icebergs in antarctica
 
 # Why Do Sea Lions Fear Leopard Seals?
@@ -109,7 +109,7 @@ Sources: Krause et al. (2020); Muir, Barnes & Reid (2006)
 
 | Line | What it does |
 |---|---|
-| `Intro: 30` | Seconds of music and picture before the narrator's first word (`0:30` also works). Default 30; `Intro: 0` starts straight away. Lines right under it are the opening's own pictures; without any, the opening shot holds. |
+| `Intro: 4` | Seconds of music and picture before the narrator's first word (`0:04` also works). Default 4; `Intro: 0` starts straight away. Lines right under it are the opening's own pictures; without any, the opening shot holds. |
 | `B-roll: <search words>` | Stock footage for the paragraph above: a video clip if one passes the check, else a photo. |
 | `Video: …` / `Photo: …` | The same, but only a clip / only a photo. |
 | `a \| b` | Alternatives, tried in order (most exact first). |
@@ -186,7 +186,7 @@ Hand-written `mood:` / `sfx:` win.
 and not on a reveal. They are not generated, and any that a script still lists are left out of the mix
 (`ytauto/sound.py` `TRANSITION`). The music carries every change of scene on its own.
 
-**The opening.** Every video starts with music and picture only, then the narrator comes in (30 seconds by default;
+**The opening.** Every video starts with music and picture only, then the narrator comes in (4 seconds by default;
 `Intro:` in the script sets it, Shorts start straight away).
 
 **Sound that never jumps over the voice:** every music track is measured before use and plucky or percussive tracks

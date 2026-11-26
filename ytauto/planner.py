@@ -323,6 +323,7 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
     from .scriptfmt import parse_script
     ps = parse_script(script)
     _AUTO_BROLL = broll == "auto"
+    _broll_mix.update(video=0, photo=0)
     script = ps.clean()            # narration only: no direction line is ever narrated or searched by accident
     sources = ps.sources
     blocks = []
@@ -407,7 +408,7 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             sc["text"] = beat
             vis = _rule_visual(beat, style, main, n, local_subject, local_q)
             if items:
-                vis = _with_script_broll(vis, items, n)
+                vis = _with_script_broll(vis, items, n, beat)
             sc["visuals" if isinstance(vis, list) else "visual"] = vis
             if para is not None and para.notes and beat == beats[0]:
                 sc["note"] = "; ".join(para.notes)     # the creator's own direction for this scene (not narrated)
@@ -434,34 +435,68 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
 _AUTO_BROLL = False   # set per plan: True only with --broll auto
 
 
-def _broll_visual(item, drawn: dict, n: int) -> dict:
+# Does this shot want movement (a clip) or a still (a photo)? Read from the creator's search words and details
+# first, then from the line it sits under.
+_MOVING = re.compile(r"\b(swim\w*|hunt\w*|chas\w*|run(?:s|ning)?|fl(?:y|ies|ying|ight)|div(?:e|es|ing)|jump\w*|leap\w*|"
+                     r"walk\w*|mov(?:e|es|ing)|erupt\w*|explo\w*|flow\w*|waves?|storm\w*|launch\w*|lift(?:s|ing)? off|"
+                     r"fall(?:s|ing)?|crash\w*|burn\w*|spin\w*|rotat\w*|driv\w*|sail\w*|march\w*|danc\w*|attack\w*|"
+                     r"feed\w*|eat(?:s|ing)?|break\w*|melt\w*|rain\w*|snow(?:ing|fall)|time-?lapse|aerial|drone|"
+                     r"underwater|footage|in motion|crowds?|traffic|river|waterfall|fire)\b", re.I)
+_STILL = re.compile(r"\b(portraits?|close-?ups?|photo(?:graph)?s?|pictures?|paintings?|drawings?|maps?|documents?|letters?|"
+                    r"manuscripts?|newspapers?|statues?|ruins?|skulls?|fossils?|artefacts?|artifacts?|buildings?|"
+                    r"monuments?|historic\w*|archiv\w*|vintage|1[0-8]\d\d|19[0-4]\d|faces?|eyes?|teeth|details?|"
+                    r"textures?|landscapes?|skyline|interior|exterior|logo|model|diagram)\b", re.I)
+_broll_mix = {"video": 0, "photo": 0}
+
+
+def _broll_first(item, beat: str) -> str:
+    """'video' or 'photo' for a "B-roll:" line: what suits the scene, and a mix of both across the video."""
+    asked = f"{item.search} {item.detail or ''}"
+    for text in (asked, beat):
+        mv, st = bool(_MOVING.search(text)), bool(_STILL.search(text))
+        if mv != st:
+            return "video" if mv else "photo"
+    return "video" if _broll_mix["video"] <= _broll_mix["photo"] else "photo"     # nothing says: keep the mix even
+
+
+def _broll_visual(item, drawn: dict, n: int, beat: str = "") -> dict:
     """One b-roll request from the script → a stock visual that uses the creator's search words as written and is
-    checked against them (or against the creator's "must show" details). The scene's own drawn shot is the fallback."""
+    checked against them (or against the creator's "must show" details). "B-roll:" is a photo or a clip, whichever
+    suits the scene (movement → clip, a still subject → photo), with the other kind as its fallback; "Video:" /
+    "Photo:" ask for that kind only. The scene's own drawn/3D shot is always the last fallback."""
     check = item.detail or None
+    vcheck = {"verify": check} if check else {}
     if item.kind == "photo":
         v = _photo(item.search, drawn, n=n, verify=check)
+        first = "photo"
     elif item.kind == "video":
-        v = {"stock": item.search, **({"verify": check} if check else {}), "fallback_visual": drawn}
-    else:   # either: a clip if one passes the check, else a photo, else the drawn shot
-        v = {"stock": item.search, **({"verify": check} if check else {}),
-             "fallback_visual": _photo(item.search, drawn, n=n, verify=check)}
+        v = {"stock": item.search, **vcheck, "fallback_visual": drawn}
+        first = "video"
+    else:
+        first = _broll_first(item, beat)
+        if first == "video":
+            v = {"stock": item.search, **vcheck, "fallback_visual": _photo(item.search, drawn, n=n, verify=check)}
+        else:
+            v = _photo(item.search, {"stock": item.search, **vcheck, "fallback_visual": drawn}, n=n, verify=check,
+                       layout="print" if _broll_mix["photo"] % 2 else "full")
+    _broll_mix[first] += 1
     v["broll"] = "script"
     return v
 
 
-def _with_script_broll(vis, items: list, n: int):
+def _with_script_broll(vis, items: list, n: int, beat: str = ""):
     """Put the creator's b-roll into a beat: it takes the place of the beat's drawn shot (which stays as its
     fallback); date cards and number graphics the beat already has are kept in front of it."""
     shots = vis if isinstance(vis, list) else [vis]
     keep = [v for v in shots if isinstance(v, dict) and v.get("remotion") in ("DateStamp", "Counter", "DotGrid")]
     rest = [v for v in shots if v not in keep]
     drawn = rest[0] if rest else {"remotion": "KineticText", "props": {}}
-    out = keep[:1] + [_broll_visual(it, drawn, n + k) for k, it in enumerate(items)]
+    out = keep[:1] + [_broll_visual(it, drawn, n + k, beat) for k, it in enumerate(items)]
     return out if len(out) > 1 else out[0]
 
 
 def _intro_plan(ps, scenes: list[dict], title: str, fmt: str) -> dict:
-    """The opening the script asks for: `Intro: 30` → 30 s of music and picture before the first word. With b-roll
+    """The opening the script asks for: `Intro: 4` → 4 s of music and picture before the first word. With b-roll
     lines under it, those pictures play; otherwise the first scene's opening shot holds, or a title card when the
     first shot is a text/number card that would have nothing to show yet."""
     if ps.intro is None and not ps.intro_broll:

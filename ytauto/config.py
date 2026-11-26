@@ -20,8 +20,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "crf": 20,              # x264 quality (lower = better/larger). 18-23 is sensible.
     "preset": "veryfast",   # x264 speed preset
     "tune": None,           # x264 tune: "animation" for flat 2D art, "film" for live footage
-    "intro": 30.0,          # seconds of music + opening picture before the narrator's first word. A script sets its own
-                            # with an "Intro: 30" line (script.txt) or `intro: 30` / `intro: {seconds, visuals}` (script.yaml)
+    "intro": 4.0,           # seconds of music + opening picture before the narrator's first word. A script sets its own
+                            # with an "Intro: 4" line (script.txt) or `intro: 4` / `intro: {seconds, visuals}` (script.yaml)
     "padding": 0.35,        # seconds of silence after every scene's narration
     "sentence_gap": 0.12,   # seconds of silence between sentences inside a scene
     "align": "auto",        # exact word timings via faster-whisper when installed: auto | on | off

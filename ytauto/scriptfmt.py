@@ -3,7 +3,7 @@
 Everything the narrator says is plain paragraphs (blank line between them, optional "# Chapter" headings).
 Directions are short labelled lines; they are never read aloud:
 
-    Intro: 30                      seconds of music and picture before the first word ("0:30" works too)
+    Intro: 4                       seconds of music and picture before the first word ("0:04" works too; default 4)
 
     # Chapter title
 

@@ -35,7 +35,7 @@ give `script.yaml` in full so the creator can commit it. The GitHub workflow ren
 The script carries the creator's own directions as labelled lines (never narrated). Read them before anything
 else and follow them exactly:
 
-- `Intro: 30` → `intro: 30` in script.yaml: seconds of music and picture before the first word (default 30).
+- `Intro: 4` → `intro: 4` in script.yaml: seconds of music and picture before the first word (default 4).
   Lines right under it are the opening's own pictures.
 - `B-roll: …`, `Video: …`, `Photo: …` after a paragraph → stock footage for THAT scene, searched with THOSE words
   (`|` = alternatives in order), checked against them or against a `Details:` line / the text after `->`.
@@ -88,7 +88,7 @@ else and follow them exactly:
   on a countdown. No more than one every 20–30 seconds.
 - **No transition sounds, ever:** never `whoosh`, `swell`, `riser` or `glitch`, not on cuts, chapter changes,
   reveals or at the opening. The toolkit drops them from the mix even if a script lists them.
-- **The opening:** the video starts with music and picture only (30 s unless the script's `Intro:` says
+- **The opening:** the video starts with music and picture only (4 s unless the script's `Intro:` says
   otherwise), then the narrator comes in. Don't put narration, labels or effects in that stretch.
 
 ## Picture must match the words
