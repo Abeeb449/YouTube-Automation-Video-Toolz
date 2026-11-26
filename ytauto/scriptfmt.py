@@ -18,6 +18,20 @@ Directions are short labelled lines; they are never read aloud:
 
     Sources: Author (year), Journal; another source
 
+The script writer's layout is read as it is, too (pasted text or a PDF):
+
+    SCENE 2: THE SHARK CAPITAL (0:46 to 1:55)      a chapter ("HOOK" / "INTRO" belong to the title, no chapter card)
+    3D footage only in this scene.                  a direction; never narrated
+    [B-roll] IMAGE: Map of the coast with the towns marked. Keywords: "Western Cape coast map", "Gansbaai map"
+    NARRATION:                                      (optional)
+    The story starts in a small fishing town …
+
+  A cue written this way ("[B-roll]" first, then VIDEO or IMAGE) sits ABOVE the narration it covers, so it
+  belongs to the paragraph that FOLLOWS it. The keywords are the search words, tried in order; the sentence
+  before "Keywords:" says what the picture must show. The header lines (TITLE, CENTRAL QUESTION, SHAPE, LENGTH,
+  TITLE PROMISE) and the closing sections (B-ROLL KEYWORD LIST, SOURCES, NEEDS CHECKING) are never narrated;
+  the numbered sources go to the description.
+
 Rules the toolkit follows:
   * B-roll (stock video and photos) is used ONLY where the script asks for it, with exactly the search words
     given. `|` separates alternatives, tried in order. Nothing is searched from words the toolkit picked itself.
@@ -46,6 +60,79 @@ SOURCES_LINE = re.compile(r"^\s*sources?\s*:\s*(.+)$", re.I)
 SUBJECT_LINE = re.compile(r"^\s*subject\s*:\s*(.+)$", re.I)
 SCENE_LABEL = re.compile(r"^\s*(?:scene|shot|part)\s*\d+\s*[:.\-–—]?\s*$", re.I)        # a bare "Scene 3" line
 SPOKEN_PREFIX = re.compile(r"^\s*(?:(?:scene|shot)\s*\d+\s*[:.\-–—]\s*)?(?:narration|narrator|voice[\s-]?over|vo|script)\s*[:=]\s*", re.I)
+
+
+# --- the script writer's layout ---------------------------------------------------------------------------------
+CUE_LINE = re.compile(r"^\s*\[\s*b[\s-]?roll\s*\]\s*(?P<kind>videos?|clips?|footage|images?|photos?|pictures?|maps?)?\s*[:.\-–—]?\s*(?P<body>.*)$", re.I)
+KEYWORDS = re.compile(r"\bkey\s*words?\s*[:=]\s*(?P<k>.+)$", re.I | re.S)
+SCENE_HEAD = re.compile(r"^\s*(?:final\s+scene|(?:scene|part|chapter)\s*\d+)\s*[:.\-–—]\s*(?P<name>[^()]*?)\s*"
+                        r"(?:\(\s*\d+:\d+(?::\d+)?\s*(?:to|-|–|—)\s*\d+:\d+(?::\d+)?\s*\))?\s*$", re.I)
+ONLY_3D = re.compile(r"^\s*[*_(\[]*\s*3[\s-]?d\s+(?:footage\s+|animation\s+)?only\b[^.]*\.?\s*[*_)\]]*\s*$", re.I)
+META_LINE = re.compile(r"^\s*(?P<k>title|central\s+question|shape|length|title\s+promise|angle|word\s+count)\s*:\s*(?P<v>.*)$", re.I)
+END_SECTION = re.compile(r"^\s*(?P<k>b[\s-]?roll\s+keyword\s+list|sources?|references|needs\s+checking)\s*:?\s*$", re.I)
+SKIP_LINE = re.compile(r"^\s*(?:the\s+script|narration|script)\s*:?\s*$", re.I)
+_OPENERS = re.compile(r"^(?:hook|intro(?:duction)?|cold\s+open|opening|teaser)$", re.I)
+_SMALL = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "the", "to", "vs", "with", "from"}
+
+
+def _chapter_name(name: str) -> str | None:
+    """A scene heading's name as a chapter title: 'THE SHARK CAPITAL' → 'The Shark Capital'. Opening scenes
+    ('HOOK') get none: they belong to the title."""
+    name = re.sub(r"\s+and\s+(?:the\s+)?(?:cta|call\s+to\s+action|outro)\b", "", name.strip(" :.-–—"), flags=re.I).strip()
+    if not name or _OPENERS.match(name):
+        return None
+    if name.lower() in ("answer", "cta", "outro", "ending"):
+        return "The Answer"
+    if name.isupper() or name.islower():
+        words = name.lower().split()
+        name = " ".join(w if (i and w in _SMALL) else w[:1].upper() + w[1:] for i, w in enumerate(words))
+    return name
+
+
+def _cue(kind: str | None, body: str) -> Broll:
+    """'[B-roll] IMAGE: what to show. Keywords: "a", "b"' → the search words (in order) and what must be seen."""
+    body = re.sub(r"\s+", " ", body).strip()
+    m = KEYWORDS.search(body)
+    show, keys = (body[:m.start()], m.group("k")) if m else (body, "")
+    show = re.sub(r"^(?:the\s+)?(?:real\s+)?(?:drone\s+)?(?:photos?|footage|videos?|images?|pictures?|clips?)\s+of\s+", "",
+                  show.strip(" .:-–—"), flags=re.I).strip()
+    words = [w.strip(" \"'“”‘’.,;") for w in re.findall(r"[\"“]([^\"”]+)[\"”]", keys)] or \
+            [w.strip(" \"'“”‘’.") for w in re.split(r"\s*[;,|]\s*", keys)]
+    words = [w for w in words if w]
+    k = (kind or "").lower()
+    what = "video" if re.match(r"video|clip|footage", k) else "photo" if k else "either"
+    return Broll(what, "|".join(words) if words else show, show or None)
+
+
+def _prepare(raw: str) -> str:
+    """Tidy text that came from a document: bullets and invisible characters off, a cue that runs over several
+    lines (and its 'Keywords:' line) joined into one, a first bare line read as the title."""
+    lines = [re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", ln).replace("\u00a0", " ").rstrip()
+             for ln in raw.replace("\r\n", "\n").replace("\f", "\n").split("\n")]
+    lines = [re.sub(r"^\s*[•●▪◦·]\s*", "", ln) for ln in lines]
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        if CUE_LINE.match(ln):
+            j = i + 1
+            while j < len(lines) and lines[j].strip() and not CUE_LINE.match(lines[j]) and \
+                    (not KEYWORDS.search(ln) or re.search(r'[,"“]\s*$', ln) or ln.count('"') % 2):
+                ln += " " + lines[j].strip()
+                j += 1
+            out += [ln, ""]                  # a cue never runs into the narration under it
+            i = j
+            continue
+        out.append(ln)
+        i += 1
+    # a document's first line is its title when the scenes are labelled and it carries no mark of its own
+    body = [k for k, ln in enumerate(out) if ln.strip()]
+    if body and any(SCENE_HEAD.match(ln) for ln in out):
+        first = out[body[0]].strip()
+        if not first.startswith("#") and not SCENE_HEAD.match(first) and not META_LINE.match(first) \
+                and len(first.split()) <= 18 and not re.search(r"[.!?]$", first):
+            out[body[0]] = "# " + first
+    return "\n".join(out)
 
 
 @dataclass
@@ -137,10 +224,51 @@ def parse_script(raw: str) -> Script:
         else:
             pending_broll.append(b)
 
-    for line in raw.replace("\r\n", "\n").split("\n"):
+    section = None                 # a closing section of the document ("sources", "b-roll keyword list", …)
+    for line in _prepare(raw).split("\n"):
         s = line.strip()
         if not s:
             flush()
+            continue
+        m = END_SECTION.match(s)
+        if m and (sc.paras or buf):
+            flush()
+            section = "sources" if re.match(r"sources?|references", m.group("k"), re.I) else "other"
+            pending_chapter = None
+            continue
+        if section:                    # nothing after the script itself is narrated
+            if section == "sources":
+                item = re.match(r"^\s*\d+[.)]\s*(.+)$", s)
+                if item:
+                    sc.sources.append(item.group(1).strip())
+                elif END_SECTION.match(s):
+                    section = "other"
+                elif sc.sources and (sc.sources[-1].count("(") > sc.sources[-1].count(")") or sc.sources[-1].endswith(",")):
+                    sc.sources[-1] += " " + s          # a source that ran onto a second line
+            continue
+        m = META_LINE.match(s)
+        if m and not sc.paras and not buf:
+            if m.group("k").lower() == "title" and m.group("v").strip():
+                sc.title = sc.title or m.group("v").strip()
+            continue
+        if SKIP_LINE.match(s):
+            flush()
+            continue
+        if ONLY_3D.match(s):
+            flush()
+            continue
+        m = SCENE_HEAD.match(s)
+        if m and (m.group("name").strip() or True):
+            flush()
+            pending_chapter = _chapter_name(m.group("name")) or pending_chapter
+            continue
+        m = CUE_LINE.match(s)
+        if m:                          # the writer's cue: it covers the narration that FOLLOWS it
+            flush()
+            b = _cue(m.group("kind"), m.group("body"))
+            last_broll = b
+            if b.search:
+                pending_broll.append(b)
             continue
         if s.startswith("#"):
             flush()
@@ -202,3 +330,27 @@ def parse_script(raw: str) -> Script:
 
 def narration_only(raw: str) -> str:
     return parse_script(raw).clean()
+
+
+def read_script_file(path) -> str:
+    """The text of a script file. A PDF is read with its paragraphs kept apart (pdftotext -layout, else pypdf)."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+    path = Path(path)
+    if path.suffix.lower() != ".pdf":
+        return path.read_text(encoding="utf-8", errors="replace")
+    if shutil.which("pdftotext"):
+        text = subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True, text=True, check=True).stdout
+    else:
+        from pypdf import PdfReader
+        text = "\f".join((pg.extract_text() or "") for pg in PdfReader(str(path)).pages)
+    # a paragraph that runs over a page break is one paragraph: join where the page ends mid-sentence
+    pages = [pg.strip("\n") for pg in text.split("\f") if pg.strip()]
+    out = pages[:1]
+    for pg in pages[1:]:
+        prev = out[-1].rstrip()
+        first = pg.lstrip("\n").split("\n", 1)[0].strip()
+        mid = prev and not re.search(r'[.!?:"”)]$', prev) and first[:1].islower()
+        out[-1] = prev + ("\n" if mid else "\n\n") + pg.lstrip("\n")
+    return "\n".join(ln.strip() if not CUE_LINE.match(ln) else ln.strip() for ln in "".join(out).split("\n")) + "\n"

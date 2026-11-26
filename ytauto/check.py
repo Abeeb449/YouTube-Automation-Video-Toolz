@@ -92,6 +92,10 @@ def _kind(v) -> tuple[str, list]:
             cards.append(props)
         if name == "PhotoStory" and all(str(ph.get("photo", "")).startswith("stock:") for ph in props.get("photos") or [{}]):
             return "PhotoStory(stock)", cards
+        if name == "OceanScene":          # one template, several different kinds of shot
+            for setting in ("aerial", "beach", "split"):
+                if props.get(setting):
+                    return f"OceanScene({setting})", cards
         return name, cards
     if "model" in v:
         return "3D model", cards

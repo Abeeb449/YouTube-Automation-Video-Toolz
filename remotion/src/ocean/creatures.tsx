@@ -329,6 +329,9 @@ export const CREATURES: Record<string, React.FC<CreatureProps>> = {
   spermWhale: SpermWhale, giantSquid: GiantSquid, orca: Orca, shark: Shark, anglerfish: Anglerfish,
   jellyfish: Jellyfish, diver: Diver, fishSchool: FishSchool, octopus: Octopus,
   leopardSeal: LeopardSeal, seaLion: SeaLion, furSeal: SeaLion, penguin: Penguin, krill: Krill,
+  // 3D-modelled animals (blender/sealife.py); these drawings only stand in when a sprite set is missing
+  greatWhite: Shark, greatWhiteLiver: Shark, sevengill: Shark, bronzeWhaler: Shark, fishBladder: FishSchool,
+  orcaMale: Orca, orcaPort: Orca, orcaStarboard: Orca,
 };
 
 /** Horizontal drawing extent [left, right] in local units, used to keep creatures clear of text panels. */
@@ -336,4 +339,6 @@ export const EXTENTS: Record<string, [number, number]> = {
   spermWhale: [-320, 300], giantSquid: [-300, 495], orca: [-305, 292], shark: [-300, 302], anglerfish: [-250, 290],
   jellyfish: [-100, 100], diver: [-215, 222], fishSchool: [-330, 330], octopus: [-100, 100],
   leopardSeal: [-326, 300], seaLion: [-306, 292], furSeal: [-306, 292], penguin: [-166, 184], krill: [-350, 350],
+  greatWhite: [-300, 302], greatWhiteLiver: [-300, 302], sevengill: [-300, 302], bronzeWhaler: [-300, 302],
+  orcaMale: [-305, 292], orcaPort: [-305, 292], orcaStarboard: [-305, 292],
 };

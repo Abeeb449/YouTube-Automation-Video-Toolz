@@ -50,12 +50,15 @@ seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninet
 half a""".split()) - {"a"}
 
 
+NOT_CUES = {"lookAt"}       # props that end in "At" but name a thing, not a moment
+
+
 def resolve_cues(obj: Any, words: list, clip_offset: float, clip_dur: float, where: str = "") -> Any:
     """Return a copy of `obj` with word cues replaced by seconds relative to the clip."""
     if isinstance(obj, dict):
         out = {}
         for k, v in obj.items():
-            if (k == "at" or k.endswith("At")) and isinstance(v, str):
+            if (k == "at" or k.endswith("At")) and k not in NOT_CUES and isinstance(v, str):
                 t = find_word_time(v, words)
                 if t is None:
                     warn(f"{where}: cue word {v!r} not found in the narration — showing it at the start")

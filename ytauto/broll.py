@@ -118,6 +118,10 @@ def _report(data: dict) -> str:
                 who = " by ".join(x for x in ((f'"{f["title"]}"' if f.get("title") else ""), f.get("author") or "") if x)
                 out.append(f"  FOUND ({f.get('kind') or 'file'}): {who or f.get('id') or Path(f['path']).name}"
                            + (f", {f['license']}" if f.get("license") else "") + (f"\n         {f['url']}" if f.get("url") else ""))
+            from .verify import DEAD_WORDS
+            if re.search(DEAD_WORDS, f"{it['search']} {it['must_show'] or ''}".lower()):
+                out.append("  LOOK AT THIS ONE: it shows a dead animal, because the script asks for one. Check it on the sheet; "
+                           "YouTube can limit adverts on pictures it finds graphic.")
         else:
             out.append("  NOT FOUND: nothing usable passed the checks, so this scene uses its fallback shot"
                        + (f" ({it['fallback']})." if it.get("fallback") else "."))

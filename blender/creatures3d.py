@@ -10,14 +10,21 @@ Usage (headless):
       --out remotion/public/sprites/leopardSeal/side --frames 48 --size 1280x640 [--still]
 
 Views: side (profile, facing right) · three_quarter (front-left 3/4, facing right) · below (seen from beneath)
-       · rest (lying on land/ice, side view, for split shots)
+       · top (seen from straight above, as a drone sees it) · rest (lying on land/ice, side view, for split shots)
+       · beached (a shark lying on its side on the sand, belly toward the camera)
+       · upside (a shark rolled onto its back, limp)
 """
 import argparse
 import math
 import sys
 
+import os
+
 import bpy
 from mathutils import Vector
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sealife  # noqa: E402 — sharks and whales, modelled from measurements (lofted bodies, foil fins)
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ap = argparse.ArgumentParser()
@@ -497,10 +504,12 @@ def render_head(view):
         bpy.ops.render.render(animation=True)
 
 # ------------------------------------------------------------------------------------------ rig + swim cycle
-def rig_and_animate(body, extent, frames, mode):
-    """Armature along X with automatic weights; a travelling wave from head to tail (pitch for side views)."""
+def rig_and_animate(body, extent, frames, mode, by_position=False, sway=(0.025, 0.11, 1.6)):
+    """Armature along X; a travelling wave from head to tail ('pitch' = up and down, as seals and whales swim;
+    'yaw' = side to side, as sharks swim). Weights are automatic, or by position along the body (by_position:
+    exact and dependable for bodies made of several closed parts, such as a shark with its fins)."""
     x0, x1 = extent
-    n = 7
+    n = 9 if by_position else 7
     # merge eyes, ears, nose into the body first so automatic weights make them follow every bend
     parts = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     bpy.ops.object.select_all(action="DESELECT")
@@ -531,7 +540,19 @@ def rig_and_animate(body, extent, frames, mode):
     body.select_set(True)
     arm.select_set(True)
     bpy.context.view_layer.objects.active = arm
-    bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+    if by_position:
+        bpy.ops.object.parent_set(type="ARMATURE_NAME")
+        groups = [body.vertex_groups.get(b) or body.vertex_groups.new(name=b) for b in bones]
+        seg = (x1 - x0) / n
+        for v in body.data.vertices:
+            u = min(n - 1.0, max(0.0, (x1 - v.co.x) / seg - 0.5))      # 0 = head bone … n-1 = tail bone
+            i = int(u)
+            f = u - i
+            groups[i].add([v.index], 1.0 - f, "REPLACE")
+            if f > 1e-4 and i + 1 < n:
+                groups[i + 1].add([v.index], f, "REPLACE")
+    else:
+        bpy.ops.object.parent_set(type="ARMATURE_AUTO")
     if mode == "still_rest":
         pb = arm.pose.bones
         lift = REST_LIFT.get(args.creature, 0.0)   # sea lions prop the chest and head up on their fore flippers
@@ -546,7 +567,7 @@ def rig_and_animate(body, extent, frames, mode):
     for f in range(frames + 1):
         ph = 2 * math.pi * f / frames
         for i, name in enumerate(bones):
-            amp = 0.025 + 0.11 * (i / (n - 1)) ** 1.6     # stronger toward the tail
+            amp = sway[0] + sway[1] * (i / (n - 1)) ** sway[2]     # stronger toward the tail
             pb[name].rotation_mode = "XYZ"
             pb[name].rotation_euler = (0, 0, amp * math.sin(ph - i * 0.75)) if mode == "yaw" else (amp * math.sin(ph - i * 0.75), 0, 0)
             pb[name].keyframe_insert("rotation_euler", frame=f + 1)
@@ -595,9 +616,17 @@ def setup_scene(view):
         d = Vector(target) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
+    if view == "top":
+        # seen from above the light must come from the side, or the whole back turns into one bright glare
+        area("key", (1.5, -6.0, 3.0), 300, 4.0, (0.90, 0.96, 1.0))
+        area("rim", (-3.5, 4.5, 2.0), 220, 3.0, (0.45, 0.8, 1.0))
+        area("fill", (0.0, 0.0, 7.0), 40, 8.0, (0.7, 0.8, 0.9))
+        cam = _top_camera(sc)
+        return cam
     area("key", (0.8, -2.5, 4.5), 260, 3.5, (0.86, 0.95, 1.0))      # sunlight filtering down
     area("rim", (-2.5, 3.5, 2.2), 320, 2.5, (0.45, 0.8, 1.0))       # cyan back-light separates it from dark water
-    area("fill", (2.0, -5.0, -1.8), 45, 5.0, (0.55, 0.65, 0.75))     # bounce from below
+    # bounce from below; sharks and whales are white underneath and need it to read as white, not grey
+    area("fill", (2.0, -5.0, -1.8), 150 if args.creature in sealife.BUILDERS else 45, 5.0, (0.62, 0.72, 0.80))
 
     cam_d = bpy.data.cameras.new("cam")
     cam = bpy.data.objects.new("cam", cam_d)
@@ -610,12 +639,27 @@ def setup_scene(view):
         cam.location = (4.2, -7.0, 1.6)
     elif view == "below":
         cam.location = (0, 0, -9)
+    elif view == "top":
+        cam.location = (0, 0, 9)
     else:  # side / rest: long lens, slightly above → reads as 3D but stays a clean profile
         cam_d.type = "PERSP"
         cam_d.lens = 85
         cam.location = (0, -11, 1.6)
     d = Vector((0, 0, 0)) - cam.location
     cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    if view == "top":
+        cam.rotation_euler = (0, 0, 0)          # looking straight down, the animal's head to the right
+    return cam
+
+
+def _top_camera(sc):
+    cam_d = bpy.data.cameras.new("cam")
+    cam = bpy.data.objects.new("cam", cam_d)
+    sc.collection.objects.link(cam)
+    sc.camera = cam
+    cam_d.type = "ORTHO"
+    cam.location = (0, 0, 9)
+    cam.rotation_euler = (0, 0, 0)              # looking straight down, the animal's head to the right
     return cam
 
 
@@ -637,8 +681,9 @@ def frame_object(cam, obj_extent, view):
         cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
 
-def fit_camera_to_bounds(cam, objs, margin=1.1):
-    """Aim the camera at the evaluated bounding box of the posed creature and size it to fill the frame."""
+def fit_camera_to_bounds(cam, objs, margin=1.1, down=False):
+    """Aim the camera at the evaluated bounding box of the posed creature and size it to fill the frame.
+    down: the camera looks along Z (from above or below), so the picture's height is the animal's width."""
     import bpy_extras  # noqa: F401
     deps = bpy.context.evaluated_depsgraph_get()
     pts = []
@@ -653,14 +698,13 @@ def fit_camera_to_bounds(cam, objs, margin=1.1):
     mx = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
     c = (mn + mx) / 2
     w = (mx.x - mn.x) * margin
-    h = (mx.z - mn.z) * margin
+    h = ((mx.y - mn.y) if down else (mx.z - mn.z)) * margin
     aspect = W / H
     # Blender fits ortho_scale / lens to the LARGER frame dimension
     span = max(w, h * aspect) if W >= H else max(h, w / aspect)
-    d = cam.location - c if cam.data.type != "ORTHO" else Vector((0, -1, 0))
     if cam.data.type == "ORTHO":
         cam.data.ortho_scale = span
-        cam.location = Vector((c.x, cam.location.y, c.z))
+        cam.location = Vector((c.x, c.y, cam.location.z)) if down else Vector((c.x, cam.location.y, c.z))
     else:
         dist = span * cam.data.lens / 36.0
         dirv = (cam.location - c).normalized()
@@ -673,21 +717,33 @@ def main():
     if args.creature == "leopardSealHead":
         render_head(args.view)
         return
-    build = BUILDERS[args.creature]
-    body, ext = build()
-    extent = ext[0]
     view = args.view
-    if view in ("rest", "stand"):
-        mode = "still_rest"
+    if args.creature in sealife.BUILDERS:
+        sealife.POSE = view
+        body, extent, swim = sealife.BUILDERS[args.creature]()
+        still = view in ("rest", "beached", "upside")
+        # a shark's body stays stiff and its tail does the work; a whale beats its flukes up and down
+        arm = rig_and_animate(body, extent, args.frames, "still_rest" if still else swim, by_position=True,
+                              sway=(0.008, 0.085, 2.3) if swim == "yaw" else (0.008, 0.075, 2.0))
+        if view == "upside":                    # rolled onto its back and limp (tonic immobility)
+            arm.rotation_euler = (math.radians(180), 0, 0)
+        if view == "beached":                   # washed ashore: on its side, belly toward the camera
+            arm.rotation_euler = (math.radians(-66), 0, math.radians(-3))
     else:
-        mode = "pitch" if view in ("side", "three_quarter") else "yaw"
-    arm = rig_and_animate(body, extent, args.frames, mode)
+        build = BUILDERS[args.creature]
+        body, ext = build()
+        extent = ext[0]
+        if view in ("rest", "stand"):
+            mode = "still_rest"
+        else:
+            mode = "pitch" if view in ("side", "three_quarter") else "yaw"
+        arm = rig_and_animate(body, extent, args.frames, mode)
     if view == "below":
         arm.rotation_euler = (0, 0, 0)
     if args.creature == "penguin" and view == "stand":
         arm.rotation_euler = (0, math.radians(-90), 0)   # head up
     cam = setup_scene(view)
-    frame_object(cam, (extent[0], extent[1]), view)
+    frame_object(cam, (extent[0], extent[1]), "side" if view in ("beached", "upside") else view)
     if view == "stand":  # tall subject: frame vertically
         cam.data.type = "ORTHO"
         cam.data.ortho_scale = (extent[1] - extent[0]) * 1.15
@@ -695,7 +751,11 @@ def main():
         cam.rotation_euler = (math.radians(90), 0, 0)
     meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     bpy.context.scene.frame_set(1)
-    fit_camera_to_bounds(cam, meshes, margin=1.12 if view != "three_quarter" else 1.18)
+    if view in ("top", "below"):
+        # the swimming body sweeps sideways: leave room, so the animal never leaves the picture
+        fit_camera_to_bounds(cam, meshes, margin=1.3, down=True)
+    else:
+        fit_camera_to_bounds(cam, meshes, margin=1.12 if view != "three_quarter" else 1.18)
     sc = bpy.context.scene
     sc.render.filepath = f"{args.out}/" + ("still" if args.still else "f_####")
     if args.still:

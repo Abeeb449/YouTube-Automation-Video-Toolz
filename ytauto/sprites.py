@@ -19,9 +19,20 @@ SETS: dict[str, dict[str, int]] = {
     "seaLion": {"side": 48, "rest": 1},
     "seaLionPup": {"side": 48, "rest": 1},
     "leopardSealHead": {"jaw": 36},          # close-up: the jaw opens to show canines + tricuspid cheek teeth
+    # sharks and whales modelled from measurements (blender/sealife.py)
+    "greatWhite": {"side": 48, "top": 48, "beached": 1, "three_quarter": 48, "upside": 1},
+    "orcaPort": {"side": 48, "top": 48, "three_quarter": 48},          # collapsed fin lying to his LEFT
+    "orcaStarboard": {"side": 48, "top": 48, "three_quarter": 48},     # collapsed fin lying to his RIGHT
+    "greatWhiteLiver": {"side": 48},         # see-through body with the liver lit inside
+    "sevengill": {"side": 48, "beached": 1, "top": 48},
+    "orca": {"side": 48, "top": 48},         # the usual curved dorsal fin (females, young males)
+    "bronzeWhaler": {"side": 48},
+    "orcaMale": {"side": 48},                # adult male: tall straight dorsal fin
+    "fishBladder": {"side": 48},             # a see-through bony fish with its swim bladder lit inside
 }
 SIZE = "1280x640"
 SIZES = {"leopardSealHead": "1280x720"}
+SAMPLES = {c: 16 for c in ("greatWhite", "greatWhiteLiver", "orca", "orcaMale", "orcaPort", "orcaStarboard", "sevengill", "bronzeWhaler", "fishBladder")}
 ONCE = {"leopardSealHead"}                   # plays once and holds the last frame (not a loop)
 
 
@@ -44,6 +55,8 @@ def render_set(creature: str, view: str, frames: int, force: bool = False) -> Pa
     log(f"Rendering 3D sprite {creature}/{view} ({frames} frame{'s' if frames > 1 else ''}) with Blender …")
     cmd = [blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "creatures3d.py", "--",
            "--creature", creature, "--view", view, "--out", tmp, "--frames", str(max(frames, 1)), "--size", SIZES.get(creature, SIZE)]
+    if creature in SAMPLES:
+        cmd += ["--samples", str(SAMPLES[creature])]
     if frames <= 1:
         cmd.append("--still")
     run(cmd)

@@ -1,0 +1,3981 @@
+# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.
+# Written by direct.py from script.txt (the narration is the script, sentence for sentence). Change the shots in
+# direct.py and run it again; this file is what gets rendered.
+preset: ocean
+title: The Two Orcas That Emptied a Great White Shark Coast
+description: 'In May 2017 a great white shark almost five metres long washed up on a South African beach with its liver missing. This
+  is the story of Port and Starboard, the two orcas that learned to hunt great whites, the bay they emptied, and the argument among
+  scientists over how much of the blame is theirs.
+
+
+  The animals and events in this video are shown as 3D reconstructions, except where real photos or footage are credited below.'
+tags:
+- orca
+- great white shark
+- Port and Starboard
+- Gansbaai
+- False Bay
+- Mossel Bay
+- South Africa
+- killer whale
+- shark liver
+- ocean documentary
+- wildlife documentary
+- animals
+sources:
+- 'Towner et al. 2022, African Journal of Marine Science: "Fear at the top" (abstract) — https://ajol.info/index.php/ajms/article/view/230116'
+- Taylor & Francis press release on the Gansbaai study — https://www.eurekalert.org/news-releases/957266
+- Ecological Society of America press release on the Mossel Bay footage (Towner et al. 2022, Ecology) — https://www.eurekalert.org/news-releases/966889
+- 'South African National Parks: feature by Alison Kock and Alison Towner — https://www.sanparks.org/conservation/scientific-services/stories/killer-whales-drive-white-sharks-away-a-shifting-predator-seascape'
+- 'Jorgensen et al. 2019, Scientific Reports: Farallon Islands study — https://pmc.ncbi.nlm.nih.gov/articles/PMC6467992'
+- 'Hammerschlag et al. 2025, Frontiers in Marine Science: False Bay ecosystem changes — https://www.frontiersin.org/articles/10.3389/fmars.2025.1530362'
+- 'Frontiers news: orcas and young great whites in the Gulf of California — https://www.frontiersin.org/news/2025/11/03/orcas-killing-young-great-white-sharks-by-flipping-upside-down-frontiers-marine-science'
+- 'Natural History Museum, London: orcas changing a marine ecosystem — https://www.nhm.ac.uk/discover/news/2022/july/killer-whales-attack-great-white-sharks-changing-marine-ecosystem.html'
+- 'Save Our Seas Foundation: sharks and orcas in South Africa — https://saveourseas.com/update/unpacking-the-epic-battle-between-sharks-and-orcas-in-south-africa/'
+- 'Stellenbosch University: the 2024 rebuttal by Gennari and co-authors — https://www.su.ac.za/en/node/813'
+- Kock, Towner and co-authors in The Conversation, via Daily Maverick (2023) — https://www.dailymaverick.co.za/article/2023-09-20-south-africas-great-white-sharks-are-changing-locations-they-need-to-be-monitored-for-beach-safety-and-conservation/
+- Gennari, Hammerschlag and Andreotti in The Conversation, via Daily Maverick (2024) — https://www.dailymaverick.co.za/article/2024-05-13-decline-in-great-white-sharks-off-sas-coast-could-see-apex-predator-vanish-entirely
+- 'National Geographic: Port and Starboard and shark livers — https://www.nationalgeographic.com/animals/article/orcas-great-whites-sharks-livers-south-africa'
+- 'Smithsonian Magazine: the solo kill of June 2023 — https://www.smithsonianmag.com/smart-news/single-orca-spotted-killing-a-great-white-shark-for-the-first-time-ever-180983887/'
+- 'CNN, via AOL: the solo kill of June 2023 — https://www.aol.com/news/lone-orca-slayed-great-white-220948590.html'
+- 'Yale Environment 360: where have South Africa''s great whites gone — https://e360.yale.edu/features/shark-mystery-where-have-south-africas-great-whites-gone'
+- 'AFP, via Phys.org: the sevengill sharks of February 2023 — https://phys.org/news/2023-03-surgical-shark-killing-orcas-fascinate-south.pdf'
+- 'Daily Maverick, 23 September 2026: great white seen in False Bay — https://www.dailymaverick.co.za/article/2026-09-23-great-white-shark-spotted-in-false-bay-after-eight-year-absence/'
+- 'Nova News, 5 November 2026: two white sharks off Gansbaai — https://novanews.co.za/watch-two-white-sharks-spotted-off-gansbaai-after-year-long-absence/'
+- 'Cape Town Etc, 28 February 2026: Port and Starboard seen apart — https://www.capetownetc.com/news/video-port-and-starboard-stir-intrigue-with-rare-sightings-apart/'
+- 'The Citizen, 1 November 2026: background on the orcas — https://www.citizen.co.za/network-news/lnn/article/videos-orcas-port-and-starboard-reshape-coastline-as-shark-hunting-strategy-evolves/'
+- 'Flinders University: the Portland, Victoria shark and orca DNA — https://news.flinders.edu.au/blog/2025/02/01/why-killer-whales-attack-white-shark/'
+- 'Live Science: photos and details of the 2017 necropsies — https://www.livescience.com/59058-great-white-shark-necropsy-photos.html'
+- 'Gansbaai Courant, via Xplorio: the May 2017 carcasses — https://xplorio.com/gansbaai/en/blog/general-news/38733/fifth-white-shark-washed-up-on-beach-since-2012/'
+- Dyer Island Conservation Trust blog, June 2017 — https://dict.org.za/blog/gret-white-sharks-vs-orca-may-2017/
+- 'Global News: date of the Mossel Bay hunt — https://globalnews.ca/news/9181439/killer-whales-orcas-great-white-shark-attack-hunt-video/amp'
+- 'EarthSky: great white liver fat and migration — https://earthsky.org/earth/great-white-sharks-use-fat-stored-in-liver-to-fuel-migrations/'
+- 'Wikipedia: Port and Starboard (timeline cross-check only) — https://en.wikipedia.org/wiki/Port_and_Starboard_(orcas)'
+thumbnail:
+  text: TWO ORCAS EMPTIED THIS COAST
+youtube:
+  privacy: private
+  category_id: 15
+  synthetic_media: true
+scenes:
+- chapter: Intro
+  mood: mystery
+  text: In May 2017, a great white shark almost five metres long washed up on a beach in South Africa.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: overcast
+      zoom:
+      - 1.0
+      - 1.08
+      kicker: MAY 2017
+      heading: South Africa
+      scaleBar:
+        x1: 0.2
+        x2: 0.8
+        y: 0.9
+        label: Almost 5 metres
+        at: five
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.74
+        scale: 1.7
+        view: beached
+- text: A shark that size has almost no enemies in the sea.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      callout: Almost no enemies in the sea
+      calloutAt: enemies
+      actors:
+      - creature: greatWhite
+        x: 0.3
+        y: 0.5
+        scale: 2.0
+        to:
+        - 0.5
+        - 0.5
+        view: three_quarter
+      - creature: fishSchool
+        x: 0.82
+        y: 0.3
+        scale: 0.5
+        to:
+        - 1.1
+        - 0.2
+- text: Yet one clean tear ran across her chest, and her liver was gone.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: greatWhiteLiver
+        view: side
+      backdrop: abyss
+      callouts:
+      - x: 0.63
+        y: 0.66
+        label: One clean tear
+        sub: across the chest
+        at: tear
+        side: right
+      - x: 0.44
+        y: 0.58
+        label: The liver
+        sub: gone
+        at: liver
+        side: left
+- text: Within weeks, three more great whites came ashore with the same wound.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: dusk
+      zoom:
+      - 1.06
+      - 1.0
+      callout: Three more, the same wound
+      calloutAt: same
+      actors:
+      - creature: greatWhite
+        x: 0.2
+        y: 0.7
+        scale: 0.75
+        view: beached
+        at: 0.2
+      - creature: greatWhite
+        x: 0.5
+        y: 0.78
+        scale: 0.85
+        view: beached
+        at: three
+      - creature: greatWhite
+        x: 0.8
+        y: 0.7
+        scale: 0.75
+        view: beached
+        flip: true
+        at: ashore
+- text: The killers were two orcas that local boat crews already knew by name.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.7
+      callout: Two orcas, known by name
+      calloutAt: name
+      actors:
+      - creature: orcaPort
+        x: 0.0
+        y: 0.42
+        scale: 1.5
+        to:
+        - 0.34
+        - 0.42
+        silhouette: '#050b10'
+        opacity: 0.92
+        enter: left
+      - creature: orcaStarboard
+        x: -0.1
+        y: 0.66
+        scale: 1.5
+        to:
+        - 0.22
+        - 0.64
+        silhouette: '#050b10'
+        opacity: 0.92
+        enter: left
+        at: two
+- text: Over the next few years, these two whales helped empty a bay once called the great white shark capital of the world.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      callout: The great white shark capital of the world
+      calloutAt: capital
+      actors:
+      - creature: greatWhite
+        x: 0.55
+        y: 0.3
+        scale: 0.7
+        to:
+        - 1.3
+        - 0.22
+      - creature: greatWhite
+        x: 0.7
+        y: 0.55
+        scale: 0.85
+        to:
+        - 1.4
+        - 0.5
+      - creature: greatWhite
+        x: 0.5
+        y: 0.78
+        scale: 0.6
+        to:
+        - 1.3
+        - 0.84
+      - creature: orcaPort
+        x: -0.2
+        y: 0.45
+        scale: 1.4
+        to:
+        - 0.2
+        - 0.45
+        at: whales
+      - creature: orcaStarboard
+        x: -0.3
+        y: 0.68
+        scale: 1.4
+        to:
+        - 0.1
+        - 0.66
+        at: whales
+- text: This is how they did it, and why scientists still argue over how much of the blame is theirs.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.45
+      zoom:
+      - 1.0
+      - 1.1
+      title: The Two Orcas That Emptied a Great White Shark Coast
+      titleAt: 0.4
+      actors:
+      - creature: orcaPort
+        x: 0.3
+        y: 0.42
+        scale: 1.5
+        view: three_quarter
+        to:
+        - 0.36
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.68
+        y: 0.64
+        scale: 1.5
+        view: three_quarter
+        to:
+        - 0.74
+        - 0.64
+- chapter: The Shark Capital
+  mood: calm
+  text: The story starts in a small fishing town called Gansbaai, on the coast southeast of Cape Town.
+  visual:
+    remotion: MapScene
+    props:
+      bbox: &id001
+      - - 17.3
+        - -35.7
+      - - 23.4
+        - -33.0
+      countryLabels:
+      - name: South Africa
+        lon: 21.0
+        lat: -33.35
+      cities:
+      - name: Cape Town
+        lon: 18.42
+        lat: -33.92
+        at: Cape
+      - name: Gansbaai
+        lon: 19.35
+        lat: -34.58
+        at: Gansbaai
+      - name: Mossel Bay
+        lon: 22.13
+        lat: -34.18
+        at: 0.6
+      - name: False Bay
+        lon: 18.68
+        lat: -34.22
+        at: 0.4
+      pulses:
+      - lon: 19.35
+        lat: -34.58
+        at: Gansbaai
+      title: South Africa's south coast
+      zoom: 1.1
+- text: A few kilometres offshore lies Dyer Island, home to a large colony of Cape fur seals.
+  visual:
+    remotion: OceanScene
+    props:
+      split:
+        y: 0.42
+        land: rocks
+        landWidth: 0.6
+        sky: polar
+        floes: false
+      zoom:
+      - 1.08
+      - 1.0
+      kicker: A FEW KILOMETRES OFFSHORE
+      heading: Dyer Island
+      callout: A large colony of Cape fur seals
+      calloutAt: colony
+      actors:
+      - creature: seaLion
+        x: 0.1
+        y: 0.3
+        scale: 0.42
+        detail:
+          rest: true
+      - creature: seaLion
+        x: 0.24
+        y: 0.28
+        scale: 0.38
+        detail:
+          rest: true
+        flip: true
+      - creature: seaLion
+        x: 0.37
+        y: 0.3
+        scale: 0.4
+        detail:
+          rest: true
+      - creature: seaLion
+        x: 0.48
+        y: 0.3
+        scale: 0.3
+        detail:
+          rest: true
+          pup: true
+      - creature: seaLion
+        x: 0.7
+        y: 0.62
+        scale: 0.45
+        to:
+        - 0.86
+        - 0.56
+      - creature: seaLion
+        x: 0.62
+        y: 0.8
+        scale: 0.4
+        to:
+        - 0.5
+        - 0.74
+- text: Where there are seals, great whites follow.
+  visual:
+    remotion: OceanScene
+    props:
+      split:
+        y: 0.4
+        land: rocks
+        landWidth: 0.45
+        sky: polar
+        floes: false
+      callout: Where there are seals, great whites follow
+      calloutAt: follow
+      actors:
+      - creature: seaLion
+        x: 0.14
+        y: 0.3
+        scale: 0.4
+        detail:
+          rest: true
+      - creature: seaLion
+        x: 0.3
+        y: 0.28
+        scale: 0.36
+        detail:
+          rest: true
+        flip: true
+      - creature: seaLion
+        x: 0.52
+        y: 0.56
+        scale: 0.42
+        to:
+        - 0.44
+        - 0.5
+        target:
+          at: great
+      - creature: greatWhite
+        x: 1.1
+        y: 0.76
+        scale: 1.1
+        to:
+        - 0.72
+        - 0.74
+        silhouette: '#071118'
+        opacity: 0.9
+        at: great
+- text: For years, the sharks were here on almost every day of the year, and people travelled to see them.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      callout: Sharks on almost every day of the year
+      calloutAt: every
+      actors:
+      - creature: greatWhite
+        x: 0.25
+        y: 0.34
+        scale: 0.8
+        to:
+        - 0.55
+        - 0.32
+      - creature: greatWhite
+        x: 0.8
+        y: 0.58
+        scale: 1.0
+        to:
+        - 0.5
+        - 0.6
+        view: three_quarter
+      - creature: greatWhite
+        x: 0.3
+        y: 0.82
+        scale: 0.6
+        to:
+        - 0.6
+        - 0.84
+- text: South Africa protected great whites by law in 1991, the first country to do so.
+  visual:
+    remotion: Statement
+    props:
+      backdrop: ocean
+      kicker2: '1991'
+      line1: South Africa protects the great white
+      line2: The first country to do so
+- text: After that, cage diving grew fast.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.25
+      zoom:
+      - 1.0
+      - 1.12
+      callout: Cage diving grew fast
+      calloutAt: cage
+      actors:
+      - creature: greatWhite
+        x: 0.75
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.5
+        - 0.5
+        view: three_quarter
+- text: Along this southern coast, shark tourism came to draw more than 80,000 visitors a year.
+  visual:
+    remotion: Counter
+    props:
+      backdrop: ocean
+      to: 80000
+      prefix: ''
+      suffix: +
+      label: Visitors a year
+      countAt: draw
+      heading: Shark tourism
+      kicker: THE SOUTHERN COAST
+- text: Every boat that went out kept a log of each shark its crew saw. Over time, those notes became a scientific record.
+  visual:
+    remotion: DotGrid
+    props:
+      backdrop: ocean
+      count: 120
+      highlight: 120
+      cols: 20
+      value: The logbooks
+      label: Every trip, every shark seen
+      note: Boat sighting logs, Gansbaai
+      fillAt: log
+      color: '#3fb6c9'
+- text: Before 2017, the record shows only two times when a week or more passed without a great white. One gap lasted a week in 2007.
+    The other lasted three weeks in 2016.
+  visual:
+    remotion: Counter
+    props:
+      backdrop: ocean
+      from: 2005
+      to: 2017
+      plain: true
+      label: Gaps of a week or more without a great white
+      countAt: 0.6
+      countDur: 6
+      timeline:
+        start: 2005
+        end: 2017
+        tickEvery: 2
+        events:
+        - year: 2007
+          label: 1 week
+          at: week#2
+        - year: 2016
+          label: 3 weeks
+          at: three
+- text: In early 2017, the logbooks began to fill with empty days.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      zoom:
+      - 1.0
+      - 1.1
+      kicker: EARLY 2017
+      heading: Gansbaai
+      callout: Empty days in the logbooks
+      calloutAt: empty
+      actors:
+      - creature: fishSchool
+        x: 0.3
+        y: 0.4
+        scale: 0.6
+        to:
+        - 0.45
+        - 0.36
+      - creature: seaLion
+        x: 0.75
+        y: 0.6
+        scale: 0.42
+        to:
+        - 0.6
+        - 0.64
+- chapter: Bodies on the Beach
+  mood: mystery
+  text: The first body came in February. A young female, 2.6 metres long, lay on a beach near Gansbaai.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: overcast
+      zoom:
+      - 1.0
+      - 1.06
+      kicker: FEBRUARY 2017
+      heading: Near Gansbaai
+      scaleBar:
+        x1: 0.335
+        x2: 0.665
+        y: 0.9
+        label: 2.6 metres
+        at: metres
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.76
+        scale: 0.95
+        view: beached
+- text: Her body was whole, and nobody could say what had killed her.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: overcast
+      zoom:
+      - 1.08
+      - 1.2
+      callout: Body whole. Cause unknown.
+      calloutAt: nobody
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.74
+        scale: 1.25
+        view: beached
+- text: Then, on the third of May, came the big female from the start of this story.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: dusk
+      zoom:
+      - 1.1
+      - 1.0
+      kicker: 3 MAY 2017
+      heading: The big female
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.74
+        scale: 1.7
+        view: beached
+- text: She lay on Franskraal beach.
+  visual:
+    remotion: PhotoStory
+    props:
+      layout: full
+      photos:
+      - photo: stock:4.9m great white shark Franskraal 2017|great white shark necropsy Gansbaai 2017|Alison Towner white shark necropsy
+        parallax: true
+        verify: the 4.9 metre female great white on Franskraal beach, with researchers beside her
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        beach:
+          sky: dusk
+        zoom:
+        - 1.0
+        - 1.06
+        heading: Franskraal beach
+        source: 3D reconstruction
+        actors:
+        - creature: greatWhite
+          x: 0.5
+          y: 0.74
+          scale: 1.7
+          view: beached
+- text: Biologist Alison Towner and her team from the Dyer Island Conservation Trust measured her at 4.9 metres, about 16 feet.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: dusk
+      heading: Franskraal beach
+      kicker: DYER ISLAND CONSERVATION TRUST
+      scaleBar:
+        x1: 0.2
+        x2: 0.8
+        y: 0.9
+        label: 4.9 metres · about 16 feet
+        at: measured
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.72
+        scale: 1.7
+        view: beached
+- text: They put her weight at 1,110 kilograms. No larger great white had ever been dissected in South Africa.
+  visual:
+    remotion: StatCards
+    props:
+      backdrop: ocean
+      center: true
+      cards:
+      - label: Length
+        value: 4.9 m
+        at: 0.3
+      - label: Weight
+        value: 1,110 kg
+        at: weight
+      stamp:
+        text: Largest ever dissected in South Africa
+        at: larger
+- text: Boat crews had last logged her alive at Dyer Island almost a year earlier.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      kicker: ALMOST A YEAR EARLIER
+      heading: Alive at Dyer Island
+      actors:
+      - creature: greatWhite
+        x: 0.2
+        y: 0.5
+        scale: 1.3
+        to:
+        - 0.6
+        - 0.48
+        view: three_quarter
+      - creature: seaLion
+        x: 0.85
+        y: 0.2
+        scale: 0.36
+        to:
+        - 0.95
+        - 0.14
+- text: During the examination, the team found the tear between her front fins.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: greatWhite
+        view: side
+      backdrop: abyss
+      callouts:
+      - x: 0.66
+        y: 0.72
+        label: The tear
+        sub: between the front fins
+        at: tear
+        side: right
+      zoom:
+      - at: tear
+        x: 0.66
+        y: 0.66
+        scale: 1.5
+- text: Inside, only the liver was missing.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: greatWhiteLiver
+        view: side
+      backdrop: abyss
+      callouts:
+      - x: 0.46
+        y: 0.6
+        label: The liver
+        sub: the only thing missing
+        at: liver
+        side: left
+- text: A male washed up the next day. His liver was gone, and so was his heart.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: overcast
+      kicker: 4 MAY 2017
+      heading: A male
+      callout: Liver gone. Heart gone.
+      calloutAt: heart
+      actors:
+      - creature: greatWhite
+        x: 0.36
+        y: 0.76
+        scale: 1.25
+        view: beached
+      - creature: greatWhite
+        x: 0.82
+        y: 0.66
+        scale: 0.7
+        view: beached
+        flip: true
+        opacity: 0.9
+- text: Two more great whites followed, one later in May and one in June. All four carried the same torn chest.
+  visual:
+    remotion: SourceList
+    props:
+      backdrop: ocean
+      tag: Gansbaai, 2017
+      tagNote: great whites washed ashore
+      rows:
+      - title: February · young female, 2.6 m
+        source: body whole
+        at: 0.3
+      - title: 3 May · female, 4.9 m
+        source: liver missing
+        at: 0.9
+      - title: 4 May · male
+        source: liver and heart missing
+        at: 1.5
+      - title: Later in May · great white
+        source: the same torn chest
+        at: May
+      - title: June · great white
+        source: the same torn chest
+        at: June
+- text: On two of them, the team found scratches left by orca teeth.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.6
+      callout: Scratches left by orca teeth
+      calloutAt: scratches
+      actors:
+      - creature: orca
+        x: 0.3
+        y: 0.45
+        scale: 2.2
+        silhouette: '#050b10'
+        opacity: 0.55
+        blur: 3
+      - creature: greatWhite
+        x: 0.56
+        y: 0.56
+        scale: 1.5
+        view: three_quarter
+- text: Towner had a good idea who had done it.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.7
+      callout: She had a good idea who had done it
+      calloutAt: idea
+      actors:
+      - creature: orcaPort
+        x: -0.2
+        y: 0.4
+        scale: 1.4
+        to:
+        - 0.3
+        - 0.42
+        silhouette: '#050b10'
+        opacity: 0.9
+      - creature: orcaStarboard
+        x: -0.4
+        y: 0.66
+        scale: 1.4
+        to:
+        - 0.12
+        - 0.64
+        silhouette: '#050b10'
+        opacity: 0.9
+- text: She had seen this wound before, on a different kind of shark.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.55
+      zoom:
+      - 1.0
+      - 1.1
+      callout: The same wound, on a different shark
+      calloutAt: different
+      actors:
+      - creature: sevengill
+        x: 0.9
+        y: 0.6
+        scale: 1.1
+        to:
+        - 0.55
+        - 0.58
+        label:
+          text: Sevengill shark
+          at: different
+- chapter: Two Bent Fins
+  mood: mystery
+  text: Two years earlier, in False Bay beside Cape Town, divers had a favourite reef.
+  visual:
+    remotion: MapScene
+    props:
+      bbox:
+      - - 18.0
+        - -34.6
+      - - 19.3
+        - -33.75
+      cities:
+      - name: Cape Town
+        lon: 18.42
+        lat: -33.92
+        at: Cape
+      countryLabels:
+      - name: False Bay
+        lon: 18.68
+        lat: -34.22
+      pulses:
+      - lon: 18.47
+        lat: -34.2
+        label: The divers' reef
+        at: reef
+      title: Two years earlier
+      subtitle: False Bay, 2015
+      zoom: 1.1
+- text: On a good dive they could count up to 70 sevengill sharks there.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.5
+      callout: Up to 70 sevengill sharks on one dive
+      calloutAt: count
+      actors:
+      - creature: sevengill
+        x: 0.15
+        y: 0.62
+        scale: 0.5
+        to:
+        - 0.4
+        - 0.6
+      - creature: sevengill
+        x: 0.75
+        y: 0.7
+        scale: 0.55
+        to:
+        - 0.5
+        - 0.72
+      - creature: sevengill
+        x: 0.4
+        y: 0.8
+        scale: 0.45
+        to:
+        - 0.62
+        - 0.82
+      - creature: sevengill
+        x: 0.9
+        y: 0.52
+        scale: 0.4
+        to:
+        - 0.7
+        - 0.5
+      - creature: sevengill
+        x: 0.25
+        y: 0.44
+        scale: 0.38
+        to:
+        - 0.45
+        - 0.42
+      - creature: sevengill
+        x: 0.6
+        y: 0.36
+        scale: 0.34
+        to:
+        - 0.4
+        - 0.34
+- text: Sevengills are smaller sharks that hunt close to the seabed.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.55
+      zoom:
+      - 1.0
+      - 1.08
+      callout: Hunts close to the seabed
+      calloutAt: seabed
+      actors:
+      - creature: sevengill
+        x: 0.3
+        y: 0.6
+        scale: 1.5
+        to:
+        - 0.5
+        - 0.6
+        label:
+          text: Sevengill shark
+          at: 0.5
+- text: On the ninth of November 2015, the divers found none.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.5
+      kicker: 9 NOVEMBER 2015
+      heading: The same reef
+      bigText: NONE
+      bigAt: none
+      actors:
+      - creature: fishSchool
+        x: 0.7
+        y: 0.5
+        scale: 0.5
+        to:
+        - 0.55
+        - 0.46
+- text: Over the following days, carcasses lay on the seabed.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.65
+      rays: false
+      callout: Carcasses on the seabed
+      calloutAt: carcasses
+      actors:
+      - creature: sevengill
+        x: 0.3
+        y: 0.84
+        scale: 0.7
+        view: beached
+        opacity: 0.9
+      - creature: sevengill
+        x: 0.66
+        y: 0.9
+        scale: 0.6
+        view: beached
+        flip: true
+        opacity: 0.85
+      - creature: sevengill
+        x: 0.86
+        y: 0.8
+        scale: 0.45
+        view: beached
+        opacity: 0.8
+- text: More washed up in April 2016, and marine biologist Alison Kock examined five of them.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: overcast
+      kicker: APRIL 2016
+      heading: False Bay
+      callout: Alison Kock examined five
+      calloutAt: five
+      actors:
+      - creature: sevengill
+        x: 0.16
+        y: 0.7
+        scale: 0.5
+        view: beached
+      - creature: sevengill
+        x: 0.36
+        y: 0.8
+        scale: 0.6
+        view: beached
+        flip: true
+      - creature: sevengill
+        x: 0.56
+        y: 0.7
+        scale: 0.5
+        view: beached
+      - creature: sevengill
+        x: 0.76
+        y: 0.8
+        scale: 0.6
+        view: beached
+      - creature: sevengill
+        x: 0.9
+        y: 0.68
+        scale: 0.42
+        view: beached
+        flip: true
+- text: Each one had a torn chest and no liver. Orca teeth had left marks on the skin.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: sevengill
+        view: side
+      backdrop: abyss
+      callouts:
+      - x: 0.6
+        y: 0.7
+        label: Torn chest
+        at: torn
+        side: right
+      - x: 0.42
+        y: 0.62
+        label: No liver
+        at: liver
+        side: left
+      - x: 0.75
+        y: 0.4
+        label: Orca tooth marks
+        sub: on the skin
+        at: marks
+        side: right
+- text: Her work gave the first proof that orcas on this coast were killing sharks for a single organ.
+  visual:
+    remotion: Statement
+    props:
+      backdrop: ocean
+      kicker2: The first proof
+      line1: Orcas were killing sharks
+      line2: for a single organ
+- text: The suspects were easy to spot, because their tall back fins have folded over.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      surface: true
+      zoom:
+      - 1.0
+      - 1.12
+      callout: Their tall back fins have folded over
+      calloutAt: folded
+      actors:
+      - creature: orcaPort
+        x: 0.3
+        y: 0.42
+        scale: 1.6
+        view: three_quarter
+        to:
+        - 0.34
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.7
+        y: 0.66
+        scale: 1.6
+        view: three_quarter
+        to:
+        - 0.74
+        - 0.66
+- text: One fin leans to the left and the other leans to the right.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      zoom:
+      - 1.0
+      - 1.06
+      source: Seen from above
+      actors:
+      - creature: orcaPort
+        x: 0.34
+        y: 0.52
+        scale: 1.5
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: Leans left
+          at: left
+          dy: 0.34
+      - creature: orcaStarboard
+        x: 0.66
+        y: 0.52
+        scale: 1.5
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: Leans right
+          at: right
+          dy: 0.34
+- text: Local boat crews named them Port and Starboard, the sailor's words for left and right.
+  visual:
+    remotion: PhotoStory
+    props:
+      layout: full
+      photos:
+      - photo: stock:Port and Starboard orcas|orca collapsed dorsal fin South Africa|Port Starboard killer whales fins
+        parallax: true
+        verify: Port and Starboard at the surface, showing their bent dorsal fins
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        aerial:
+          tone: bay
+        zoom:
+        - 1.06
+        - 1.12
+        callout: Port = left · Starboard = right
+        calloutAt: sailor's
+        actors:
+        - creature: orcaPort
+          x: 0.34
+          y: 0.52
+          scale: 1.5
+          view: top
+          rotate: -90
+          idle: false
+          label:
+            text: Port
+            at: Port
+            dy: 0.34
+        - creature: orcaStarboard
+          x: 0.66
+          y: 0.52
+          scale: 1.5
+          view: top
+          rotate: -90
+          idle: false
+          label:
+            text: Starboard
+            at: Starboard
+            dy: 0.34
+- text: Nobody knows how old they are. Early genetic work hints that they may be half-brothers.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      callout: They may be half-brothers
+      calloutAt: half-brothers
+      actors:
+      - creature: orcaPort
+        x: 0.2
+        y: 0.42
+        scale: 1.5
+        to:
+        - 0.4
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.32
+        y: 0.68
+        scale: 1.5
+        to:
+        - 0.52
+        - 0.68
+- text: Sighting records place them off Lüderitz in Namibia as early as 2009. Since then they have turned up along the coast as far
+    east as Port Elizabeth.
+  visual:
+    remotion: MapScene
+    props:
+      bbox:
+      - - 11.0
+        - -37.0
+      - - 29.5
+        - -24.0
+      countryLabels:
+      - Namibia
+      - South Africa
+      cities:
+      - name: Cape Town
+        lon: 18.42
+        lat: -33.92
+        at: 0.4
+      - name: Port Elizabeth
+        lon: 25.6
+        lat: -33.96
+        at: Port
+      pulses:
+      - lon: 15.16
+        lat: -26.65
+        label: Lüderitz · 2009
+        at: Namibia
+      arrows:
+      - from:
+        - 15.0
+        - -27.2
+        to:
+        - 18.6
+        - -35.0
+        at: Since
+        dur: 1.6
+        curve: 0.25
+      - from:
+        - 18.9
+        - -35.2
+        to:
+        - 25.6
+        - -34.4
+        at: coast
+        dur: 1.6
+        curve: 0.12
+      title: Port and Starboard
+      subtitle: Where they have been seen
+- text: And the pair had been seen off Gansbaai the day before that first dead shark in February 2017.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      kicker: FEBRUARY 2017
+      heading: Off Gansbaai
+      callout: Seen the day before the first dead shark
+      calloutAt: day
+      source: 3D reconstruction
+      actors:
+      - creature: orcaPort
+        x: 0.2
+        y: 0.42
+        scale: 1.3
+        view: top
+        to:
+        - 0.5
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.1
+        y: 0.64
+        scale: 1.3
+        view: top
+        to:
+        - 0.42
+        - 0.62
+- text: The next puzzle was why two orcas would go to such trouble for one organ.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.6
+      title: Why the liver?
+      titleAt: why
+      actors:
+      - creature: orcaStarboard
+        x: 0.24
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.3
+        - 0.5
+      - creature: greatWhiteLiver
+        x: 0.74
+        y: 0.52
+        scale: 1.1
+        flip: true
+        idle: false
+- chapter: Why the Liver
+  mood: wonder
+  text: The answer starts with how a shark stays afloat.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      heading: Why the Liver
+      kicker: PART 4
+      callout: How does a shark stay afloat?
+      calloutAt: afloat
+      actors:
+      - creature: greatWhite
+        x: 0.3
+        y: 0.6
+        scale: 1.3
+        to:
+        - 0.55
+        - 0.46
+- text: Most fish float using a swim bladder, a small bag of gas inside the body.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: fishBladder
+        view: side
+      backdrop: ocean
+      kicker: MOST FISH
+      callouts:
+      - x: 0.5
+        y: 0.42
+        label: Swim bladder
+        sub: a small bag of gas
+        at: bladder
+        side: right
+- text: 'A shark uses something else to stay up: a huge, oily liver.'
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: greatWhiteLiver
+        view: side
+      backdrop: ocean
+      kicker: A SHARK
+      callouts:
+      - x: 0.46
+        y: 0.6
+        label: The liver
+        sub: huge and oily
+        at: liver
+        side: left
+- text: In a great white, that liver makes up between a quarter and a third of the whole body weight. Most of it is fat.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: greatWhiteLiver
+        view: side
+      backdrop: abyss
+      callouts:
+      - x: 0.46
+        y: 0.6
+        label: A quarter to a third
+        sub: of the whole body weight
+        at: quarter
+        side: left
+      - x: 0.56
+        y: 0.64
+        label: Mostly fat
+        at: fat
+        side: right
+      zoom:
+      - at: quarter
+        x: 0.5
+        y: 0.6
+        scale: 1.35
+- text: The shark burns that fat on long trips across the ocean, the way an engine burns fuel.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.5
+      zoom:
+      - 1.0
+      - 1.04
+      callout: Fat is its fuel on long ocean trips
+      calloutAt: fuel
+      actors:
+      - creature: greatWhiteLiver
+        x: 0.12
+        y: 0.5
+        scale: 1.2
+        to:
+        - 0.86
+        - 0.48
+- text: For an orca, the liver of a big great white is hundreds of kilograms of rich food in one place.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.5
+      callout: Hundreds of kilograms of rich food
+      calloutAt: hundreds
+      actors:
+      - creature: orcaStarboard
+        x: 0.22
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.3
+        - 0.5
+      - creature: greatWhiteLiver
+        x: 0.75
+        y: 0.52
+        scale: 1.1
+        flip: true
+        idle: false
+        ring:
+          at: liver
+          r: 0.09
+- text: Taking only the liver may also protect the orca's teeth.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.45
+      zoom:
+      - 1.3
+      - 1.5
+      focus:
+      - 0.78
+      - 0.52
+      callout: Taking only the liver may protect the teeth
+      calloutAt: protect
+      actors:
+      - creature: orcaMale
+        x: 0.42
+        y: 0.5
+        scale: 2.6
+        to:
+        - 0.46
+        - 0.5
+- text: Shark skin is covered in tiny scales shaped like teeth, and it feels like sandpaper.
+  visual:
+    model: shark skin
+    props:
+      shot: push
+      callout: Tiny scales shaped like teeth
+      calloutAt: scales
+      heading: Shark skin, up close
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        depth: 0.4
+        zoom:
+        - 1.4
+        - 1.8
+        focus:
+        - 0.5
+        - 0.5
+        callout: Tiny scales shaped like teeth
+        calloutAt: scales
+        actors:
+        - creature: greatWhite
+          x: 0.5
+          y: 0.5
+          scale: 2.6
+          view: three_quarter
+- text: Orcas that eat a lot of shark wear their teeth down flat.
+  visual:
+    model: orca teeth
+    props:
+      shot: turn
+      callout: Worn down flat by shark skin
+      calloutAt: flat
+      heading: Orca teeth
+    fallback_visual:
+      remotion: Statement
+      props:
+        backdrop: ocean
+        kicker2: Orcas that eat a lot of shark
+        line1: wear their teeth
+        line2: down flat
+- text: Since 1969, three dead orcas with flat-worn teeth and shark remains in their stomachs have washed up in South Africa.
+  visual:
+    remotion: StatCards
+    props:
+      backdrop: ocean
+      center: true
+      cards:
+      - label: Since
+        value: '1969'
+        at: 0.3
+      - label: Dead orcas with flat-worn teeth and shark in the stomach
+        value: '3'
+        at: three
+      stamp:
+        text: Washed up in South Africa
+        at: washed
+- text: Port and Starboard seem to belong to this shark-eating type.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      callout: The shark-eating type
+      calloutAt: shark-eating
+      actors:
+      - creature: orcaPort
+        x: 0.2
+        y: 0.42
+        scale: 1.5
+        to:
+        - 0.42
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.3
+        y: 0.68
+        scale: 1.5
+        to:
+        - 0.52
+        - 0.68
+- text: One quick tear gives the orca the richest part of the meal with very little chewing.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.55
+      callout: The richest part, with very little chewing
+      calloutAt: richest
+      actors:
+      - creature: orcaStarboard
+        x: 0.2
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.34
+        - 0.5
+      - creature: greatWhiteLiver
+        x: 0.76
+        y: 0.52
+        scale: 1.1
+        flip: true
+        idle: false
+        target:
+          at: tear
+- text: The great whites of Gansbaai answered with a move of their own.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      callout: The great whites made a move of their own
+      calloutAt: move
+      actors:
+      - creature: greatWhite
+        x: 0.4
+        y: 0.36
+        scale: 0.8
+        to:
+        - 0.5
+        - 0.34
+      - creature: greatWhite
+        x: 0.6
+        y: 0.6
+        scale: 1.0
+        to:
+        - 0.7
+        - 0.6
+      - creature: greatWhite
+        x: 0.35
+        y: 0.8
+        scale: 0.7
+        to:
+        - 0.45
+        - 0.8
+- chapter: The Empty Sea
+  mood: tension
+  text: They left.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      bigText: THEY LEFT
+      bigAt: left
+      duration: 3.5
+      actors:
+      - creature: greatWhite
+        x: 0.45
+        y: 0.36
+        scale: 0.8
+        to:
+        - 1.35
+        - 0.3
+      - creature: greatWhite
+        x: 0.6
+        y: 0.6
+        scale: 1.0
+        to:
+        - 1.45
+        - 0.62
+      - creature: greatWhite
+        x: 0.4
+        y: 0.8
+        scale: 0.7
+        to:
+        - 1.3
+        - 0.86
+- text: Towner's team went through five and a half years of boat sightings and signals from tagged sharks.
+  visual:
+    remotion: ClipCard
+    props:
+      publication: African Journal of Marine Science
+      title: Fear at the top
+      date: '2022'
+      lines:
+      - Five and a half years of boat sightings
+      - Signals from tagged great white sharks
+      - Gansbaai, South Africa
+      highlight:
+      - text: Five and a half years
+        at: five
+      - text: tagged great white sharks
+        at: tagged
+      source: Towner et al. 2022
+- text: Fourteen tagged great whites were tracked leaving Gansbaai when the orcas were near.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      heading: 14 tagged great whites
+      kicker: TRACKED LEAVING GANSBAAI
+      callout: They left when the orcas were near
+      calloutAt: near
+      source: 3D reconstruction
+      actors:
+      - creature: orcaPort
+        x: -0.1
+        y: 0.4
+        scale: 1.2
+        view: top
+        to:
+        - 0.22
+        - 0.42
+      - creature: orcaStarboard
+        x: -0.2
+        y: 0.62
+        scale: 1.2
+        view: top
+        to:
+        - 0.12
+        - 0.6
+      - creature: greatWhite
+        x: 0.5
+        y: 0.3
+        scale: 0.75
+        view: top
+        to:
+        - 1.2
+        - 0.1
+      - creature: greatWhite
+        x: 0.6
+        y: 0.55
+        scale: 0.8
+        view: top
+        to:
+        - 1.3
+        - 0.5
+      - creature: greatWhite
+        x: 0.5
+        y: 0.78
+        scale: 0.7
+        view: top
+        to:
+        - 1.2
+        - 0.95
+      - creature: greatWhite
+        x: 0.72
+        y: 0.4
+        scale: 0.6
+        view: top
+        to:
+        - 1.3
+        - 0.28
+- text: After the first attacks, single sharks stayed away for weeks. Later, the gaps grew to months.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      heading: Stayed away
+      stats:
+      - label: After the first attacks
+        value: Weeks
+      - label: Later
+        value: Months
+      statsAt: weeks
+      actors:
+      - creature: seaLion
+        x: 0.3
+        y: 0.4
+        scale: 0.42
+        to:
+        - 0.5
+        - 0.44
+      - creature: fishSchool
+        x: 0.75
+        y: 0.62
+        scale: 0.55
+        to:
+        - 0.6
+        - 0.58
+- text: Sightings kept dropping for two and a half years.
+  visual:
+    remotion: StatCards
+    props:
+      backdrop: ocean
+      center: true
+      cards:
+      - label: Sightings kept dropping for
+        value: 2½ years
+        at: dropping
+- text: On many days the boats went out and came back without seeing a single great white.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.25
+      surface: true
+      zoom:
+      - 1.0
+      - 1.1
+      callout: Not a single great white
+      calloutAt: single
+      actors:
+      - creature: seaLion
+        x: 0.2
+        y: 0.3
+        scale: 0.4
+        to:
+        - 0.45
+        - 0.34
+      - creature: seaLion
+        x: 0.8
+        y: 0.62
+        scale: 0.42
+        to:
+        - 0.6
+        - 0.58
+      - creature: fishSchool
+        x: 0.5
+        y: 0.78
+        scale: 0.6
+        to:
+        - 0.4
+        - 0.74
+- text: Towner compared it to wild dogs on the African plains, which keep away from places where lions hunt.
+  visual:
+    remotion: SplitCompare
+    props:
+      backdrop: ocean
+      left:
+        title: Wild dogs
+        subtitle: keep away from where lions hunt
+        color: '#e2a23a'
+      right:
+        title: Great whites
+        subtitle: keep away from where orcas hunt
+      heading: Alison Towner's comparison
+- text: The fear of being hunted was enough to move them.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.5
+      callout: The fear of being hunted was enough
+      calloutAt: fear
+      actors:
+      - creature: orca
+        x: 0.12
+        y: 0.5
+        scale: 2.0
+        silhouette: '#050b10'
+        opacity: 0.6
+        blur: 4
+      - creature: greatWhite
+        x: 0.55
+        y: 0.52
+        scale: 1.0
+        to:
+        - 1.3
+        - 0.46
+- text: Scientists had already seen this on the other side of the world.
+  visual:
+    remotion: Globe
+    props:
+      from:
+      - 19.3
+      - -34.6
+      to:
+      - -123.0
+      - 37.7
+      zoomFrom: 1.0
+      zoomTo: 2.2
+      marker:
+        label: Southeast Farallon Island
+        note: off San Francisco
+        at: other
+- text: On the second of November 2009, orcas passed Southeast Farallon Island near San Francisco.
+  visual:
+    remotion: MapScene
+    props:
+      bbox:
+      - - -123.7
+        - 37.2
+      - - -121.9
+        - 38.2
+      cities:
+      - name: San Francisco
+        lon: -122.42
+        lat: 37.77
+        at: San
+      pulses:
+      - lon: -123.0
+        lat: 37.7
+        label: Southeast Farallon Island
+        at: Farallon
+      title: 2 November 2009
+      subtitle: Orcas pass the island
+- text: They stayed for about two and a half hours.
+  visual:
+    remotion: PhotoStory
+    props:
+      layout: full
+      photos:
+      - photo: stock:Southeast Farallon Island aerial|Farallon Islands map San Francisco
+        parallax: true
+        verify: Map or aerial photo of Southeast Farallon Island off San Francisco
+      hud:
+        label: Orcas near the island for
+        value: ≈ 2.5 hours
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        aerial:
+          tone: open
+        hud:
+          label: Near the island for
+          value: ≈ 2.5 hours
+        source: 3D reconstruction
+        actors:
+        - creature: orca
+          x: -0.1
+          y: 0.4
+          scale: 1.2
+          view: top
+          to:
+          - 0.9
+          - 0.36
+        - creature: orca
+          x: -0.25
+          y: 0.6
+          scale: 1.1
+          view: top
+          to:
+          - 0.75
+          - 0.58
+- text: Seventeen tagged great whites were feeding around the island that day.
+  visual:
+    remotion: DotGrid
+    props:
+      backdrop: ocean
+      count: 17
+      highlight: 17
+      cols: 9
+      value: '17'
+      label: Tagged great whites feeding at the island
+      note: Southeast Farallon Island, 2 November 2009
+      fillAt: 0.4
+      color: '#3fb6c9'
+- text: Within eight hours, every one of them had gone.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: open
+      hud:
+        label: Every one gone within
+        value: 8 hours
+      source: 3D reconstruction
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.36
+        scale: 0.7
+        view: top
+        to:
+        - 1.2
+        - 0.05
+      - creature: greatWhite
+        x: 0.42
+        y: 0.5
+        scale: 0.8
+        view: top
+        to:
+        - -0.3
+        - 0.3
+      - creature: greatWhite
+        x: 0.56
+        y: 0.62
+        scale: 0.75
+        view: top
+        to:
+        - 1.3
+        - 0.9
+      - creature: greatWhite
+        x: 0.4
+        y: 0.68
+        scale: 0.65
+        view: top
+        to:
+        - -0.25
+        - 0.95
+      - creature: greatWhite
+        x: 0.6
+        y: 0.46
+        scale: 0.6
+        view: top
+        to:
+        - 1.3
+        - 0.4
+- text: Sixteen stayed away for the rest of the season.
+  visual:
+    remotion: DotGrid
+    props:
+      backdrop: ocean
+      count: 17
+      highlight: 16
+      cols: 9
+      value: 16 of 17
+      label: Stayed away for the rest of the season
+      fillAt: stayed
+- text: In years when orcas visited, the sharks there killed far fewer elephant seals, sometimes only a seventh of a normal year.
+  visual:
+    remotion: BarCompare
+    props:
+      backdrop: ocean
+      heading: Elephant seals killed by great whites
+      kicker: SOUTHEAST FARALLON ISLAND
+      bars:
+      - label: A normal year
+        value: 7
+        display: 7 in 7
+        at: 0.5
+      - label: A year when orcas visited
+        value: 1
+        display: as few as 1 in 7
+        at: seventh
+- text: Back in October 1997, people on that island had watched an orca kill a great white and eat only its liver.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.5
+      kicker: OCTOBER 1997
+      heading: Southeast Farallon Island
+      callout: It ate only the liver
+      calloutAt: liver
+      source: 3D reconstruction
+      actors:
+      - creature: orca
+        x: 0.22
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.36
+        - 0.5
+      - creature: greatWhiteLiver
+        x: 0.76
+        y: 0.52
+        scale: 1.0
+        flip: true
+        idle: false
+- text: In South Africa, though, no one had yet filmed the moment an orca caught a great white.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.7
+      heading: South Africa
+      callout: Never caught on film
+      calloutAt: filmed
+      actors:
+      - creature: orcaStarboard
+        x: 0.0
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.4
+        - 0.5
+        silhouette: '#050b10'
+        opacity: 0.9
+      - creature: greatWhite
+        x: 0.8
+        y: 0.52
+        scale: 0.9
+        to:
+        - 0.9
+        - 0.5
+        silhouette: '#0a1a24'
+        opacity: 0.9
+- text: That changed in 2022.
+  visual:
+    remotion: DateStamp
+    props:
+      date: '2022'
+      place: Mossel Bay, South Africa
+      at: 0.2
+  duration: 3.2
+- chapter: Caught on Camera
+  mood: danger
+  text: On the sixteenth of May 2022, drone pilot Christiaan Stopforth was flying over Mossel Bay, further east along the coast.
+  visual:
+    remotion: MapScene
+    props:
+      bbox: *id001
+      countryLabels:
+      - name: South Africa
+        lon: 21.0
+        lat: -33.35
+      cities:
+      - name: Cape Town
+        lon: 18.42
+        lat: -33.92
+        at: 0.3
+      - name: Gansbaai
+        lon: 19.35
+        lat: -34.58
+        at: 0.4
+      pulses:
+      - lon: 22.13
+        lat: -34.18
+        label: Mossel Bay
+        at: Mossel
+      arrows:
+      - from:
+        - 19.6
+        - -34.75
+        to:
+        - 22.0
+        - -34.35
+        at: further
+        dur: 1.4
+        curve: 0.15
+      title: 16 May 2022
+      subtitle: A drone over Mossel Bay
+- text: Below him, five orcas were chasing a great white shark.
+  visual:
+    stock: orcas kill great white shark drone Mossel Bay 2022|Christiaan Stopforth orca drone footage|orcas hunting great white aerial
+    verify: orcas hunting great white sharks off Mossel Bay, May 2022
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        aerial:
+          tone: bay
+        heading: Mossel Bay
+        kicker: 16 MAY 2022
+        callout: Five orcas, one great white
+        calloutAt: five
+        source: 3D reconstruction
+        actors:
+        - creature: greatWhite
+          x: 0.62
+          y: 0.46
+          scale: 0.8
+          view: top
+          to:
+          - 0.9
+          - 0.4
+        - creature: orcaStarboard
+          x: 0.34
+          y: 0.5
+          scale: 1.2
+          view: top
+          to:
+          - 0.62
+          - 0.46
+        - creature: orca
+          x: 0.2
+          y: 0.3
+          scale: 1.05
+          view: top
+          to:
+          - 0.5
+          - 0.28
+        - creature: orca
+          x: 0.16
+          y: 0.7
+          scale: 1.05
+          view: top
+          to:
+          - 0.46
+          - 0.68
+        - creature: orca
+          x: 0.02
+          y: 0.44
+          scale: 1.0
+          view: top
+          to:
+          - 0.32
+          - 0.4
+        - creature: orca
+          x: -0.02
+          y: 0.62
+          scale: 0.9
+          view: top
+          to:
+          - 0.26
+          - 0.6
+- text: One of the five orcas was Starboard.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      zoom:
+      - 1.0
+      - 1.1
+      source: 3D reconstruction
+      actors:
+      - creature: orcaStarboard
+        x: 0.4
+        y: 0.5
+        scale: 2.0
+        view: top
+        to:
+        - 0.52
+        - 0.5
+        label:
+          text: Starboard
+          at: Starboard
+          dy: 0.2
+      - creature: orca
+        x: 0.08
+        y: 0.2
+        scale: 1.1
+        view: top
+        to:
+        - 0.2
+        - 0.2
+        opacity: 0.85
+      - creature: orca
+        x: 0.05
+        y: 0.84
+        scale: 1.1
+        view: top
+        to:
+        - 0.18
+        - 0.82
+        opacity: 0.85
+- text: The chase lasted about an hour.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      hud:
+        label: The chase
+        value: ≈ 1 hour
+      source: 3D reconstruction
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.4
+        scale: 0.8
+        view: top
+        to:
+        - 0.85
+        - 0.62
+      - creature: orcaStarboard
+        x: 0.2
+        y: 0.36
+        scale: 1.2
+        view: top
+        to:
+        - 0.55
+        - 0.52
+      - creature: orca
+        x: 0.1
+        y: 0.62
+        scale: 1.05
+        view: top
+        to:
+        - 0.44
+        - 0.74
+      - creature: orca
+        x: 0.0
+        y: 0.2
+        scale: 1.0
+        view: top
+        to:
+        - 0.34
+        - 0.3
+- text: Twice, a shark tried a trick that seals use against sharks. It swam in tight circles close to an orca, keeping the hunter in
+    sight.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      callout: Tight circles, keeping the hunter in sight
+      calloutAt: circles
+      source: 3D reconstruction
+      actors:
+      - creature: orca
+        x: 0.5
+        y: 0.5
+        scale: 1.15
+        view: top
+        rotate: -20
+        idle: false
+      - creature: greatWhite
+        x: 0.5
+        y: 0.5
+        scale: 0.75
+        view: top
+        orbit:
+          cx: 0.5
+          cy: 0.5
+          r: 0.2
+          turns: 1.6
+          phase: 0.6
+- text: Five orcas were too many, because the shark could only watch one at a time.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      callout: It could only watch one at a time
+      calloutAt: watch
+      source: 3D reconstruction
+      actors:
+      - creature: orca
+        x: 0.5
+        y: 0.5
+        scale: 1.1
+        view: top
+        rotate: -20
+        idle: false
+      - creature: greatWhite
+        x: 0.5
+        y: 0.5
+        scale: 0.75
+        view: top
+        orbit:
+          cx: 0.5
+          cy: 0.5
+          r: 0.2
+          turns: 0.9
+          phase: 0.2
+      - creature: orcaStarboard
+        x: 0.02
+        y: 0.14
+        scale: 1.15
+        view: top
+        to:
+        - 0.24
+        - 0.26
+      - creature: orca
+        x: 0.98
+        y: 0.14
+        scale: 1.0
+        view: top
+        to:
+        - 0.78
+        - 0.26
+      - creature: orca
+        x: 0.02
+        y: 0.9
+        scale: 1.0
+        view: top
+        to:
+        - 0.22
+        - 0.76
+      - creature: orca
+        x: 0.98
+        y: 0.9
+        scale: 1.0
+        view: top
+        to:
+        - 0.78
+        - 0.76
+- text: Then the drone filmed an orca biting into a shark right where the liver sits.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      callout: Bitten right where the liver sits
+      calloutAt: liver
+      source: 3D reconstruction
+      actors:
+      - creature: orcaStarboard
+        x: 0.18
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.34
+        - 0.5
+      - creature: greatWhiteLiver
+        x: 0.74
+        y: 0.52
+        scale: 1.1
+        flip: true
+        idle: false
+        ring:
+          at: liver
+          r: 0.09
+- text: Scientists think three more sharks died that day.
+  visual:
+    remotion: StatCards
+    props:
+      backdrop: ocean
+      center: true
+      cards:
+      - label: More sharks thought to have died that day
+        value: '3'
+        at: three
+- text: Four of the five orcas had never been linked to shark hunting before.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      heading: Four of the five
+      kicker: NEVER LINKED TO SHARK HUNTING BEFORE
+      actors:
+      - creature: orcaStarboard
+        x: 0.14
+        y: 0.5
+        scale: 0.95
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: Starboard
+          at: 0.4
+          dy: 0.26
+      - creature: orca
+        x: 0.32
+        y: 0.5
+        scale: 0.9
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: New
+          at: Four
+          dy: 0.26
+          color: '#e5372f'
+      - creature: orca
+        x: 0.5
+        y: 0.5
+        scale: 0.85
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: New
+          at: Four+0.2
+          dy: 0.26
+          color: '#e5372f'
+      - creature: orca
+        x: 0.68
+        y: 0.5
+        scale: 0.9
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: New
+          at: Four+0.4
+          dy: 0.26
+          color: '#e5372f'
+      - creature: orca
+        x: 0.86
+        y: 0.5
+        scale: 0.8
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: New
+          at: Four+0.6
+          dy: 0.26
+          color: '#e5372f'
+- text: Orcas learn from one another, so the researchers warned that the skill could spread.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      callout: Orcas learn from one another
+      calloutAt: learn
+      actors:
+      - creature: orca
+        x: 0.3
+        y: 0.42
+        scale: 1.4
+        to:
+        - 0.5
+        - 0.42
+      - creature: orca
+        x: 0.2
+        y: 0.66
+        scale: 1.0
+        to:
+        - 0.4
+        - 0.64
+      - creature: orca
+        x: 0.08
+        y: 0.8
+        scale: 0.75
+        to:
+        - 0.28
+        - 0.78
+- text: Before the hunt, survey boats in Mossel Bay saw great whites on every trip. In the 45 days after it, they saw one.
+  visual:
+    remotion: StatCards
+    props:
+      backdrop: ocean
+      center: true
+      heading: Great whites seen by survey boats
+      kicker: MOSSEL BAY
+      cards:
+      - label: Before the hunt
+        value: Every trip
+        at: 0.4
+      - label: 45 days after
+        value: '1'
+        at: after
+- text: A year later, Starboard showed what he could do alone.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      kicker: A YEAR LATER
+      heading: Alone
+      actors:
+      - creature: orcaStarboard
+        x: 0.2
+        y: 0.5
+        scale: 1.9
+        view: three_quarter
+        to:
+        - 0.5
+        - 0.5
+        label:
+          text: Starboard
+          at: Starboard
+- text: On the eighteenth of June 2023, researchers watched him catch a young great white about 2.5 metres long.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      kicker: 18 JUNE 2023
+      heading: Mossel Bay
+      scaleBar:
+        x1: 0.74
+        x2: 0.94
+        y: 0.72
+        label: About 2.5 metres
+        at: metres
+      source: 3D reconstruction
+      actors:
+      - creature: orcaStarboard
+        x: 0.1
+        y: 0.48
+        scale: 1.5
+        to:
+        - 0.38
+        - 0.5
+      - creature: greatWhite
+        x: 0.6
+        y: 0.56
+        scale: 0.5
+        to:
+        - 0.84
+        - 0.6
+- text: He grabbed it by the side fin.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: greatWhite
+        view: three_quarter
+      backdrop: abyss
+      callouts:
+      - x: 0.6
+        y: 0.78
+        label: Grabbed here
+        sub: the side fin
+        at: fin
+        side: right
+- text: Within two minutes he had torn it open and taken the liver.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      hud:
+        label: Start to finish
+        value: Under 2 minutes
+      callout: Torn open, liver taken
+      calloutAt: liver
+      source: 3D reconstruction
+      actors:
+      - creature: orcaStarboard
+        x: 0.2
+        y: 0.5
+        scale: 1.5
+        to:
+        - 0.36
+        - 0.5
+      - creature: greatWhiteLiver
+        x: 0.74
+        y: 0.54
+        scale: 0.6
+        flip: true
+        idle: false
+- text: Port stayed about a hundred metres away the whole time.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      scaleBar:
+        x1: 0.28
+        x2: 0.74
+        y: 0.5
+        label: About 100 metres
+        at: hundred
+      source: 3D reconstruction
+      actors:
+      - creature: orcaStarboard
+        x: 0.16
+        y: 0.5
+        scale: 1.1
+        view: top
+        idle: false
+        label:
+          text: Starboard
+          at: 0.3
+          dy: 0.2
+      - creature: orcaPort
+        x: 0.86
+        y: 0.5
+        scale: 1.1
+        view: top
+        rotate: 180
+        idle: false
+        label:
+          text: Port
+          at: Port
+          dy: 0.2
+- text: A second dead great white, 3.5 metres long, was found nearby that day.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: overcast
+      kicker: THE SAME DAY
+      heading: A second great white
+      scaleBar:
+        x1: 0.28
+        x2: 0.72
+        y: 0.9
+        label: 3.5 metres
+        at: metres
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.74
+        scale: 1.25
+        view: beached
+- text: Great whites then kept away from that part of the bay for about four months.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      hud:
+        label: Great whites kept away for
+        value: ≈ 4 months
+      actors:
+      - creature: seaLion
+        x: 0.3
+        y: 0.4
+        scale: 0.42
+        to:
+        - 0.5
+        - 0.44
+      - creature: fishSchool
+        x: 0.72
+        y: 0.64
+        scale: 0.55
+        to:
+        - 0.58
+        - 0.6
+- text: With the great whites gone, other animals began to take their place.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      callout: Other animals took their place
+      calloutAt: place
+      actors:
+      - creature: bronzeWhaler
+        x: 1.1
+        y: 0.5
+        scale: 0.7
+        to:
+        - 0.62
+        - 0.5
+        at: other
+      - creature: bronzeWhaler
+        x: 1.2
+        y: 0.72
+        scale: 0.6
+        to:
+        - 0.74
+        - 0.7
+        at: other
+- chapter: A Coast Rearranged
+  mood: wonder
+  text: At Gansbaai, a smaller shark called the bronze whaler moved into the bay.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      heading: Gansbaai
+      kicker: A SMALLER SHARK MOVES IN
+      actors:
+      - creature: bronzeWhaler
+        x: 0.9
+        y: 0.44
+        scale: 0.9
+        to:
+        - 0.56
+        - 0.46
+        label:
+          text: Bronze whaler
+          at: bronze
+      - creature: bronzeWhaler
+        x: 1.1
+        y: 0.72
+        scale: 0.7
+        to:
+        - 0.74
+        - 0.7
+- text: Great whites eat bronze whalers, so for years the smaller sharks had kept their distance.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      callout: Great whites eat bronze whalers
+      calloutAt: eat
+      actors:
+      - creature: greatWhite
+        x: 0.24
+        y: 0.5
+        scale: 1.2
+        lookAt: right
+      - creature: bronzeWhaler
+        x: 0.8
+        y: 0.56
+        scale: 0.65
+        to:
+        - 0.96
+        - 0.58
+        target:
+          at: eat
+- text: Today, cage-diving boats show their guests bronze whalers on most trips.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.25
+      surface: true
+      callout: Bronze whalers on most trips
+      calloutAt: most
+      actors:
+      - creature: bronzeWhaler
+        x: 0.2
+        y: 0.34
+        scale: 0.7
+        to:
+        - 0.44
+        - 0.34
+      - creature: bronzeWhaler
+        x: 0.82
+        y: 0.52
+        scale: 0.85
+        to:
+        - 0.56
+        - 0.52
+      - creature: bronzeWhaler
+        x: 0.3
+        y: 0.74
+        scale: 0.6
+        to:
+        - 0.5
+        - 0.76
+      - creature: bronzeWhaler
+        x: 0.9
+        y: 0.82
+        scale: 0.55
+        to:
+        - 0.7
+        - 0.82
+- text: In False Bay the change went further.
+  visual:
+    remotion: MapScene
+    props:
+      bbox:
+      - - 18.0
+        - -34.6
+      - - 19.3
+        - -33.75
+      cities:
+      - name: Cape Town
+        lon: 18.42
+        lat: -33.92
+        at: 0.4
+      countryLabels:
+      - name: False Bay
+        lon: 18.72
+        lat: -34.3
+      pulses:
+      - lon: 18.58
+        lat: -34.14
+        label: Seal Island
+        at: 0.8
+      title: False Bay
+      subtitle: The change went further
+      zoom: 1.12
+- text: Seal Island there was once famous for great whites leaping clear of the water after seals.
+  visual:
+    stock: great white shark breach Seal Island False Bay|flying shark False Bay seal|Air Jaws Seal Island breach
+    verify: a great white leaping out of the water after a seal at Seal Island, False Bay
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        split:
+          y: 0.34
+          land: rocks
+          landWidth: 0.24
+          sky: polar
+          floes: false
+        heading: Seal Island
+        callout: Great whites leaping clear of the water
+        calloutAt: leaping
+        source: 3D reconstruction
+        actors:
+        - creature: seaLion
+          x: 0.62
+          y: 0.3
+          scale: 0.4
+          to:
+          - 0.8
+          - 0.22
+        - creature: greatWhite
+          x: 0.36
+          y: 0.95
+          scale: 1.3
+          to:
+          - 0.56
+          - 0.3
+          rotate: -62
+          at: 0.3
+- text: Shark scientist Neil Hammerschlag and his team have surveyed the island since 2000. Their boats recorded no great whites after
+    August 2018.
+  visual:
+    remotion: Counter
+    props:
+      backdrop: ocean
+      from: 2000
+      to: 2018
+      plain: true
+      label: Great whites recorded at Seal Island
+      countAt: 0.5
+      countDur: 6
+      timeline:
+        start: 2000
+        end: 2026
+        tickEvery: 4
+        events:
+        - year: 2000
+          label: Surveys begin
+          at: surveyed
+        - year: 2018
+          label: 'Last one: August 2018'
+          at: August
+        band:
+          from: 2018.6
+          to: 2026
+          label: none recorded
+- text: On the beaches of Cape Town, shark spotters logged more than 300 great white sightings in 2011. By 2019 they were logging none.
+  visual:
+    remotion: BarCompare
+    props:
+      backdrop: ocean
+      heading: Great white sightings
+      kicker: SHARK SPOTTERS, CAPE TOWN BEACHES
+      bars:
+      - label: '2011'
+        value: 300
+        display: More than 300
+        at: logged
+      - label: '2019'
+        value: 0
+        display: None
+        at: none
+- text: Sevengill sharks, which earlier surveys had never recorded at the island, began to appear.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      heading: Seal Island
+      kicker: NEVER RECORDED THERE BEFORE
+      actors:
+      - creature: sevengill
+        x: 1.1
+        y: 0.5
+        scale: 0.8
+        to:
+        - 0.6
+        - 0.5
+        label:
+          text: Sevengill shark
+          at: appear
+      - creature: sevengill
+        x: 1.2
+        y: 0.74
+        scale: 0.65
+        to:
+        - 0.74
+        - 0.72
+      - creature: sevengill
+        x: 1.15
+        y: 0.3
+        scale: 0.55
+        to:
+        - 0.7
+        - 0.32
+- text: Reported sightings of Cape fur seals around the bay went up about six times.
+  visual:
+    remotion: OceanScene
+    props:
+      split:
+        y: 0.42
+        land: rocks
+        landWidth: 0.62
+        sky: polar
+        floes: false
+      heading: Cape fur seal sightings
+      bigText: × 6
+      bigAt: six
+      bigColor: '#e6edf2'
+      actors:
+      - creature: seaLion
+        x: 0.08
+        y: 0.3
+        scale: 0.4
+        detail:
+          rest: true
+      - creature: seaLion
+        x: 0.2
+        y: 0.28
+        scale: 0.36
+        detail:
+          rest: true
+        flip: true
+      - creature: seaLion
+        x: 0.32
+        y: 0.3
+        scale: 0.4
+        detail:
+          rest: true
+      - creature: seaLion
+        x: 0.43
+        y: 0.3
+        scale: 0.34
+        detail:
+          rest: true
+        flip: true
+      - creature: seaLion
+        x: 0.53
+        y: 0.3
+        scale: 0.3
+        detail:
+          rest: true
+          pup: true
+      - creature: seaLion
+        x: 0.72
+        y: 0.6
+        scale: 0.42
+        to:
+        - 0.86
+        - 0.56
+      - creature: seaLion
+        x: 0.62
+        y: 0.8
+        scale: 0.4
+        to:
+        - 0.48
+        - 0.76
+      - creature: seaLion
+        x: 0.9
+        y: 0.82
+        scale: 0.36
+        to:
+        - 0.74
+        - 0.86
+- text: The fish that seals eat became harder to find, and so did the small sharks that sevengills hunt.
+  visual:
+    remotion: SourceList
+    props:
+      backdrop: ocean
+      tag: Knock-on effects
+      tagNote: False Bay
+      rows:
+      - title: More fur seals
+        source: the fish they eat became harder to find
+        at: fish
+      - title: More sevengill sharks
+        source: the small sharks they hunt became harder to find
+        at: small
+- text: Port and Starboard, meanwhile, kept hunting.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.4
+      callout: Port and Starboard kept hunting
+      calloutAt: kept
+      actors:
+      - creature: orcaPort
+        x: 0.1
+        y: 0.42
+        scale: 1.5
+        to:
+        - 0.5
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.0
+        y: 0.68
+        scale: 1.5
+        to:
+        - 0.4
+        - 0.68
+- text: In February 2023, about twenty sharks washed up near Gansbaai after a single visit by the pair.
+  visual:
+    remotion: PhotoStory
+    props:
+      layout: full
+      photos:
+      - photo: stock:sevengill sharks washed up Gansbaai 2023|dead sevengill sharks beach orca|Marine Dynamics sevengill carcasses
+        parallax: true
+        verify: the sevengill shark carcasses on the beach near Gansbaai, February 2023
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        beach:
+          sky: overcast
+        kicker: FEBRUARY 2023
+        heading: Near Gansbaai
+        callout: About twenty sharks after one visit
+        calloutAt: twenty
+        source: 3D reconstruction
+        actors:
+        - creature: sevengill
+          x: 0.1
+          y: 0.66
+          scale: 0.42
+          view: beached
+        - creature: sevengill
+          x: 0.26
+          y: 0.76
+          scale: 0.55
+          view: beached
+          flip: true
+        - creature: sevengill
+          x: 0.42
+          y: 0.66
+          scale: 0.42
+          view: beached
+        - creature: sevengill
+          x: 0.56
+          y: 0.8
+          scale: 0.6
+          view: beached
+        - creature: sevengill
+          x: 0.72
+          y: 0.68
+          scale: 0.45
+          view: beached
+          flip: true
+        - creature: sevengill
+          x: 0.88
+          y: 0.78
+          scale: 0.52
+          view: beached
+        - creature: sevengill
+          x: 0.34
+          y: 0.9
+          scale: 0.5
+          view: beached
+          flip: true
+        - creature: sevengill
+          x: 0.76
+          y: 0.92
+          scale: 0.5
+          view: beached
+- text: Nearly all were sevengills, each with its liver removed.
+  visual:
+    remotion: Anatomy
+    props:
+      sprite:
+        creature: sevengill
+        view: side
+      backdrop: abyss
+      callouts:
+      - x: 0.44
+        y: 0.62
+        label: Liver removed
+        sub: nearly all were sevengills
+        at: liver
+        side: left
+- text: At this point, the case against the two orcas looks closed.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.65
+      check:
+        text: The case against the two orcas
+        at: case
+        ok: true
+      actors:
+      - creature: orcaPort
+        x: 0.3
+        y: 0.42
+        scale: 1.5
+        view: three_quarter
+        silhouette: '#050b10'
+        opacity: 0.92
+      - creature: orcaStarboard
+        x: 0.7
+        y: 0.66
+        scale: 1.5
+        view: three_quarter
+        silhouette: '#050b10'
+        opacity: 0.92
+- text: Several shark scientists think it is missing a second suspect.
+  visual:
+    remotion: Statement
+    props:
+      backdrop: abyss
+      kicker2: Several shark scientists
+      line1: The case is missing
+      line2: a second suspect
+- chapter: The Second Suspect
+  mood: mystery
+  text: In 2023, a team that included Alison Kock and Alison Towner studied great white records from the whole South African coast.
+  visual:
+    remotion: MapScene
+    props:
+      bbox: &id002
+      - - 15.5
+        - -36.6
+      - - 33.5
+        - -26.5
+      highlight:
+      - South Africa
+      countryLabels:
+      - South Africa
+      cities:
+      - name: Cape Town
+        lon: 18.42
+        lat: -33.92
+        at: 0.4
+      - name: Gansbaai
+        lon: 19.35
+        lat: -34.58
+        at: 0.6
+      - name: Mossel Bay
+        lon: 22.13
+        lat: -34.18
+        at: 0.8
+      - name: Algoa Bay
+        lon: 25.7
+        lat: -33.85
+        at: 1.0
+      title: '2023'
+      subtitle: Great white records from the whole coast
+- text: They found that numbers looked steady overall. Sightings had fallen in the west and risen in the east.
+  visual:
+    remotion: MapScene
+    props:
+      bbox: *id002
+      highlight:
+      - South Africa
+      pulses:
+      - lon: 18.9
+        lat: -34.5
+        label: 'West: sightings fell'
+        color: '#e5372f'
+        at: fallen
+      - lon: 25.7
+        lat: -33.85
+        label: 'East: sightings rose'
+        color: '#3fb6c9'
+        at: risen
+      title: Steady overall
+      subtitle: Fewer in the west, more in the east
+- text: At Algoa Bay, shore anglers caught six great whites in 2013 and 59 in 2019.
+  visual:
+    remotion: BarCompare
+    props:
+      backdrop: ocean
+      heading: Great whites caught by shore anglers
+      kicker: ALGOA BAY
+      bars:
+      - label: '2013'
+        value: 6
+        display: '6'
+        at: six
+      - label: '2019'
+        value: 59
+        display: '59'
+        at: '2019'
+- text: To that team, it looked as if many sharks had moved east, away from the orcas.
+  visual:
+    remotion: MapScene
+    props:
+      bbox: *id002
+      highlight:
+      - South Africa
+      cities:
+      - name: Gansbaai
+        lon: 19.35
+        lat: -34.58
+        at: 0.3
+      - name: Algoa Bay
+        lon: 25.7
+        lat: -33.85
+        at: 0.5
+      arrows:
+      - from:
+        - 19.6
+        - -35.0
+        to:
+        - 25.6
+        - -34.3
+        at: moved
+        dur: 1.8
+        curve: 0.14
+        label: Moved east?
+      title: Away from the orcas
+- text: In 2024, another group of scientists pushed back.
+  visual:
+    remotion: Statement
+    props:
+      backdrop: ocean
+      kicker2: '2024'
+      line1: Another group of scientists
+      line2: pushed back
+- text: Shark scientist Enrico Gennari and his co-authors said great white sightings in False Bay had started falling around 2012. That
+    was about three years before Port and Starboard were first seen hunting there.
+  visual:
+    remotion: Counter
+    props:
+      backdrop: ocean
+      from: 2010
+      to: 2015
+      plain: true
+      label: False Bay
+      countAt: 0.5
+      countDur: 7
+      timeline:
+        start: 2010
+        end: 2018
+        tickEvery: 1
+        events:
+        - year: 2012
+          label: Sightings start falling
+          at: falling
+        - year: 2015
+          label: Port and Starboard first seen hunting there
+          at: three
+- text: This group pointed to people.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      net:
+        x0: 0.06
+        x1: 0.5
+        top: 0.06
+        bottom: 0.8
+        at: 0.3
+      bigText: PEOPLE
+      bigAt: people
+      bigColor: '#e6edf2'
+      actors:
+      - creature: greatWhite
+        x: 0.7
+        y: 0.6
+        scale: 1.0
+        to:
+        - 0.6
+        - 0.6
+- text: Shark nets and baited hooks protect swimming beaches in KwaZulu-Natal province.
+  visuals:
+  - remotion: MapScene
+    props:
+      bbox:
+      - - 27.5
+        - -32.2
+      - - 34.5
+        - -26.3
+      highlight:
+      - South Africa
+      cities:
+      - name: Durban
+        lon: 31.02
+        lat: -29.86
+        at: 0.4
+      countryLabels:
+      - name: KwaZulu-Natal
+        lon: 30.6
+        lat: -28.6
+      title: KwaZulu-Natal
+      subtitle: Shark nets and baited hooks
+  - stock: shark nets KwaZulu-Natal beach|KZN Sharks Board nets drumlines|shark net buoys Durban
+    verify: shark nets and floats off a KwaZulu-Natal swimming beach
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        depth: 0.25
+        surface: true
+        net:
+          x0: 0.05
+          x1: 0.56
+          top: 0.05
+          bottom: 0.82
+        heading: Shark nets
+        callout: Protecting swimming beaches
+        calloutAt: protect
+        actors:
+        - creature: greatWhite
+          x: 0.8
+          y: 0.56
+          scale: 1.0
+          to:
+          - 0.66
+          - 0.56
+- text: Between 1978 and 2018, that gear caught 1,317 great whites, and 1,108 of them died.
+  visual:
+    remotion: StatCards
+    props:
+      backdrop: ocean
+      center: true
+      heading: Nets and baited hooks, 1978 to 2018
+      kicker: KWAZULU-NATAL
+      cards:
+      - label: Great whites caught
+        value: 1,317
+        at: caught
+      - label: Died
+        value: 1,108
+        at: died
+- text: That works out to about 28 sharks a year. Orcas, by comparison, are known to have killed eight great whites since 2017.
+  visual:
+    remotion: BarCompare
+    props:
+      backdrop: ocean
+      heading: Great whites killed
+      bars:
+      - label: Nets and hooks, every year
+        value: 28
+        display: About 28 a year
+        at: about
+      - label: Orcas, known kills since 2017
+        value: 8
+        display: 8 in total
+        at: eight
+- text: Fishing boats that target smaller sharks add to the pressure. They take away food that great whites rely on, and their long
+    lines of hooks sometimes catch great whites too.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      longline:
+        y: 0.16
+        hooks: 9
+      heading: Fishing boats
+      facts:
+      - text: Take the smaller sharks great whites eat
+        at: food
+      - text: Long lines of hooks catch great whites too
+        at: hooks
+        red: true
+      actors:
+      - creature: bronzeWhaler
+        x: 0.25
+        y: 0.62
+        scale: 0.5
+        to:
+        - 0.4
+        - 0.6
+      - creature: bronzeWhaler
+        x: 0.6
+        y: 0.76
+        scale: 0.45
+        to:
+        - 0.74
+        - 0.74
+      - creature: greatWhite
+        x: 1.1
+        y: 0.5
+        scale: 0.95
+        to:
+        - 0.7
+        - 0.46
+        at: great
+- text: South Africa's whole great white population is small, with estimates from a few hundred to about a thousand.
+  visual:
+    remotion: DotGrid
+    props:
+      backdrop: ocean
+      count: 1000
+      highlight: 300
+      cols: 50
+      value: A few hundred to 1,000
+      label: Great whites in South Africa (estimates)
+      fillAt: estimates
+      color: '#3fb6c9'
+- text: These scientists estimate that losing a few dozen a year can push a population that size into decline.
+  visual:
+    remotion: DotGrid
+    props:
+      backdrop: ocean
+      count: 1000
+      highlight: 36
+      cols: 50
+      value: A few dozen a year
+      label: 'Lost: enough to push the population into decline'
+      fillAt: dozen
+- text: So who is right? The evidence suggests both played a part.
+  visual:
+    remotion: SplitCompare
+    props:
+      backdrop: ocean
+      heading: Who is right?
+      left:
+        title: Orcas
+        subtitle: the sudden exits
+      right:
+        title: People
+        subtitle: nets and fishing, year after year
+        color: '#e2a23a'
+- text: Orcas caused the sudden exits, when a busy bay went quiet within days.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      heading: Orcas
+      kicker: THE SUDDEN EXITS
+      callout: A busy bay went quiet within days
+      calloutAt: quiet
+      source: 3D reconstruction
+      actors:
+      - creature: orcaPort
+        x: -0.2
+        y: 0.4
+        scale: 1.2
+        view: top
+        to:
+        - 0.25
+        - 0.42
+      - creature: orcaStarboard
+        x: -0.3
+        y: 0.62
+        scale: 1.2
+        view: top
+        to:
+        - 0.14
+        - 0.6
+      - creature: greatWhite
+        x: 0.6
+        y: 0.3
+        scale: 0.7
+        view: top
+        to:
+        - 1.25
+        - 0.12
+      - creature: greatWhite
+        x: 0.7
+        y: 0.56
+        scale: 0.8
+        view: top
+        to:
+        - 1.3
+        - 0.56
+      - creature: greatWhite
+        x: 0.58
+        y: 0.78
+        scale: 0.7
+        view: top
+        to:
+        - 1.2
+        - 0.96
+- text: Years of losses to nets and fishing meant fewer sharks were left to come back.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      surface: true
+      net:
+        x0: 0.05
+        x1: 0.5
+        top: 0.05
+        bottom: 0.82
+      heading: Nets and fishing
+      kicker: YEARS OF LOSSES
+      callout: Fewer sharks left to come back
+      calloutAt: fewer
+      actors:
+      - creature: greatWhite
+        x: 0.78
+        y: 0.6
+        scale: 0.9
+        to:
+        - 0.68
+        - 0.6
+- chapter: Other Oceans
+  mood: wonder
+  text: Orcas in other oceans have learned the same hunt.
+  visual:
+    remotion: Globe
+    props:
+      from:
+      - 19.3
+      - -34.6
+      to:
+      - -111.5
+      - 26.5
+      zoomFrom: 1.0
+      zoomTo: 2.0
+      marker:
+        label: Gulf of California
+        at: other
+- text: In the Gulf of California, a group known as Moctezuma's pod was filmed killing young great whites in August 2020, and again
+    in August 2022.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: open
+      heading: Moctezuma's pod
+      kicker: GULF OF CALIFORNIA
+      stats:
+      - label: Filmed
+        value: August 2020
+      - label: Again
+        value: August 2022
+      statsAt: August
+      source: 3D reconstruction
+      actors:
+      - creature: greatWhite
+        x: 0.56
+        y: 0.5
+        scale: 0.5
+        view: top
+        to:
+        - 0.7
+        - 0.5
+      - creature: orca
+        x: 0.24
+        y: 0.34
+        scale: 1.1
+        view: top
+        to:
+        - 0.44
+        - 0.4
+      - creature: orca
+        x: 0.2
+        y: 0.66
+        scale: 1.1
+        view: top
+        to:
+        - 0.42
+        - 0.6
+      - creature: orca
+        x: 0.88
+        y: 0.24
+        scale: 1.0
+        view: top
+        to:
+        - 0.78
+        - 0.36
+      - creature: orca
+        x: 0.9
+        y: 0.78
+        scale: 0.95
+        view: top
+        to:
+        - 0.8
+        - 0.64
+- text: Those orcas push a shark to the surface and roll it onto its back.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.15
+      surface: true
+      callout: Pushed to the surface and rolled onto its back
+      calloutAt: roll
+      source: 3D reconstruction
+      actors:
+      - creature: orca
+        x: 0.36
+        y: 0.62
+        scale: 1.4
+        to:
+        - 0.46
+        - 0.5
+        rotate: -14
+      - creature: greatWhite
+        x: 0.56
+        y: 0.3
+        scale: 0.7
+        view: upside
+        idle: false
+        to:
+        - 0.58
+        - 0.2
+- text: A shark held upside down goes limp, a state called tonic immobility.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.2
+      surface: true
+      zoom:
+      - 1.0
+      - 1.08
+      title: Tonic immobility
+      titleAt: tonic
+      callout: Held upside down, a shark goes limp
+      calloutAt: limp
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.46
+        scale: 1.6
+        view: upside
+        idle: false
+- text: While it lies still, the orcas take the liver.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.2
+      surface: true
+      callout: While it lies still, the orcas take the liver
+      calloutAt: liver
+      source: 3D reconstruction
+      actors:
+      - creature: greatWhite
+        x: 0.56
+        y: 0.3
+        scale: 0.8
+        view: upside
+        idle: false
+      - creature: orca
+        x: 0.3
+        y: 0.58
+        scale: 1.4
+        to:
+        - 0.4
+        - 0.52
+        rotate: -12
+      - creature: orca
+        x: 0.9
+        y: 0.66
+        scale: 1.2
+        to:
+        - 0.78
+        - 0.56
+        flip: true
+- text: Every shark in those hunts was young.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      callout: Every shark in those hunts was young
+      calloutAt: young
+      actors:
+      - creature: orca
+        x: 0.28
+        y: 0.5
+        scale: 1.5
+      - creature: greatWhite
+        x: 0.76
+        y: 0.56
+        scale: 0.5
+        flip: true
+        keepFacing: true
+        label:
+          text: Young great white
+          at: young
+- text: Biologist Salvador Jorgensen, who led the Farallon study, was part of that team. He says young sharks may simply have no experience
+    of orcas yet.
+  visual:
+    remotion: Statement
+    props:
+      backdrop: ocean
+      kicker2: Salvador Jorgensen, biologist
+      line1: Young sharks may simply have
+      line2: no experience of orcas yet
+      footnote: He led the Farallon study
+- text: In Australia, a 4.7 metre great white washed up near Portland, Victoria, in October 2023.
+  visuals:
+  - remotion: Globe
+    props:
+      from:
+      - -111.5
+      - 26.5
+      to:
+      - 141.6
+      - -38.35
+      zoomFrom: 1.2
+      zoomTo: 2.2
+      marker:
+        label: Portland, Victoria
+        note: Australia
+        at: 0.6
+  - remotion: OceanScene
+    props:
+      beach:
+        sky: day
+      kicker: OCTOBER 2023
+      heading: Near Portland, Victoria
+      scaleBar:
+        x1: 0.22
+        x2: 0.78
+        y: 0.9
+        label: 4.7 metres
+        at: 0.5
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.74
+        scale: 1.6
+        view: beached
+- text: Its liver was gone. Scientists swabbed the biggest bite wound and found orca DNA.
+  visual:
+    remotion: OceanScene
+    props:
+      beach:
+        sky: day
+      zoom:
+      - 1.05
+      - 1.2
+      heading: Its liver was gone
+      callout: Orca DNA in the biggest bite wound
+      calloutAt: DNA
+      actors:
+      - creature: greatWhite
+        x: 0.5
+        y: 0.72
+        scale: 1.9
+        view: beached
+- text: Then, in 2026, there was news from South Africa.
+  visual:
+    remotion: DateStamp
+    props:
+      date: '2026'
+      place: South Africa
+      at: 0.2
+  duration: 4.0
+- chapter: The Return
+  mood: calm
+  text: On the twenty-third of September 2026, a tour boat filmed a young great white just north of Seal Island in False Bay.
+  visual:
+    stock: great white shark False Bay September 2026|white shark Seal Island 2026 sighting|great white returns False Bay
+    verify: the young great white filmed near Seal Island, False Bay, in September 2026
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        depth: 0.2
+        surface: true
+        rays: true
+        kicker: 23 SEPTEMBER 2026
+        heading: Just north of Seal Island
+        callout: A young great white, filmed from a tour boat
+        calloutAt: filmed
+        source: 3D reconstruction
+        actors:
+        - creature: greatWhite
+          x: -0.1
+          y: 0.56
+          scale: 0.75
+          to:
+          - 0.5
+          - 0.5
+        - creature: fishSchool
+          x: 0.8
+          y: 0.3
+          scale: 0.5
+          to:
+          - 0.7
+          - 0.26
+- text: The crew said it was the first they had seen there in about eight years.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.2
+      surface: true
+      rays: true
+      hud:
+        label: The first seen there in
+        value: ≈ 8 years
+      actors:
+      - creature: greatWhite
+        x: 0.3
+        y: 0.5
+        scale: 1.2
+        view: three_quarter
+        to:
+        - 0.5
+        - 0.5
+- text: Six weeks later, on the third of November, two great whites swam up to a cage-diving boat off Gansbaai.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.2
+      surface: true
+      rays: true
+      kicker: 3 NOVEMBER 2026
+      heading: Off Gansbaai
+      callout: Two great whites at a cage-diving boat
+      calloutAt: two
+      actors:
+      - creature: greatWhite
+        x: 0.1
+        y: 0.8
+        scale: 0.7
+        to:
+        - 0.4
+        - 0.5
+      - creature: greatWhite
+        x: 0.9
+        y: 0.86
+        scale: 0.8
+        to:
+        - 0.64
+        - 0.58
+        at: two
+- text: They were the company's first in more than a year.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.2
+      surface: true
+      rays: true
+      hud:
+        label: The company's first in
+        value: Over a year
+      actors:
+      - creature: greatWhite
+        x: 0.36
+        y: 0.48
+        scale: 0.8
+        to:
+        - 0.46
+        - 0.46
+      - creature: greatWhite
+        x: 0.7
+        y: 0.6
+        scale: 0.9
+        to:
+        - 0.6
+        - 0.58
+- text: The people who saw them chose their words with care. A few sharks are a hopeful sign.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.25
+      rays: true
+      callout: A few sharks are a hopeful sign
+      calloutAt: hopeful
+      actors:
+      - creature: greatWhite
+        x: 0.2
+        y: 0.5
+        scale: 0.6
+        to:
+        - 0.36
+        - 0.48
+      - creature: greatWhite
+        x: 0.74
+        y: 0.66
+        scale: 0.5
+        to:
+        - 0.62
+        - 0.64
+      - creature: greatWhite
+        x: 0.56
+        y: 0.3
+        scale: 0.42
+        to:
+        - 0.68
+        - 0.3
+- text: It is too early to call it a return.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      callout: Too early to call it a return
+      calloutAt: early
+      actors:
+      - creature: greatWhite
+        x: 0.6
+        y: 0.5
+        scale: 0.6
+        to:
+        - 0.9
+        - 0.46
+- text: Port and Starboard are still on this coast, too.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      heading: Still on this coast
+      actors:
+      - creature: orcaPort
+        x: 0.24
+        y: 0.42
+        scale: 1.5
+        view: three_quarter
+        to:
+        - 0.32
+        - 0.42
+        label:
+          text: Port
+          at: Port
+      - creature: orcaStarboard
+        x: 0.66
+        y: 0.68
+        scale: 1.5
+        view: three_quarter
+        to:
+        - 0.74
+        - 0.68
+        label:
+          text: Starboard
+          at: Starboard
+- text: Both were reported around the Cape in early 2026, sometimes swimming apart.
+  visual:
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      kicker: EARLY 2026
+      heading: Around the Cape
+      callout: Sometimes swimming apart
+      calloutAt: apart
+      actors:
+      - creature: orcaPort
+        x: 0.4
+        y: 0.4
+        scale: 1.1
+        view: top
+        to:
+        - 0.1
+        - 0.2
+      - creature: orcaStarboard
+        x: 0.6
+        y: 0.6
+        scale: 1.1
+        view: top
+        to:
+        - 0.92
+        - 0.82
+- text: So, did two orcas empty a great white shark coast?
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.45
+      title: Did two orcas empty a great white shark coast?
+      titleAt: 0.3
+      actors:
+      - creature: orcaPort
+        x: 0.3
+        y: 0.42
+        scale: 1.5
+        to:
+        - 0.36
+        - 0.42
+      - creature: orcaStarboard
+        x: 0.66
+        y: 0.66
+        scale: 1.5
+        to:
+        - 0.72
+        - 0.66
+      - creature: greatWhite
+        x: 1.2
+        y: 0.84
+        scale: 0.6
+        to:
+        - 0.9
+        - 0.86
+        opacity: 0.8
+- text: At Gansbaai and Mossel Bay, they did, more than once, and cameras recorded it.
+  visual:
+    remotion: MapScene
+    props:
+      bbox: *id001
+      countryLabels:
+      - name: South Africa
+        lon: 21.0
+        lat: -33.35
+      pulses:
+      - lon: 19.35
+        lat: -34.58
+        label: 'Gansbaai: yes'
+        at: Gansbaai
+      - lon: 22.13
+        lat: -34.18
+        label: 'Mossel Bay: yes'
+        at: Mossel
+      title: They did
+      subtitle: More than once, on camera
+- text: Across the wider coast, they had help. Nets and fishing lines were taking great whites long before the orcas arrived.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.3
+      surface: true
+      net:
+        x0: 0.05
+        x1: 0.5
+        top: 0.05
+        bottom: 0.82
+      longline:
+        y: 0.12
+        hooks: 8
+        at: lines
+      heading: Across the wider coast
+      callout: Nets and lines came long before the orcas
+      calloutAt: long
+      actors:
+      - creature: greatWhite
+        x: 0.76
+        y: 0.6
+        scale: 0.9
+        to:
+        - 0.66
+        - 0.6
+- text: One question is still open. Scientists do not know yet whether a great white is born knowing to flee from orcas. It may be something
+    each shark has to learn.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.45
+      zoom:
+      - 1.0
+      - 1.1
+      title: One question is still open
+      titleAt: 0.3
+      actors:
+      - creature: greatWhite
+        x: 0.3
+        y: 0.56
+        scale: 0.55
+        to:
+        - 0.44
+        - 0.54
+        label:
+          text: Born knowing, or learned?
+          at: born
+      - creature: orca
+        x: 0.95
+        y: 0.4
+        scale: 1.6
+        silhouette: '#050b10'
+        opacity: 0.5
+        blur: 4
+        to:
+        - 0.86
+        - 0.4
+- text: What do you think? Tell us in the comments. And if you want more stories like this, built on real research, subscribe.
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.35
+      rays: true
+      title: What do you think?
+      titleAt: 0.2
+      callout: Tell us in the comments · Subscribe for more
+      calloutAt: comments
+      actors:
+      - creature: orcaPort
+        x: 0.1
+        y: 0.4
+        scale: 1.3
+        to:
+        - 0.42
+        - 0.4
+      - creature: orcaStarboard
+        x: 0.0
+        y: 0.64
+        scale: 1.3
+        to:
+        - 0.32
+        - 0.64
+      - creature: greatWhite
+        x: 0.9
+        y: 0.8
+        scale: 0.7
+        to:
+        - 0.66
+        - 0.8

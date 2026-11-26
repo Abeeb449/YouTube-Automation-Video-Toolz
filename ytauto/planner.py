@@ -1162,7 +1162,11 @@ def auto_style(script: str, title: str | None = None, broll: str = "script") -> 
 
 def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "rules", model: str | None = None,
                fmt: str = "video", broll: str = "script") -> Path:
-    raw = script_path.read_text(encoding="utf-8")
+    from .scriptfmt import read_script_file
+    raw = read_script_file(script_path)
+    if script_path.suffix.lower() == ".pdf":      # keep the text beside the plan: checks and re-plans read script.txt
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "script.txt").write_text(raw, encoding="utf-8")
     if style == "auto":
         style = auto_style(raw, title, broll)
         log(f"Style: {style} (picked from the topic; use --style to choose)")

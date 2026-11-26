@@ -47,6 +47,7 @@ ANIMAL_RANKS = ("family", "order")
 # Each group is a set of alternatives that exclude each other; when the description names one (or more) of them,
 # the picture must look like those rather than the others. Calibrated on real wildlife photos: right scenes score
 # >= 0.48 for the place and >= 0.8 for the count; wrong ones <= 0.2.
+DEAD_WORDS = r"\b(dead|carcass\w*|necrops\w*|washed (?:up|ashore)|stranded|strandings?|beached|remains|corpses?)\b"
 DETAILS: dict[str, list[tuple[str, str, str]]] = {
     "place": [
         ("ice", r"\b(ice|icy|icebergs?|floes?|snow\w*|glaciers?|frozen)\b", "a photo taken on ice or snow"),
@@ -80,8 +81,13 @@ DETAILS: dict[str, list[tuple[str, str, str]]] = {
         ("closeup", r"\b(close[- ]?ups?|macro|portrait)\b", "a close-up photo"),
         ("wide", r"\b(wide (?:shot|view)|landscape|panoram\w*|vista)\b", "a wide landscape photo"),
     ],
+    # a line about a body on a beach must not be answered with a living animal swimming (and the other way round)
+    "state": [
+        ("dead", DEAD_WORDS, "a photo of a dead animal lying still on the ground or on a beach"),
+        ("alive", r"\b(alive|living)\b", "a photo of a living animal swimming, walking, flying or resting"),
+    ],
 }
-DETAIL_MIN = {"place": 0.35, "count": 0.7, "time": 0.5, "view": 0.45}
+DETAIL_MIN = {"place": 0.35, "count": 0.7, "time": 0.5, "view": 0.45, "state": 0.6}
 # Question 5: nothing graphic. Wildlife sources hold kills, carcasses and skeletons; none of that goes in a video
 # (calibrated on wildlife and on objects/places: ordinary pictures >= 0.67, kills / remains <= 0.02, borderline 0.5).
 CLEAN = ["a pleasant wildlife photo", "an ordinary photo of an object, a machine, a vehicle, a building or a place",
@@ -100,7 +106,8 @@ def _details(text: str, drop: tuple[str, ...] = ()) -> dict[str, list[int]]:
     for group, members in DETAILS.items():
         hit = [i for i, (_k, pat, _p) in enumerate(members) if re.search(pat, t)]
         if group == "place" and not hit and re.search(r"\b(beach\w*|shore\w*|coast\w*)\b", t):
-            hit = [1, 2, 4]              # a beach or shore: sand, rocks or the water's edge all fit
+            # a beach or shore: sand, rocks or the water's edge all fit — but a body ON the beach is not in the water
+            hit = [1, 2] if re.search(DEAD_WORDS, t) else [1, 2, 4]
         if hit:
             out[group] = hit
     return out
@@ -281,7 +288,9 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     animal = _is_animal(query)
     from .stock import _subject
     want_details = _details(wanted or query, _subject(query) if animal else ())
-    key = stable_hash("verify-v10", str(image), image.stat().st_size, pos, negs, trusted, animal, want_details)
+    # the script itself asks for a dead animal (a stranding, a carcass): such a picture is then allowed, gore never is
+    asked_dead = 0 in want_details.get("state", [])
+    key = stable_hash("verify-v11", str(image), image.stat().st_size, pos, negs, trusted, animal, want_details)
     memo_file = _memo_path(cache)
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
@@ -299,7 +308,7 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
                 "subject_ok": True, "margin": 1.0, "clean": 1.0, "detail_ok": True}
     kind = max(res["groups"][0][0][0], res["groups"][1][0][0])
     probs = res["groups"][2][0]
-    wild = res["groups"][4][0][0] if animal else 1.0
+    wild = res["groups"][4][0][0] if animal and not asked_dead else 1.0
     best = max(range(len(probs)), key=lambda i: probs[i])
     p = probs[0]
     need = 0.25 if trusted else 0.45
@@ -315,7 +324,7 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     general = not animal and not trusted
     if general and subject_ok and margin < MARGIN_MIN:
         subject_ok = False
-    clean = sum(res["groups"][at["clean"]][0][:CLEAN_OK])
+    clean = sum(res["groups"][at["clean"]][0][:CLEAN_OK]) + (res["groups"][at["clean"]][0][CLEAN_OK + 1] if asked_dead else 0.0)
     detail_ok, detail_why, detail_note = True, "", []
     for g, wanted_idx in want_details.items():
         pr = res["groups"][at[g]][0]
@@ -332,7 +341,8 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
         k2 = max(range(1, len(KIND_B)), key=lambda i: res["groups"][1][0][i])
         reason = f"not a real photo: looks like {KIND_B[k2]} ({res['groups'][1][0][k2]:.0%})"
     elif clean < CLEAN_MIN:
-        reason = f"graphic content (a kill, a carcass or remains): never used ({1 - clean:.0%})"
+        reason = (f"gory picture (blood, an animal being eaten): never used ({1 - clean:.0%})" if asked_dead else
+                  f"graphic content (a kill, a carcass or remains): never used ({1 - clean:.0%})")
     elif subject_ok and not detail_ok:
         reason = detail_why
     elif animal and wild < WILD_MIN:
