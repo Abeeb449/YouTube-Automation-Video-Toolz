@@ -1074,26 +1074,26 @@ scenes:
       actors:
       - creature: orcaPort
         x: 0.34
-        y: 0.52
-        scale: 1.5
+        y: 0.47
+        scale: 1.3
         view: top
         rotate: -90
         idle: false
         label:
           text: Leans left
           at: left
-          dy: 0.34
+          dy: 0.43
       - creature: orcaStarboard
         x: 0.66
-        y: 0.52
-        scale: 1.5
+        y: 0.47
+        scale: 1.3
         view: top
         rotate: -90
         idle: false
         label:
           text: Leans right
           at: right
-          dy: 0.34
+          dy: 0.43
 - text: Local boat crews named them Port and Starboard, the sailor's words for left and right.
   visual:
     remotion: PhotoStory
@@ -1116,26 +1116,26 @@ scenes:
         actors:
         - creature: orcaPort
           x: 0.34
-          y: 0.52
-          scale: 1.5
+          y: 0.45
+          scale: 1.3
           view: top
           rotate: -90
           idle: false
           label:
             text: Port
             at: Port
-            dy: 0.34
+            dy: 0.42
         - creature: orcaStarboard
           x: 0.66
-          y: 0.52
-          scale: 1.5
+          y: 0.45
+          scale: 1.3
           view: top
           rotate: -90
           idle: false
           label:
             text: Starboard
             at: Starboard
-            dy: 0.34
+            dy: 0.42
 - text: Nobody knows how old they are. Early genetic work hints that they may be half-brothers.
   visual:
     remotion: OceanScene
@@ -1706,17 +1706,12 @@ scenes:
         - 0.74
 - text: Towner compared it to wild dogs on the African plains, which keep away from places where lions hunt.
   visual:
-    remotion: SplitCompare
+    remotion: Statement
     props:
       backdrop: ocean
-      left:
-        title: Wild dogs
-        subtitle: keep away from where lions hunt
-        color: '#e2a23a'
-      right:
-        title: Great whites
-        subtitle: keep away from where orcas hunt
-      heading: Alison Towner's comparison
+      kicker2: Alison Towner's comparison
+      line1: Wild dogs keep away from lions
+      line2: Great whites keep away from orcas
 - text: The fear of being hunted was enough to move them.
   visual:
     remotion: OceanScene
@@ -1899,11 +1894,11 @@ scenes:
       bars:
       - label: A normal year
         value: 7
-        display: 7 in 7
+        display: A normal year's kills
         at: 0.5
       - label: A year when orcas visited
         value: 1
-        display: as few as 1 in 7
+        display: Sometimes only a seventh
         at: seventh
 - text: Back in October 1997, people on that island had watched an orca kill a great white and eat only its liver.
   visual:
@@ -3300,17 +3295,12 @@ scenes:
       fillAt: dozen
 - text: So who is right? The evidence suggests both played a part.
   visual:
-    remotion: SplitCompare
+    remotion: Statement
     props:
       backdrop: ocean
-      heading: Who is right?
-      left:
-        title: Orcas
-        subtitle: the sudden exits
-      right:
-        title: People
-        subtitle: nets and fishing, year after year
-        color: '#e2a23a'
+      kicker2: So who is right?
+      line1: Orcas and people
+      line2: both played a part
 - text: Orcas caused the sudden exits, when a busy bay went quiet within days.
   visual:
     remotion: OceanScene

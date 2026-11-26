@@ -166,18 +166,22 @@ export type BarCompareProps = DocuProps & {
 export const BarCompare: React.FC<BarCompareProps> = (p) => {
   const {t, dur, s} = useT();
   const max = p.max ?? Math.max(...p.bars.map((b) => b.value));
+  const big = p.bars.length <= 3;       // two or three bars fill the frame: tall bars, large figures
+  const z = big ? 1.9 : 1;
   return (
     <DocuFrame {...p}>
-      <div style={{position: 'absolute', left: 110 * s, right: 110 * s, top: 260 * s, display: 'flex', flexDirection: 'column', gap: 46 * s}}>
+      <div style={{position: 'absolute', left: 110 * s, right: 110 * s, top: (big ? 300 : 260) * s, bottom: big ? 190 * s : undefined, display: 'flex', flexDirection: 'column',
+        justifyContent: big ? 'center' : undefined, gap: (big ? 70 : 46) * s}}>
         {p.bars.map((b, i) => {
           const at = b.at ?? stagger(i, p.bars.length, dur, 0.5, 0.5);
           const k = prog(t, at, 1.1);
           return (
             <div key={i} style={{opacity: Math.min(1, k * 3)}}>
-              <div style={{fontSize: 21 * s, color: C.dim, letterSpacing: 2.5 * s, textTransform: 'uppercase', marginBottom: 8 * s}}>{b.label}</div>
-              <div style={{display: 'flex', alignItems: 'center', gap: 18 * s}}>
-                <div style={{height: 34 * s, width: `${(b.value / max) * 78 * k}%`, background: b.color ?? (i === p.bars.length - 1 ? C.red : '#7f8fa0'), minWidth: 4 * s}} />
-                <div style={{fontFamily: F.mono, fontSize: 30 * s}}>{b.display ?? `${fmtNum(b.value * k)}${p.unit ? ` ${p.unit}` : ''}`}</div>
+              <div style={{fontSize: 21 * s * (big ? 1.35 : 1), color: big ? '#b9c4cd' : C.dim, letterSpacing: 2.5 * s, textTransform: 'uppercase', marginBottom: 8 * s * z}}>{b.label}</div>
+              <div style={{display: 'flex', alignItems: 'center', gap: 18 * s * z}}>
+                <div style={{height: 34 * s * z, width: `${(b.value / max) * (big ? 68 : 78) * k}%`, background: b.color ?? (i === p.bars.length - 1 ? C.red : '#7f8fa0'), minWidth: 4 * s * z,
+                  borderRadius: 3 * s, boxShadow: big ? '0 10px 30px rgba(0,0,0,0.35)' : undefined}} />
+                <div style={{fontFamily: big ? F.sans : F.mono, fontWeight: big ? 800 : 400, fontSize: 30 * s * (big ? 1.7 : 1), whiteSpace: 'nowrap'}}>{b.display ?? `${fmtNum(b.value * k)}${p.unit ? ` ${p.unit}` : ''}`}</div>
               </div>
             </div>
           );

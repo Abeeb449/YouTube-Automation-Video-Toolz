@@ -186,8 +186,9 @@ export const DocuOverlays: React.FC<DocuProps> = ({heading, headingColor = 'whit
     <AbsoluteFill style={{fontFamily: F.sans, color: C.text}}>
       {heading ? (
         <div style={{position: 'absolute', left: 80 * s, top: 64 * s, opacity: hp, transform: `translateX(${(1 - hp) * -20 * s}px)`}}>
-          {kicker ? <div style={{fontSize: 22 * s, letterSpacing: 3 * s, color: C.dim, marginBottom: 6 * s, fontWeight: 600}}>{kicker}</div> : null}
-          <div style={{fontSize: 46.0 * s, fontWeight: 800, color: headingColor === 'teal' ? C.teal : C.text, letterSpacing: -0.5 * s, lineHeight: 1.05, textTransform: 'uppercase'}}>
+          {kicker ? <div style={{fontSize: 22 * s, letterSpacing: 3 * s, color: '#c5ced6', marginBottom: 6 * s, fontWeight: 700, textShadow: '0 1px 8px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.6)'}}>{kicker}</div> : null}
+          <div style={{fontSize: 46.0 * s, fontWeight: 800, color: headingColor === 'teal' ? C.teal : C.text, letterSpacing: -0.5 * s, lineHeight: 1.05, textTransform: 'uppercase',
+            textShadow: '0 2px 14px rgba(0,0,0,0.6)'}}>
             {heading}
           </div>
           {headingColor === 'white' ? <div style={{height: 3 * s, width: 90 * s * hp, background: C.red, marginTop: 10 * s}} /> : null}

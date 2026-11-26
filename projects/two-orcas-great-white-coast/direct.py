@@ -214,12 +214,12 @@ S(2, tpl("Anatomy", sprite={"creature": "sevengill", "view": "side"}, backdrop="
 S(1, tpl("Statement", backdrop="ocean", kicker2="The first proof", line1="Orcas were killing sharks", line2="for a single organ"))
 S(1, sea(port(0.3, 0.42, 1.6, view="three_quarter", to=[0.34, 0.42]), star(0.7, 0.66, 1.6, view="three_quarter", to=[0.74, 0.66]),
          depth=0.3, surface=True, zoom=[1.0, 1.12], callout="Their tall back fins have folded over", calloutAt="folded"))
-S(1, aerial(port(0.34, 0.52, 1.5, view="top", rotate=-90, idle=False, label={"text": "Leans left", "at": "left", "dy": 0.34}),
-            star(0.66, 0.52, 1.5, view="top", rotate=-90, idle=False, label={"text": "Leans right", "at": "right", "dy": 0.34}),
+S(1, aerial(port(0.34, 0.47, 1.3, view="top", rotate=-90, idle=False, label={"text": "Leans left", "at": "left", "dy": 0.43}),
+            star(0.66, 0.47, 1.3, view="top", rotate=-90, idle=False, label={"text": "Leans right", "at": "right", "dy": 0.43}),
             zoom=[1.0, 1.06], source="Seen from above"))
 S(1, photo("Port and Starboard orcas",
-           aerial(port(0.34, 0.52, 1.5, view="top", rotate=-90, idle=False, label={"text": "Port", "at": "Port", "dy": 0.34}),
-                  star(0.66, 0.52, 1.5, view="top", rotate=-90, idle=False, label={"text": "Starboard", "at": "Starboard", "dy": 0.34}),
+           aerial(port(0.34, 0.45, 1.3, view="top", rotate=-90, idle=False, label={"text": "Port", "at": "Port", "dy": 0.42}),
+                  star(0.66, 0.45, 1.3, view="top", rotate=-90, idle=False, label={"text": "Starboard", "at": "Starboard", "dy": 0.42}),
                   zoom=[1.06, 1.12], callout="Port = left · Starboard = right", calloutAt="sailor's")))
 S(2, sea(port(0.2, 0.42, 1.5, to=[0.4, 0.42]), star(0.32, 0.68, 1.5, to=[0.52, 0.68]), depth=0.35,
          callout="They may be half-brothers", calloutAt="half-brothers"))
@@ -284,8 +284,7 @@ S(2, sea(seal(0.3, 0.4, 0.42, to=[0.5, 0.44]), A("fishSchool", 0.75, 0.62, 0.55,
 S(1, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Sightings kept dropping for", "value": "2½ years", "at": "dropping"}]))
 S(1, sea(seal(0.2, 0.3, 0.4, to=[0.45, 0.34]), seal(0.8, 0.62, 0.42, to=[0.6, 0.58]), A("fishSchool", 0.5, 0.78, 0.6, to=[0.4, 0.74]),
          depth=0.25, surface=True, zoom=[1.0, 1.1], callout="Not a single great white", calloutAt="single"))
-S(1, tpl("SplitCompare", backdrop="ocean", left={"title": "Wild dogs", "subtitle": "keep away from where lions hunt", "color": "#e2a23a"},
-         right={"title": "Great whites", "subtitle": "keep away from where orcas hunt"}, heading="Alison Towner's comparison"))
+S(1, tpl("Statement", backdrop="ocean", kicker2="Alison Towner's comparison", line1="Wild dogs keep away from lions", line2="Great whites keep away from orcas"))
 S(1, sea(orca(0.12, 0.5, 2.0, silhouette="#050b10", opacity=0.6, blur=4), gw(0.55, 0.52, 1.0, to=[1.3, 0.46]), depth=0.5,
          callout="The fear of being hunted was enough", calloutAt="fear"))
 S(1, tpl("Globe", **{"from": [19.3, -34.6]}, to=[-123.0, 37.7], zoomFrom=1.0, zoomTo=2.2,
@@ -304,7 +303,8 @@ S(1, aerial(gw(0.5, 0.36, 0.7, view="top", to=[1.2, 0.05]), gw(0.42, 0.5, 0.8, v
             hud={"label": "Every one gone within", "value": "8 hours"}, source=RECON))
 S(1, tpl("DotGrid", backdrop="ocean", count=17, highlight=16, cols=9, value="16 of 17", label="Stayed away for the rest of the season", fillAt="stayed"))
 S(1, tpl("BarCompare", backdrop="ocean", heading="Elephant seals killed by great whites", kicker="SOUTHEAST FARALLON ISLAND",
-         bars=[{"label": "A normal year", "value": 7, "display": "7 in 7", "at": 0.5}, {"label": "A year when orcas visited", "value": 1, "display": "as few as 1 in 7", "at": "seventh"}]))
+         bars=[{"label": "A normal year", "value": 7, "display": "A normal year's kills", "at": 0.5},
+               {"label": "A year when orcas visited", "value": 1, "display": "Sometimes only a seventh", "at": "seventh"}]))
 S(1, sea(orca(0.22, 0.5, 1.5, to=[0.36, 0.5]), A("greatWhiteLiver", 0.76, 0.52, 1.0, flip=True, idle=False),
          depth=0.5, kicker="OCTOBER 1997", heading="Southeast Farallon Island", callout="It ate only the liver", calloutAt="liver", source=RECON))
 S(1, sea(star(0.0, 0.5, 1.5, to=[0.4, 0.5], silhouette="#050b10", opacity=0.9), gw(0.8, 0.52, 0.9, to=[0.9, 0.5], silhouette="#0a1a24", opacity=0.9),
@@ -449,8 +449,7 @@ S(1, tpl("DotGrid", backdrop="ocean", count=1000, highlight=300, cols=50, value=
          fillAt="estimates", color="#3fb6c9"))
 S(1, tpl("DotGrid", backdrop="ocean", count=1000, highlight=36, cols=50, value="A few dozen a year", label="Lost: enough to push the population into decline",
          fillAt="dozen"))
-S(2, tpl("SplitCompare", backdrop="ocean", heading="Who is right?", left={"title": "Orcas", "subtitle": "the sudden exits"},
-         right={"title": "People", "subtitle": "nets and fishing, year after year", "color": "#e2a23a"}))
+S(2, tpl("Statement", backdrop="ocean", kicker2="So who is right?", line1="Orcas and people", line2="both played a part"))
 S(1, aerial(port(-0.2, 0.4, 1.2, view="top", to=[0.25, 0.42]), star(-0.3, 0.62, 1.2, view="top", to=[0.14, 0.6]),
             gw(0.6, 0.3, 0.7, view="top", to=[1.25, 0.12]), gw(0.7, 0.56, 0.8, view="top", to=[1.3, 0.56]), gw(0.58, 0.78, 0.7, view="top", to=[1.2, 0.96]),
             heading="Orcas", kicker="THE SUDDEN EXITS", callout="A busy bay went quiet within days", calloutAt="quiet", source=RECON))
