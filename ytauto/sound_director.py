@@ -4,11 +4,12 @@ Nothing here is a template. For every scene it reads the narration and its [tone
 
   mood     the emotion of the passage (danger, tension, mystery, wonder, epic, calm), smoothed so the music
            doesn't flip between scenes; it drives which music plays (ytauto/music_library.py)
-  effects  soft accents at the exact word that calls for one (an impact on "crashed", a rise before
-           "suddenly", a swell on a reveal, ticks on a date, typing on "records"), only when the line is
-           intense enough, never in quiet passages, within a budget (at most one per 8 s, the same effect at
-           most once per 45 s)
-  cuts     a transition sound between chapters only when the mood or energy actually changes
+  effects  soft accents at the exact word that calls for one (a low impact on "crashed", a deep thud on
+           "massive", ticks on a date, typing on "records"), only when the line is intense enough, never in
+           quiet passages, within a budget (at most one per 8 s, the same effect at most once per 45 s)
+
+Never any transition-style sound: no whoosh, swell, riser or glitch, not between chapters, not on a reveal, not
+at the opening (ytauto/sound.py TRANSITION). The music carries every change of scene on its own.
 
 Anything written by hand in script.yaml wins: a scene's own `mood:` or `sfx:` is kept as it is.
 Turn it off with settings.sound.director: false.
@@ -48,17 +49,12 @@ TONE_MOOD = [  # [tone …] directions written in the script
 CUES = [
     (r"crash\w*|slam\w*|struck|strikes?|smash\w*|collid\w*|impact|explo\w*|blast|shatter\w*|snap\w*|bites?|crush\w*",
      "hit", 0.15, 0.0),
-    (r"suddenly|without warning|in an instant|in a flash|lunges?|bursts?|erupts?|strikes? from below|fast\b",
-     "riser", 0.1, -1.4),
-    (r"falls?|fell|drops?|plunges?|dives?|sinks?|swoops?|rushes?|races?|speeds?|flies|thrown",
-     "whoosh", 0.12, -0.2),
-    (r"discovered|revealed|reveal|the answer|this is (the|why|how)|it turns out|for the first time|finally",
-     "swell", 0.0, -0.6),
     (r"thud|heavy|massive|giant|tonnes?|thunder\w*|rumbl\w*|quake|tremor",
      "thud", 0.2, 0.0),
     (r"records|data|files|documents|computer|database|signal|coordinates|transmission|scientists? (found|recorded)",
      "typing", 0.0, 0.0),
-    (r"alarm|siren|alert|emergency", "alarm", 0.3, 0.0),
+    # a literal alarm only: "the alarm sounded", "sirens" (never "alarming", "alert to", "an emergency")
+    (r"alarms?\b(?= (?:sound\w*|rang|rings?|went off|blar\w*|wail\w*|bells?))|sirens?\b|klaxons?\b", "alarm", 0.3, 0.0),
 ]
 QUIET = re.compile(r"\b(silent|silence|quiet|stillness|whisper\w*|hush\w*|peaceful|asleep)\b", re.I)
 YEAR = re.compile(r"\b(1[5-9]\d\d|20\d\d)\b|\b(nineteen|eighteen|seventeen|two thousand|twenty) [a-z\- ]*\b", re.I)
@@ -67,7 +63,7 @@ INTENSIFIERS = re.compile(r"\b(never|nothing|only|most|every|all|always|terrifyi
 
 FX_GAP = 8.0           # seconds between any two effects
 SAME_FX_GAP = 45.0     # seconds between two of the same effect
-FX_VOLUME = {"hit": 0.45, "thud": 0.4, "riser": 0.3, "whoosh": 0.28, "swell": 0.3, "typing": 0.25, "ticks": 0.25,
+FX_VOLUME = {"hit": 0.45, "thud": 0.4, "typing": 0.25, "ticks": 0.25,
              "alarm": 0.18}
 
 
@@ -105,7 +101,7 @@ def analyse(text: str) -> SceneSound:
     cues: list[tuple[str, str, float]] = []
     if not quiet:
         for pat, fx, need, offset in CUES:
-            m = re.search(rf"\b({pat})", plain, re.I)
+            m = re.search(rf"\b({pat})\b", plain, re.I)   # whole words: "heavy", not "heavily"; "data", not "database"
             if m and intensity >= need:
                 cues.append((fx, m.group(1).split()[0], offset))
         y = YEAR.search(plain)
@@ -150,11 +146,8 @@ def direct(texts: list[str], chapters: list[str | None], given_moods: list[str |
                 break            # one accent per scene at most
         sfx.append(here)
         t += durations[k] if durations else max(3.0, len(re.sub(r"\[[^\]]*\]", " ", texts[k]).split()) / 2.5)
-    # 3) transitions: only where a new chapter also changes the mood or the energy jumps
+    # 3) no transition sounds between chapters (kept in the return value for older callers: always False)
     trans = [False] * len(texts)
-    for k in range(1, len(texts)):
-        if chapters[k] and not info[k].quiet and (eff[k] != eff[k - 1] or abs(info[k].intensity - info[k - 1].intensity) > 0.35):
-            trans[k] = True
     return moods, sfx, trans
 
 

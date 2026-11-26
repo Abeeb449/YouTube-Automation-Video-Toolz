@@ -42,6 +42,68 @@ PLACE_NEG = [
 ANIMAL_RANKS = ("family", "order")
 
 
+# Question 4: the details the search words describe. A picture of the right subject in the wrong scene is still a
+# mismatch ("a colony on rocks" must not be one animal on sand; "lying on ice" must not be swimming in the surf).
+# Each group is a set of alternatives that exclude each other; when the description names one (or more) of them,
+# the picture must look like those rather than the others. Calibrated on real wildlife photos: right scenes score
+# >= 0.48 for the place and >= 0.8 for the count; wrong ones <= 0.2.
+DETAILS: dict[str, list[tuple[str, str, str]]] = {
+    "place": [
+        ("ice", r"\b(ice|icy|icebergs?|floes?|snow\w*|glaciers?|frozen)\b", "a photo taken on ice or snow"),
+        ("sand", r"\b(sand\w*|dunes?)\b", "a photo taken on a sandy beach"),
+        ("rocks", r"\b(rock\w*|boulders?|cliffs?|pebbl\w*|stones?)\b", "a photo taken on rocks or a rocky shore"),
+        ("underwater", r"\b(underwater|beneath the surface|below the surface|div(?:e|es|ing)|seabed|sea floor|reef)\b",
+         "a photo taken underwater, below the surface"),
+        ("water", r"\b(swim\w*|in (?:the )?(?:water|sea|ocean|river|lake|surf)|at the surface|waves?)\b",
+         "a photo of something swimming in the water"),
+        ("grass", r"\b(grass\w*|meadows?|savanna\w*|fields?)\b", "a photo taken on grass"),
+        ("forest", r"\b(forests?|jungle|woods|rainforest|trees?)\b", "a photo taken among trees in a forest"),
+        ("city", r"\b(city|cities|streets?|town|urban|buildings?|skyline|harbou?r|marina|port)\b",
+         "a photo taken in a town or city with buildings"),
+        ("indoors", r"\b(indoors?|inside|room|lab(?:oratory)?|museum|kitchen|office|factory)\b", "a photo taken indoors"),
+        ("sky", r"\b(flying|in flight|soaring|in the sky|mid-air)\b", "a photo of something flying in the sky"),
+        ("mountains", r"\b(mountains?|peaks?|alpine|summit)\b", "a photo taken in the mountains"),
+        ("desert", r"\b(deserts?)\b", "a photo taken in a desert"),
+    ],
+    "count": [
+        ("many", r"\b(colony|colonies|many|crowd\w*|hundreds|thousands|herds?|flocks?|packs?|schools?|swarms?|groups?|"
+                 r"dozens|packed|gathering)\b", "a photo of a large group of many together"),
+        ("single", r"\b(single|alone|lone|solitary)\b", "a photo of just a single one, alone"),
+        ("pair", r"\b(two|pair|couple|mother and (?:her )?(?:pup|cub|calf|chick|baby|young))\b", "a photo of exactly two"),
+    ],
+    "time": [
+        ("night", r"\b(night|at night|moonlit|starry|after dark)\b", "a photo taken at night in the dark"),
+        ("day", r"\b(daylight|daytime|sunny|sunlit)\b", "a photo taken in daylight"),
+    ],
+    "view": [
+        ("aerial", r"\b(aerial|from above|drone|bird'?s[- ]eye|satellite view)\b", "an aerial photo taken from high above"),
+        ("closeup", r"\b(close[- ]?ups?|macro|portrait)\b", "a close-up photo"),
+        ("wide", r"\b(wide (?:shot|view)|landscape|panoram\w*|vista)\b", "a wide landscape photo"),
+    ],
+}
+DETAIL_MIN = {"place": 0.35, "count": 0.7, "time": 0.5, "view": 0.45}
+# Question 5: nothing graphic. Wildlife sources hold kills, carcasses and skeletons; none of that goes in a video
+# (calibrated: ordinary photos >= 0.8 "pleasant", kills / remains <= 0.54).
+CLEAN = ["a pleasant wildlife photo or an ordinary scene", "a gory photo of a predator eating bloody prey",
+         "a photo of a skeleton, a carcass or animal remains"]
+CLEAN_MIN = 0.6
+
+
+def _details(text: str, drop: tuple[str, ...] = ()) -> dict[str, list[int]]:
+    """Which alternatives of each DETAILS group the description names: {"place": [0], "count": [0]}."""
+    t = " " + text.lower() + " "
+    for w in drop:                       # the subject's own name is not a detail ("mountain lion", "rock hyrax")
+        t = re.sub(rf"\b{re.escape(w)}s?\b", " ", t)
+    out: dict[str, list[int]] = {}
+    for group, members in DETAILS.items():
+        hit = [i for i, (_k, pat, _p) in enumerate(members) if re.search(pat, t)]
+        if group == "place" and not hit and re.search(r"\b(beach\w*|shore\w*|coast\w*)\b", t):
+            hit = [1, 2, 4]              # a beach or shore: sand, rocks or the water's edge all fit
+        if hit:
+            out[group] = hit
+    return out
+
+
 def enabled() -> bool:
     return os.environ.get("YTAUTO_VERIFY", "1") != "0" and _disabled_reason is None
 
@@ -215,20 +277,24 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     global _disabled_reason
     pos, negs = prompts(query, wanted, trusted)
     animal = _is_animal(query)
-    key = stable_hash("verify-v7", str(image), image.stat().st_size, pos, negs, trusted, animal)
+    from .stock import _subject
+    want_details = _details(wanted or query, _subject(query) if animal else ())
+    key = stable_hash("verify-v9", str(image), image.stat().st_size, pos, negs, trusted, animal, want_details)
     memo_file = _memo_path(cache)
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
     if key in memo:
         return memo[key]
-    groups = [KIND_A, KIND_B, [pos, *negs], BASE] + ([WILD] if animal else [])
+    extra = [("clean", CLEAN)] + [(g, [m[2] for m in DETAILS[g]]) for g in want_details]
+    groups = [KIND_A, KIND_B, [pos, *negs], BASE] + ([WILD] if animal else []) + [e[1] for e in extra]
+    at = {name: 4 + (1 if animal else 0) + k for k, (name, _g) in enumerate(extra)}
     try:
         res = _clip().run({"images": [str(image)], "groups": groups})
     except Exception as exc:  # noqa: BLE001
         _disabled_reason = str(exc)
         warn(f"photo check unavailable ({exc}); using text matching only")
         return {"ok": True, "reason": "check unavailable", "kind": 1.0, "subject": 1.0, "wild": 1.0,
-                "subject_ok": True, "margin": 1.0}
+                "subject_ok": True, "margin": 1.0, "clean": 1.0, "detail_ok": True}
     kind = max(res["groups"][0][0][0], res["groups"][1][0][0])
     probs = res["groups"][2][0]
     wild = res["groups"][4][0][0] if animal else 1.0
@@ -247,9 +313,26 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     general = not animal and not trusted
     if general and subject_ok and margin < MARGIN_MIN:
         subject_ok = False
+    clean = res["groups"][at["clean"]][0][0]
+    detail_ok, detail_why, detail_note = True, "", []
+    for g, wanted_idx in want_details.items():
+        pr = res["groups"][at[g]][0]
+        mass = sum(pr[i] for i in wanted_idx)
+        names = " or ".join(DETAILS[g][i][0] for i in wanted_idx)
+        if mass < DETAIL_MIN[g]:
+            top = max(range(len(pr)), key=lambda i: pr[i])
+            detail_ok = False
+            detail_why = (f"wrong {g}: the search asks for '{names}', the picture looks like "
+                          f"'{DETAILS[g][top][0]}' ({pr[top]:.0%})")
+            break
+        detail_note.append(f"{names} {mass:.0%}")
     if kind < KIND_MIN:
         k2 = max(range(1, len(KIND_B)), key=lambda i: res["groups"][1][0][i])
         reason = f"not a real photo: looks like {KIND_B[k2]} ({res['groups'][1][0][k2]:.0%})"
+    elif clean < CLEAN_MIN:
+        reason = f"graphic content (a kill, a carcass or remains): never used ({1 - clean:.0%})"
+    elif subject_ok and not detail_ok:
+        reason = detail_why
     elif animal and wild < WILD_MIN:
         reason = f"captive animal (zoo/aquarium/pool, {1 - wild:.0%})"
     elif not subject_ok and general and best == 0 and p >= need:
@@ -258,10 +341,12 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
         reason = (f"not sure enough it shows '{pos}' ({p:.0%})" if best == 0 else
                   f"looks more like '{([pos] + negs)[best]}' ({probs[best]:.0%}) than '{pos}' ({p:.0%})")
     else:
-        reason = f"matches ({p:.0%}; real photo {kind:.0%}" + (f"; wild {wild:.0%})" if animal else ")")
-    out = {"ok": kind >= KIND_MIN and (not animal or wild >= WILD_MIN) and subject_ok, "reason": reason,
-           "kind": round(kind, 3), "subject": round(p, 3), "wild": round(wild, 3), "subject_ok": subject_ok,
-           "margin": round(margin, 3)}
+        reason = (f"matches ({p:.0%}; real photo {kind:.0%}" + (f"; wild {wild:.0%}" if animal else "")
+                  + ("; " + ", ".join(detail_note) if detail_note else "") + ")")
+    scene_ok = subject_ok and detail_ok and clean >= CLEAN_MIN     # the right thing, in the scene asked for, not graphic
+    out = {"ok": kind >= KIND_MIN and (not animal or wild >= WILD_MIN) and scene_ok, "reason": reason,
+           "kind": round(kind, 3), "subject": round(p, 3), "wild": round(wild, 3), "subject_ok": scene_ok,
+           "margin": round(margin, 3), "clean": round(clean, 3), "detail_ok": detail_ok}
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
         memo[key] = out

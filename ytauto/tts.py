@@ -697,6 +697,23 @@ def _silence(path: Path, seconds: float) -> None:
          "-t", f"{max(seconds, 0.01):.3f}", "-sample_fmt", "s16", path])
 
 
+def lead_in(audio: SceneAudio, seconds: float, cache: Path) -> SceneAudio:
+    """The same scene audio with `seconds` of silence in front (the video's opening: music and picture only, then
+    the first word). Caption and word timings move with it, so every cue still lands on its word."""
+    if seconds <= 0:
+        return audio
+    out = cache / f"lead_{stable_hash('lead-v1', audio.path.name, round(seconds, 3))}.wav"
+    if not out.exists():
+        sil = cache / f"leadsil_{stable_hash(round(seconds, 3))}.wav"
+        _silence(sil, seconds)
+        lst = cache / f"leadlist_{out.stem}.txt"
+        lst.write_text(f"file '{sil.resolve()}'\nfile '{audio.path.resolve()}'\n")
+        run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", out])
+        lst.unlink(missing_ok=True)
+    sh = lambda c: Cue(round(c.start + seconds, 3), round(c.end + seconds, 3), c.text)   # noqa: E731
+    return SceneAudio(out, audio.duration + seconds, [sh(c) for c in audio.cues], [sh(w) for w in audio.words])
+
+
 def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed_duration: float | None) -> SceneAudio:
     """Voice every sentence of a scene, join them, and compute caption cues."""
     cache.mkdir(parents=True, exist_ok=True)

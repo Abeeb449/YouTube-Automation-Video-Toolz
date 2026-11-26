@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import re
+
 import yaml
 
 from .utils import YtautoError
@@ -18,6 +20,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "crf": 20,              # x264 quality (lower = better/larger). 18-23 is sensible.
     "preset": "veryfast",   # x264 speed preset
     "tune": None,           # x264 tune: "animation" for flat 2D art, "film" for live footage
+    "intro": 30.0,          # seconds of music + opening picture before the narrator's first word. A script sets its own
+                            # with an "Intro: 30" line (script.txt) or `intro: 30` / `intro: {seconds, visuals}` (script.yaml)
     "padding": 0.35,        # seconds of silence after every scene's narration
     "sentence_gap": 0.12,   # seconds of silence between sentences inside a scene
     "align": "auto",        # exact word timings via faster-whisper when installed: auto | on | off
@@ -51,8 +55,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "watermark": None,           # {file: assets/logo.png, position: top-right, opacity: 0.8, scale: 0.08}
     "sound": {                   # synthesized sound design (ytauto/sound.py) — no downloads; effects: false = none
         "drone": 0,              # ambient tension bed level, e.g. 0.06; 0 = off
-        "whoosh_on_cut": False,  # soft whoosh on every scene change
-        "whoosh_volume": 0.22,
         "volume": 1.0,
     },
     "theme": {},                 # default Remotion theme for every remotion scene
@@ -112,7 +114,7 @@ PRESETS: dict[str, dict] = {
                   "instruct": "auto"},   # narrator direction decided from the script itself (sound_director.py)
         "subtitles": {"burn": False},  # key phrases appear as on-screen callouts; full captions go to YouTube as .srt
         "music": {"source": "incompetech", "generate": True, "mood": "mystery", "volume": 0.5, "duck": 0.4},
-        "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
+        "sound": {"drone": 0.0},   # effects come from the script's own words; never transition sounds
     },
     "ocean": {
         "crf": 18, "preset": "medium", "tune": "animation",   # crisp flat graphics
@@ -128,7 +130,7 @@ PRESETS: dict[str, dict] = {
                   "instruct": "auto"},   # narrator direction decided from the script itself (sound_director.py)
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
-        "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
+        "sound": {"drone": 0.0},   # effects come from the script's own words; never transition sounds
     },
     "nature": {
         # Any animal, anywhere (land, air, rivers, insects, ocean): real photos and video B-roll from free sources,
@@ -144,10 +146,10 @@ PRESETS: dict[str, dict] = {
                   "instruct": "auto"},   # narrator direction decided from the script itself (sound_director.py)
         "subtitles": {"burn": False},
         "music": {"source": "incompetech", "generate": True, "mood": "wonder", "volume": 0.5, "duck": 0.4},
-        "sound": {"drone": 0.0, "whoosh_on_cut": "auto", "whoosh_volume": 0.12},   # transitions where the story turns
+        "sound": {"drone": 0.0},   # effects come from the script's own words; never transition sounds
     },
     # vertical Short: captions sit under the centred picture and above YouTube's own title/buttons (bottom ~20%)
-    "shorts": {"width": 1080, "height": 1920, "subtitles": {"burn": True, "font_size": 78, "max_chars": 20, "margin_v": 470}},
+    "shorts": {"width": 1080, "height": 1920, "intro": 0, "subtitles": {"burn": True, "font_size": 78, "max_chars": 20, "margin_v": 470}},
 }
 
 
@@ -196,6 +198,23 @@ def _with_sources(desc: str, sources) -> str:
     return (desc.rstrip() + "\n\nSources:\n" + "\n".join(f"- {s}" for s in items)).strip()
 
 
+def parse_seconds(v: Any) -> float:
+    """'30', '30s', '30 seconds', '0:30', '1:15', '1 min' → seconds. A value written like a clock with a dot and
+    two digits ('0.30', '1.05') is read as minutes.seconds, the way it is usually meant in a script."""
+    if isinstance(v, bool) or v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return max(0.0, float(v))
+    t = str(v).strip().lower()
+    m = re.fullmatch(r"(\d+)\s*[:.]\s*(\d{2})\s*(?:s|secs?|seconds?|mins?|minutes?)?", t)
+    if m and int(m.group(2)) < 60:
+        return int(m.group(1)) * 60.0 + int(m.group(2))
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(s|secs?|seconds?|m|mins?|minutes?)?(?:\s+of\b.*)?", t)
+    if m:
+        return float(m.group(1)) * (60.0 if (m.group(2) or "s").startswith("m") else 1.0)
+    raise YtautoError(f"Can't read the intro length {v!r}. Write seconds ('30') or minutes:seconds ('0:30').")
+
+
 def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     path = Path(path)
     script = path / "script.yaml" if path.is_dir() else path
@@ -230,6 +249,21 @@ def load_project(path: str | Path, overrides: dict | None = None) -> Project:
     raw_scenes = data.get("scenes") or []
     if not raw_scenes:
         raise YtautoError(f"{script}: 'scenes' is empty — add at least one scene.")
+
+    # The opening: `intro` seconds of music and picture before the first word. With its own visuals it becomes a
+    # silent opening scene; without, the first scene's opening shot simply starts that much earlier (pipeline).
+    intro = data.get("intro", settings.get("intro"))
+    intro_vis = None
+    if isinstance(intro, dict):
+        intro_vis = intro.get("visuals", intro.get("visual"))
+        intro = intro.get("seconds", intro.get("duration", settings.get("intro")))
+    settings["intro"] = parse_seconds(intro)
+    if settings["intro"] > 0 and intro_vis and raw_scenes and isinstance(raw_scenes[0], dict):
+        first = dict(raw_scenes[0])
+        opener = {"duration": settings["intro"], "visuals": intro_vis if isinstance(intro_vis, list) else [intro_vis],
+                  "_intro": True, **({"chapter": first.pop("chapter")} if first.get("chapter") else {}),
+                  **({"mood": first["mood"]} if first.get("mood") else {})}
+        raw_scenes = [opener, first, *raw_scenes[1:]]
 
     scenes: list[Scene] = []
     for i, s in enumerate(raw_scenes):

@@ -101,17 +101,63 @@ def _kind(v) -> tuple[str, list]:
     return "text", cards
 
 
+# The same facing rules the animation uses (remotion/src/ocean/scenes.tsx orientActors), to report what they
+# cannot fix on their own: a hand-written `flip` that makes a hunter turn its back on what it hunts.
+HUNTS = {"leopardSeal": {"seaLion", "penguin", "diver", "krill", "fishSchool"},
+         "orca": {"seaLion", "leopardSeal", "penguin", "shark", "fishSchool", "diver"},
+         "shark": {"seaLion", "fishSchool", "diver", "penguin"}, "spermWhale": {"giantSquid", "diver"},
+         "giantSquid": {"fishSchool", "diver"}, "anglerfish": {"fishSchool"}}
+
+
+def _actor_lists(obj):
+    if isinstance(obj, dict):
+        if isinstance(obj.get("actors"), list):
+            yield obj["actors"]
+        for v in obj.values():
+            yield from _actor_lists(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _actor_lists(v)
+
+
+def facing_issues(scene_visuals) -> list[str]:
+    """Animals that would face the wrong way even after the automatic rules (travel direction, lookAt, hunters
+    toward prey): written `flip` against the direction of travel with keepFacing, or a hunter flipped away from prey."""
+    out = []
+    for actors in _actor_lists(scene_visuals):
+        acts = [a for a in actors if isinstance(a, dict)]
+        for a in acts:
+            x0 = a.get("x", 0.5)
+            dx = ((a.get("to") or [x0])[0]) - x0
+            det = a.get("detail") or {}
+            on_land = bool(det.get("rest") or det.get("stand"))
+            name = a.get("creature") or "actor"
+            if abs(dx) > 0.02:
+                if a.get("keepFacing") and bool(a.get("flip")) != (dx < 0):
+                    out.append(f"{name} travels {'left' if dx < 0 else 'right'} but is kept facing the other way (swims backwards)")
+                continue
+            if a.get("lookAt") is not None or on_land or name not in HUNTS or a.get("flip") is None:
+                continue
+            prey = sorted((abs((b.get("to") or [b.get("x", 0.5)])[0] - x0), (b.get("to") or [b.get("x", 0.5)])[0], b.get("creature"))
+                          for b in acts if b is not a and b.get("creature") in HUNTS[name])
+            prey = [p for p in prey if p[0] > 0.05]
+            if prey and bool(a.get("flip")) != (prey[0][1] < x0):
+                out.append(f"{name} is flipped away from the {prey[0][2]} it hunts: remove `flip` or add `lookAt: {prey[0][2]}`")
+    return out
+
+
 def load_doc(path: Path) -> Doc:
     path = Path(path)
     root = path if path.is_dir() else path.parent
     yml, txt = root / "script.yaml", root / "script.txt"
     if path.suffix == ".txt" or (not yml.exists() and txt.exists()):
         raw = (path if path.suffix == ".txt" else txt).read_text(encoding="utf-8")
-        blocks = [b.strip() for b in re.split(r"\n\s*\n", raw.strip()) if b.strip()]
-        title = blocks[0].lstrip("#").strip() if blocks and blocks[0].startswith("#") else root.name
-        src = [ln.split(":", 1)[1].strip() for ln in raw.splitlines() if re.match(r"\s*sources?\s*:", ln, re.I)]
-        paras = [b for b in blocks if not b.startswith("#") and not re.match(r"\s*(sources?|subject)\s*:", b, re.I)]
-        chapters = [b.lstrip("#").strip() for b in blocks[1:] if b.startswith("#")]
+        from .scriptfmt import parse_script
+        ps = parse_script(raw)       # narration only: direction lines (Intro, B-roll, Photo, Video…) are not text
+        title = ps.title or root.name
+        src = ps.sources
+        paras = [p.text for p in ps.paras]
+        chapters = [p.chapter for p in ps.paras if p.chapter][1:] if ps.title else [p.chapter for p in ps.paras if p.chapter]
         return Doc(root, title, [strip_directives(p) for p in paras], ["?"] * len(paras), chapters, src, "", {},
                    [False] * len(paras), [])
     from .config import load_project
@@ -257,11 +303,40 @@ def check(path: Path, against: list[Path] | None = None) -> Report:
                 longest = (run, k)
         if longest[0] > 3:
             rep.add("WARN", "variety", f"{longest[0]} scenes in a row use '{longest[1]}'. Break the run with a different shot.")
+        # b-roll is a supporting element: the video itself is animated 3D/drawn scenes and graphics
+        share = stockish / len(real)
+        asked = sum(1 for k in real if any(x in ("stock", "PhotoStory(stock)") for x in k.split("+")))
+        if asked:
+            rep.add("WARN" if share > 0.4 else "INFO", "variety",
+                    f"B-roll (stock video/photos) leads {share:.0%} of scenes ({asked} scene(s) use some)."
+                    + (" That is a lot for an animated documentary: keep it for the moments that need real footage."
+                       if share > 0.4 else ""))
         if not any(lv == "WARN" for lv, s, _ in rep.lines if s == "variety"):
             rep.add("OK", "variety", f"{len(cnt)} different shot types across {len(real)} scenes "
                     f"({', '.join(f'{k} {v}' for k, v in cnt.most_common(4))}).")
     else:
         rep.add("INFO", "variety", "Plain script: run `ytauto plan` first to check shot variety.")
+
+    # -- direction: animals face the way they travel / what they hunt
+    if doc.data:
+        from .config import load_project
+        try:
+            proj = load_project(doc.root)
+            bad = [(sc.index + 1, m) for sc in proj.scenes for m in facing_issues(sc.visuals)]
+            for i, m in bad[:8]:
+                rep.add("WARN", "variety", f"Scene {i}: {m}")
+            # sounds that are never used
+            listed = sum(1 for sc in proj.scenes for it in (sc.sfx if isinstance(sc.sfx, list) else [sc.sfx] if sc.sfx else [])
+                         if (it if isinstance(it, str) else (it or {}).get("sound")) in ("whoosh", "swell", "riser", "glitch"))
+            if listed:
+                rep.add("INFO", "readiness", f"{listed} transition-style sound(s) (whoosh/swell/riser/glitch) are listed in "
+                        "the script: they are never used and will be left out of the mix.")
+            intro = float(proj.settings.get("intro") or 0)
+            rep.add("INFO", "readiness", f"Opening: {intro:.0f} s of music and picture before the first word "
+                    "(change with an 'Intro: <seconds>' line in script.txt or `intro:` in script.yaml)." if intro
+                    else "Opening: the narrator starts straight away (no intro set).")
+        except Exception:  # noqa: BLE001 — the check must never crash on a half-written script
+            pass
 
     # -- readiness
     minutes = n_words / 150

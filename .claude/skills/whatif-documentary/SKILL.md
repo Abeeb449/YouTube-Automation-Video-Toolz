@@ -55,8 +55,8 @@ Read `references/templates.md` for every template's props.
 ducks under every sentence and swells into pauses automatically. Typical arc: calm (intro) → mystery (descent) → danger (reveal) →
 wonder (superpowers) → tension (the hunt) → danger → wonder or mystery (outro).
 
-The preset adds soft whooshes on cuts (`ytauto/sound.py`, so nothing to download).
-Per scene you can add `sfx: [{sound: boom|hit|thud|riser|swell|whoosh|tick|ticks|typing|glitch|beep|alarm, at: "<word>"|seconds, volume, dur}]`.
+No transition sounds are ever used (no whoosh, swell, riser or glitch; the mix drops them).
+Per scene you can add `sfx: [{sound: boom|hit|thud|tick|ticks|typing|beep|alarm, at: "<word>"|seconds, volume, dur}]`.
 For music, add `settings.music: {file: assets/<royalty-free>.mp3, volume: 0.10}`. It is ducked under the voice automatically.
 
 ## Adding a template

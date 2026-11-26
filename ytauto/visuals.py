@@ -184,6 +184,24 @@ class ClipRenderer:
         side.write_text(json.dumps(stock.records_for(ids)))
         return out
 
+    # ------------------------------------------------------------------ collecting b-roll before the edit
+    def collect(self, spec: Any, seq: int) -> None:
+        """Find, check and download every stock photo/clip this visual needs, exactly as the render will ask for it
+        (same search, same checks, same fallbacks), without rendering anything. The answers are remembered, so the
+        render uses these very files."""
+        from . import stock
+        with stock.track():
+            spec = self._resolve_sources(normalize_spec(spec), seq)
+            while isinstance(spec, dict) and "remotion" in spec:
+                rdir = REPO_ROOT / "remotion"
+                if not (rdir / "node_modules").exists() and os.environ.get("YTAUTO_REMOTION_DIR"):
+                    rdir = Path(os.environ["YTAUTO_REMOTION_DIR"])
+                try:
+                    self._stage_assets(spec.get("props") or {}, rdir)
+                    return
+                except YtautoError:
+                    spec = spec.get("fallback_visual")     # the render falls back the same way
+
     # ------------------------------------------------------------------ sources
     def _resolve_sources(self, spec: dict, seq: int) -> dict:
         spec = dict(spec)

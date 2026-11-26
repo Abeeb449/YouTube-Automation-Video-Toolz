@@ -16,17 +16,19 @@ leopard-seal project (`projects/sea-lions-fear-leopard-seals`) is only a worked 
 2. `python -m ytauto make projects/<slug>/script.txt --style nature` (or run the GitHub Action with style *nature*).
 
 The planner then, for every beat:
-- **names a body part** (teeth, claws, skin, eyes, tentacles, wings, stinger…) → close-up of exactly that part:
-  the 3D model with a callout line if one exists (`ANATOMY_3D` in `ytauto/planner.py`), otherwise a real photo
-  of "<animal> <part>" with the phrase as a callout;
+- **names a body part** (teeth, claws, skin, eyes, tentacles, wings, stinger…) → close-up of exactly that part on
+  the 3D model with a callout line, where a model exists (`ANATOMY_3D` in `ytauto/planner.py`);
 - **gives a year or date** → a typed `DateStamp` (with the place if one is named), then the beat's visual;
 - **gives a percentage** → `DotGrid`; another number with a unit → `Counter`;
 - **is a short punchy line** → `Statement`;
-- otherwise → real B-roll: free photos (`PhotoStory`: parallax push-ins, framed prints that tilt in 3D, grain,
-  light leaks, credit chip) and free video clips, alternating so no two shots look the same.
-Every stock shot has a fallback, so a failed search never leaves a blank or broken frame. Every stock photo and
-clip is checked by the picture check before use (real photo, right species not a look-alike, wild not captive, and
-the line's setting); give `verify: "a wild <animal> <doing what the line says>"` on photos and clips.
+- **has a `B-roll:` / `Video:` / `Photo:` line under it in the creator's script** → that stock footage, searched
+  with the script's own words (`PhotoStory` photos, video clips), with the drawn shot as fallback;
+- otherwise → the style's animated/drawn shot.
+**B-roll is only what the script asks for.** Never pick search words yourself and never add stock footage to a
+scene the script didn't mark (`--broll auto` exists for the old behaviour, off by default). The whole script's
+b-roll is collected before the edit (`python -m ytauto broll <project>` → `build/broll_report.txt`,
+`build/broll_sheet.jpg`): every item is checked by the picture check (real photo, right species not a look-alike,
+wild not captive, the scene the search words describe, nothing graphic). Look at the sheet before rendering.
 
 Then run `python -m ytauto check projects/<slug>` (originality against your other videos, unsourced facts, shot
 variety, YouTube readiness) and **review `script.yaml` before rendering** and sharpen it by hand (or ask any AI assistant with

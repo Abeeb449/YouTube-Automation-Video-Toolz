@@ -8,8 +8,11 @@ paid APIs or paid services.
 Every video is different: different topics, titles, angles, structures and moods. Nothing about how a script
 is written is fixed. Follow the script as it is: its chapters, order, pacing, tone and emotion decide the
 visuals, music and sound. The sea-lion / leopard-seal project is only a test example, not a template. Pick the
-look from the topic (`ytauto plan --style auto`): `nature` for animals, `documentary` for history, science,
-places and what-ifs, `ocean` for the drawn deep-sea look.
+look from the topic (`ytauto plan --style auto`): `ocean` for sea animals the toolkit can animate in 3D,
+`nature` for other animals, `documentary` for history, science, places and what-ifs.
+
+**The video is an animated 3D documentary.** Animated 3D/drawn scenes, close-ups, maps and data graphics carry
+it. Stock video and photos (b-roll) are an extra, used only where the creator's script asks for them.
 
 Read `agent/SKILL.md` before you start. It holds the full technical reference: the software stack, every
 template and prop, the voice direction tags, the music and sound rules, and the commands. Follow it exactly.
@@ -28,6 +31,22 @@ If you can run commands, also render and check the result (see "Render and QC" i
 give `script.yaml` in full so the creator can commit it. The GitHub workflow renders it.
 
 ## The creator's script comes first
+
+The script carries the creator's own directions as labelled lines (never narrated). Read them before anything
+else and follow them exactly:
+
+- `Intro: 30` → `intro: 30` in script.yaml: seconds of music and picture before the first word (default 30).
+  Lines right under it are the opening's own pictures.
+- `B-roll: …`, `Video: …`, `Photo: …` after a paragraph → stock footage for THAT scene, searched with THOSE words
+  (`|` = alternatives in order), checked against them or against a `Details:` line / the text after `->`.
+- **Never choose b-roll search words yourself, and never add stock footage to a scene the script didn't mark.**
+  A scene without a b-roll line is an animated 3D/drawn scene or a graphic. If you think a scene needs real
+  footage, say so in the report and let the creator add the line.
+- `Visual: …` / `Note: …` → the creator's direction for the scene's animation: follow it.
+- Before any render, run `python -m ytauto broll projects/<slug>`: it collects every requested item (search,
+  check, download) and writes `build/broll_report.txt` and `build/broll_sheet.jpg`. Look at the sheet. If an item
+  doesn't show what its line asks for, don't use it: report it to the creator (better search words are theirs
+  to give) and let the scene keep its drawn shot.
 
 - **Never rewrite, reorder, shorten or "improve" the narration.** Don't add hooks, reveals, calls to subscribe or
   chapters that aren't there. If something looks wrong (a fact, a typo), point it out in the report instead.
@@ -52,17 +71,25 @@ give `script.yaml` in full so the creator can commit it. The GitHub workflow ren
   `stand: true` for penguins) in `split` scenes so they sit on the shore.
 - **Show what is said.** If the narration says "jaws", show the open jaw (`detail: {jaw: 0.9}`) with a
   push-in. If it says "seven in ten", show a `DotGrid` with 7 of 10 highlighted.
-- **Mix it up:** drawn ocean scenes, split above/below-waterline shots, maps for places, data templates for
-  numbers, and real B-roll and photos (`footage: "stock:…"`, `PhotoStory` photos `"stock:…"`, from Openverse / Wikimedia Commons / NASA with no key, or Pexels/Pixabay with one) about one scene
-  in six, always with a drawn `fallback`.
+- **Mix it up:** animated 3D/drawn scenes, split above/below-waterline shots, close-ups with callouts, maps for
+  places, data templates for numbers. Real b-roll only where the script has a `B-roll:` / `Video:` / `Photo:` line,
+  written as `stock: "<the script's words>"` (video), `PhotoStory` photos `"stock:<the script's words>"`, always
+  with a drawn `fallback_visual`.
+- **Animals face the right way.** One that travels faces where it goes (automatic). A hunter that waits looks at
+  what it hunts (automatic for the built-in animals; otherwise `lookAt: <creature>`). Never `flip` an animal so
+  it turns its back on what the line is about. `ytauto check` reports any that would.
 - **Voice that sounds human.** Direct each line with `[tone …]` in plain English: hushed, tense, awed,
   urgent, warm, respectful. Use `[pause 0.3–0.6]` only before a real reveal, never in the middle of a
   thought. Let punctuation do most of the pacing; commas and full stops create natural breaths.
 - **Mood follows the story:** set `mood:` (calm, mystery, danger, tension, wonder) where the feeling
   changes, and keep each mood for at least 15 seconds. The music follows automatically, ducks under the
   voice, and contains no drums.
-- **Sound effects:** sparing. A `swell` when something appears in the dark, a `hit` on a name reveal, a
-  `thud` for a stamp or a shocking number. No more than one effect every 20–30 seconds.
+- **Sound effects:** sparing: a soft `hit` on a name reveal, a `thud` for a stamp or a shocking number, `ticks`
+  on a countdown. No more than one every 20–30 seconds.
+- **No transition sounds, ever:** never `whoosh`, `swell`, `riser` or `glitch`, not on cuts, chapter changes,
+  reveals or at the opening. The toolkit drops them from the mix even if a script lists them.
+- **The opening:** the video starts with music and picture only (30 s unless the script's `Intro:` says
+  otherwise), then the narrator comes in. Don't put narration, labels or effects in that stretch.
 
 ## Picture must match the words
 

@@ -20,7 +20,7 @@ or on free GitHub Actions.
 | Narration alternatives | **Chatterbox** (MIT, `/opt/tts-chatterbox`), **Kokoro** (Apache 2.0, fast fallback), Piper, eSpeak | |
 | Word timing | **faster-whisper** base.en | Aligns cue words to the spoken audio |
 | Music | **Kevin MacLeod / Incompetech** (CC BY 4.0) fetched by mood; built-in synth score as fallback | Credits written to the description automatically |
-| Sound effects | Built-in synthesizer (`ytauto/sound.py`) | whoosh, swell, riser, hit, thud, boom, tick(s), typing, glitch, beep, alarm |
+| Sound effects | Built-in synthesizer (`ytauto/sound.py`) | hit, thud, boom, tick(s), typing, beep, alarm. Never transition sounds (whoosh, swell, riser, glitch): the mix drops them |
 | Stock B-roll (photos + video) | **No key needed:** iNaturalist (research-grade photos of the exact species), Openverse, Wikimedia Commons (photos + clips), NASA Image & Video Library. **Free key:** Unsplash (`UNSPLASH_ACCESS_KEY`), Pexels, Pixabay | Only CC0 / public domain / CC BY by default (`YTAUTO_STOCK_LICENSES`, add `by-sa` to allow share-alike); NC/ND never. Credits (author, licence, link) go into the description automatically and `build/credits.json` keeps the licence record |
 | 3D animals | **Blender** EEVEE (Mesa software GL, no GPU needed) | `blender/creatures3d.py` builds and rigs the leopard seal, sea lion and pup procedurally and renders looping transparent sprite sheets (`ytauto sprites`). OceanScene uses them automatically |
 | 3D titles (optional) | **Blender** (Cycles CPU) | `{blender: intro}` titles |
@@ -69,7 +69,6 @@ tags: [leopard seal, sea lion, antarctica, wildlife documentary]
 settings:
   voice: {engine: qwen, name: ryan}                 # narrator direction is decided from the script (instruct: "…" overrides)
   music: {source: incompetech, mood: mystery}       # real music by mood (default)
-  sound: {whoosh_on_cut: auto}                        # transition sounds only where the story turns
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
 youtube: {privacy: private, category_id: 15}       # 15 = Pets & Animals, 27 = Education, 28 = Science & Tech
 scenes:
@@ -77,7 +76,7 @@ scenes:
     mood: mystery                 # optional override; normally chosen from the scene's words (sound director)
     text: "[tone hushed and intimate] A young fur seal stands at the edge of the rocks."
     visual: {remotion: OceanScene, props: {...}}   # or a list of visuals (time is split evenly)
-    sfx: [{sound: swell, at: "edge", volume: 0.3}] # optional
+    sfx: [{sound: thud, at: "edge", volume: 0.3}]  # optional (never whoosh/swell/riser/glitch)
     duration: 6                   # optional minimum length (silent beats, held reveals)
     voice: {name: eric}           # optional per-scene voice override
 ```
@@ -209,13 +208,13 @@ every video's structure comes from its own script.
 | Beat | Recipe |
 |---|---|
 | Hook / false safety | `split` rocks or ice, prey resting on land, storm sky, slow `zoom: [1.08, 1.0]`, hushed tone |
-| Something is watching | Hunter as a `silhouette` below the waterline, `target` on the prey, a `swell` sfx, callout |
+| Something is watching | Hunter as a `silhouette` below the waterline facing the prey, `target` on the prey, callout |
 | Shock statistic | `DotGrid` or `Counter` on `backdrop: abyss`, a `thud` sfx, source line |
 | Name reveal | Hunter large and drifting + `bigText` + a `hit` sfx, `[pause 0.4]` before the name |
 | Anatomy | Push-in on the feature (`zoom`, `focus`), `ring.local`, ≤3 facts, `jaw` open for teeth |
 | Diet or proportions | `BarCompare` (danger slice red) |
 | Behaviour (song, rest) | `waves`, `split` ice shelf with the animal on the floe |
-| The attack | Prey at the surface with `target`; the hunter rises from below (`rotate: -80`, `to` upward, jaw open) + `riser` → `hit` |
+| The attack | Prey at the surface with `target`; the hunter rises from below (`rotate: -80`, `to` upward, jaw open) + a soft `hit` |
 | Study or place | `MapScene` with a `pulse`, then the data templates |
 | Twist | `Statement` on `abyss` → evidence scene → `DotGrid` |
 | Human story | `Horizon` grey with a respectful title, then `StatCards` |
@@ -235,8 +234,8 @@ danger.
   (synth score), or `{file: assets/track.mp3}`.
 - `volume` sets the music level in pauses (default 0.8), and `duck` sets its level while speaking (0.45).
 - **Sound director (automatic):** each scene's mood comes from its own words and `[tone …]` directions; soft
-  effects land on the word that calls for one (impact, rise before "suddenly", swell on a reveal, ticks on a date)
-  within a budget; transition sounds only where a chapter changes the mood (`whoosh_on_cut: auto`). Hand-written
+  effects land on the word that calls for one (a low impact, a deep thud, ticks on a date) within a budget. No
+  transition sounds at all (no whoosh, swell, riser or glitch, anywhere). Hand-written
   `mood:` / `sfx:` override it; `sound: {director: false}` turns it off.
 
 ---------------------------------------------------------------------------------------------------------

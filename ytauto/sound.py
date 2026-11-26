@@ -17,6 +17,11 @@ import numpy as np
 
 SR = 48000
 BUILTIN = {"whoosh", "swell", "riser", "hit", "boom", "thud", "tick", "ticks", "typing", "glitch", "beep", "alarm"}
+# Transition-style sounds (noise sweeps between shots, rising sweeps into a moment, glitch bursts). The channel's
+# rule: NEVER in any video. They are still recognised by name so old scripts load, but the mix drops every one,
+# wherever it was asked for (a scene's sfx list, a preset, the sound director).
+TRANSITION = {"whoosh", "swell", "riser", "glitch"}
+ALLOWED = BUILTIN - TRANSITION
 
 
 def _env(n: int, attack: float, decay: float) -> np.ndarray:

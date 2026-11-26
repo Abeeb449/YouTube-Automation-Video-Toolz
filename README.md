@@ -88,11 +88,51 @@ python -m ytauto doctor        # shows what's installed / missing
 
 ## 3b. Just a script → finished video
 
-Write plain narration in a text file. Leave a blank line between paragraphs; `# Heading` lines become chapters. Then:
+Write the narration in a text file. Leave a blank line between paragraphs; `# Heading` lines become chapters.
+Your own directions go in the same file as short labelled lines. They are never read aloud:
+
+```text
+Intro: 30
+Photo: antarctic coastline with icebergs | icebergs in antarctica
+
+# Why Do Sea Lions Fear Leopard Seals?
+
+A young fur seal stands at the edge of the rocks. Behind it, the colony.
+B-roll: fur seal colony on a rocky beach
+Details: many fur seals crowded together on rocks by the sea
+
+The leopard seal is long, sleek and spotted.
+Video: leopard seal swimming underwater
+
+Sources: Krause et al. (2020); Muir, Barnes & Reid (2006)
+```
+
+| Line | What it does |
+|---|---|
+| `Intro: 30` | Seconds of music and picture before the narrator's first word (`0:30` also works). Default 30; `Intro: 0` starts straight away. Lines right under it are the opening's own pictures; without any, the opening shot holds. |
+| `B-roll: <search words>` | Stock footage for the paragraph above: a video clip if one passes the check, else a photo. |
+| `Video: …` / `Photo: …` | The same, but only a clip / only a photo. |
+| `a \| b` | Alternatives, tried in order (most exact first). |
+| `Details: …` or `search -> must show` | What the picture has to show. Without it, the search words are what is checked. |
+| `Visual: …`, `Note: …` | Kept as a note on the scene. Not narrated. |
+| `Sources: …` | Listed in the description. Not narrated. |
+
+**B-roll comes from your script, never from guesses.** Stock video and photos are used only where the script asks
+for them, with exactly the search words you wrote. Every other scene is an animated 3D/drawn scene or a graphic
+(date cards, counters, statements). `--broll auto` brings back the old behaviour, where the toolkit picks search
+words from each line itself.
+
+**B-roll is collected before anything is edited.** The first step of every render (and `python -m ytauto broll
+projects/<name>` on its own) reads the whole script, then searches, checks and downloads every item it asks for.
+It writes `build/broll_report.txt` (what was asked, what was found, by whom, under which licence, or why nothing
+passed) and `build/broll_sheet.jpg` (a thumbnail of each item with its scene and search words), so the material can
+be reviewed before a single frame is rendered. The render then uses exactly those files and never searches again.
+If nothing passes for a request, that scene keeps its drawn shot.
 
 ```bash
 python -m ytauto make projects/<name>/script.txt                          # plan scenes + render (style picked from the topic)
 python -m ytauto plan projects/<name>/script.txt                          # only write script.yaml (to review/edit)
+python -m ytauto broll projects/<name>                                    # only collect the b-roll and write the report + sheet
 python -m ytauto make projects/anglerfish/script.txt --style ocean        # or choose the look yourself
 python -m ytauto make projects/<name>/script.txt --format shorts          # vertical 1080x1920 Short with captions
 ```
@@ -101,9 +141,10 @@ python -m ytauto make projects/<name>/script.txt --format shorts          # vert
 photos and clips filling the frame, and motion graphics on a square stage over a blurred copy of themselves.
 `ytauto check` fails a Short that runs longer than 3 minutes.
 
-**Works for any topic.** `--style auto` (the default) looks at what the script is about: any animal → `nature`
-(real photos/video of that species, 3D close-ups, date cards); anything else (history, science, space, places,
-what-if scenarios) → `documentary` (maps, globe, counters, timelines, stock photos). Everything else is shared by
+**Works for any topic.** `--style auto` (the default) looks at what the script is about: a sea animal the toolkit
+can animate (seals, sea lions, whales, squid, sharks, penguins…) → `ocean` (animated 3D/drawn scenes); another
+animal → `nature`; anything else (history, science, space, places, what-if scenarios) → `documentary` (date cards,
+counters, statements, maps). Everything else is shared by
 every video: the natural narration, the voice you pick, licence-checked stock photos and clips with automatic
 credits, moving photos, music ducking and chapters.
 
@@ -116,12 +157,19 @@ or plain stock footage carrying most of the video, and YouTube basics (title len
 disclosure). List your research with `sources:` (a list) in `script.yaml`; it is added to the description. The
 GitHub Action runs the check before every render and saves the report as `build/check.txt`.
 
-**Every stock photo and clip is checked before it is used** (`ytauto/verify.py`, the open CLIP model): it must be a
-real camera photo or footage (not a map, chart, cartoon or screenshot), show the right animal (it has to beat
-look-alike species from iNaturalist, e.g. a "leopard seal" must beat harbour, Weddell and crabeater seals), show it
-in the wild (not a zoo, aquarium or pool), and match the line's setting (`verify: "a leopard seal swimming
-underwater"`). Video clips are checked on 5 frames. Anything that fails is skipped; if nothing passes, the scene's
-fallback is used, never a wrong picture.
+**Every stock photo and clip is checked before it is used** (`ytauto/verify.py`, the open CLIP model). It must:
+be a real camera photo or footage (not a map, chart, cartoon or screenshot); show the right subject (an animal has
+to beat its look-alike species from iNaturalist); show it in the wild (not a zoo, aquarium or pool); show the
+**scene the search words describe** (a "colony on rocks" is not one animal on sand, "lying on ice" is not swimming
+in the surf, "at night", "aerial"…); and show **nothing graphic** (no kills, carcasses or skeletons). A video is
+scanned along its length and only a 10-second stretch that passes on every sampled frame is used. Anything that
+fails is skipped; if nothing passes, the scene keeps its drawn shot, never a wrong picture. The check is a model,
+not a person: it can tell sand from ice reliably, but not six animals from sixty, so look at
+`build/broll_sheet.jpg` before a long render.
+
+**Animals face the right way.** In animated scenes an animal that travels faces where it is going, a hunter that
+waits turns toward what it hunts, and `lookAt: <creature>` on an actor turns it toward another one. `ytauto check`
+reports any that would still face away.
 
 **The narrator follows the script too:** the narrator's overall delivery is decided from the whole script (a
 grave or tense story gets a measured, suspenseful narrator; a story of discovery a warm, curious one; history a
@@ -130,12 +178,19 @@ confident one with gravitas), and each scene's delivery shifts with that scene's
 
 **Sound design follows the script, not a template** (`ytauto/sound_director.py`): for every scene the toolkit
 reads the narration and its `[tone …]` directions and picks the music mood (danger, tension, mystery, wonder, epic,
-calm), places soft effects at the exact word that calls for one (an impact on "crashed", a rise before "suddenly",
-a swell on a reveal, ticks on a date, typing on "records"), only when the line is intense enough and never in quiet
-passages, and plays a transition only where a new chapter changes the mood. Hand-written `mood:` / `sfx:` win.
+calm) and places a soft accent at the exact word that calls for one (a low impact on "crashed", a deep thud on
+"massive", ticks on a date, typing on "records"), only when the line is intense enough and never in quiet passages.
+Hand-written `mood:` / `sfx:` win.
+
+**No transition sounds, ever.** No whoosh on cuts or chapter changes, no swell, riser or glitch, not at the opening
+and not on a reveal. They are not generated, and any that a script still lists are left out of the mix
+(`ytauto/sound.py` `TRANSITION`). The music carries every change of scene on its own.
+
+**The opening.** Every video starts with music and picture only, then the narrator comes in (30 seconds by default;
+`Intro:` in the script sets it, Shorts start straight away).
 
 **Sound that never jumps over the voice:** every music track is measured before use and plucky or percussive tracks
-are skipped; sound effects are soft swells capped below the narrator; after the mix, `build/audio_check.txt` lists any
+are skipped; sound effects are soft and capped below the narrator; after the mix, `build/audio_check.txt` lists any
 sudden non-voice sound.
 
 **Who decides the visuals? Free options only — no paid API anywhere.**
@@ -176,7 +231,7 @@ scenes:
 
   - duration: 4                             # no narration → fixed length
     visual: {blender: intro, props: {text: "MY CHANNEL", subtext: "new videos weekly"}}
-    sfx: assets/whoosh.mp3                  # sound effect at the scene start
+    sfx: assets/door-knock.mp3              # your own sound effect at the scene start
 
   - text: "Different voice just for this scene."
     voice: {name: en-US-JennyNeural}
@@ -230,7 +285,7 @@ Every template also takes `footage` (real B-roll behind the graphics: a video fi
 
 **Graphics on the spoken word:** any `at:` can be a word instead of seconds, e.g. `at: "Hiroshima"`, `at: "bomb#2"` or `at: "launch+0.5"`. Edge voices return exact word timings; other voices estimate them.
 
-**Sound design with no downloads:** the preset adds a low drone and whooshes on cuts. Per scene you can add `sfx: [{sound: boom, at: "detonation"}]` (built-in sounds: boom, hit, thud, riser, swell, whoosh, tick, ticks, typing, glitch, beep, alarm) or your own files.
+**Sound design with no downloads:** the preset can add a low drone (no transition sounds, ever). Per scene you can add `sfx: [{sound: boom, at: "detonation"}]` (built-in sounds: boom, hit, thud, riser, swell, whoosh, tick, ticks, typing, glitch, beep, alarm) or your own files.
 
 **QC:** every render writes `build/contact_sheet.jpg` with one frame per scene. Check it before publishing.
 

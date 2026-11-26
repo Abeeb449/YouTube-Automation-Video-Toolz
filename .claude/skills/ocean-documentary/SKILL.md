@@ -36,8 +36,9 @@ Shortcut: if the user just gives narration, save it as `projects/<slug>/script.t
    `python -m ytauto cutout pic.jpg --out projects/<slug>/assets --outline 4`, or use a free LottieFiles animation: `lottie: assets/x.json`. For a few seconds of real footage, use `pexels:<animal>` stock clips.
    **Direct the voice in the text:** `[pause 1.2]` before reveals, `[speed 0.85]` for menace, `[emotion 0.8]` at the climax
    (real emotion with Chatterbox; a slower pace with Kokoro). Ellipses and em dashes also change delivery.
-   **B-roll:** use `footage: "pexels:<animal> underwater"` on an OceanScene (or any docu template) for real clips under the labels.
-   Mix roughly 1 B-roll scene for every 4–6 drawn scenes, as in the reference.
+   **B-roll:** only where the creator's script has a `B-roll:` / `Video:` / `Photo:` line, with the script's own
+   search words (`stock: "<words>"` or `footage: "stock:<words>"`). Never pick search words yourself. Run
+   `python -m ytauto broll <project>` and look at `build/broll_sheet.jpg` before rendering.
 5. **Preview.** Run `python -m ytauto render projects/<slug> --preview` and check `build/contact_sheet.jpg`. Check that creatures are framed,
    labels aren't covered, there are no empty frames, and nothing contradicts the narration.
 6. **Render and deliver**, as in the whatif-documentary skill.
@@ -77,7 +78,7 @@ Qwen on CPU is about 6× slower than real time; voice audio is cached per senten
 It ducks about 18 dB under every sentence (detected from the narration audio) and swells into pauses, like the reference.
 Typical arc: calm (false safety) → mystery (descent) → danger (reveal) → wonder (superpowers) → tension (the hunt) →
 danger → wonder or mystery (outro). Use your own track instead with `settings.music: {file: assets/x.mp3}`; it gets the same ducking.
-**Effects:** add `sfx: [{sound: swell|hit|thud|ticks|boom|riser…, at: "<word>"}]` (see the style guide's Sound section).
+**Effects:** add `sfx: [{sound: hit|thud|ticks|boom…, at: "<word>"}]`; never transition sounds (whoosh, swell, riser, glitch) (see the style guide's Sound section).
 
 ## Rules
 

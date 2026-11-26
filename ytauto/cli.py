@@ -214,12 +214,23 @@ def cmd_check(a) -> int:
     return 0
 
 
+def cmd_broll(a) -> int:
+    """Collect the b-roll only: search, check and download everything the script asks for, and write the report
+    and picture sheet to build/ so it can be reviewed before any rendering."""
+    from .broll import collect_broll
+    from .config import load_project
+    project = load_project(a.project)
+    data = collect_broll(project, refresh=a.refresh)
+    print((project.build_dir / "broll_report.txt").read_text() if data["requested"] else "No b-roll requested in this script.")
+    return 0
+
+
 def cmd_plan(a) -> int:
     from .planner import write_plan
 
     script = Path(a.script)
     out = Path(a.out) if a.out else (script.parent if script.parent.name not in ("", ".") else Path("projects") / script.stem)
-    write_plan(script, out, a.style, a.title, fmt=a.format)
+    write_plan(script, out, a.style, a.title, fmt=a.format, broll=a.broll)
     return 0
 
 
@@ -232,7 +243,7 @@ def cmd_make(a) -> int:
     script = Path(a.script)
     out = Path(a.out) if a.out else script.parent
     if not (out / "script.yaml").exists() or a.replan:
-        write_plan(script, out, a.style, a.title, fmt=a.format)
+        write_plan(script, out, a.style, a.title, fmt=a.format, broll=a.broll)
     overrides = {"_preview_half": True, "preset": "ultrafast", "crf": 26} if a.preview else {}
     render_project(load_project(out, overrides), preview=a.preview)
     return 0
@@ -373,6 +384,9 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--title")
         p.add_argument("--format", choices=["video", "shorts"], default="video",
                        help="video = 16:9 1080p (default); shorts = vertical 1080x1920 with burned-in captions")
+        p.add_argument("--broll", choices=["script", "auto"], default="script",
+                       help="script (default) = stock video/photos only where the script has 'B-roll:' / 'Video:' / "
+                            "'Photo:' lines, with those search words; auto = the toolkit also picks search words itself")
         p.add_argument("--out", help="project folder (default: the script's folder)")
         if name == "make":
             p.add_argument("--preview", action="store_true")
@@ -404,6 +418,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--against", nargs="*", help="more folders of past projects to compare with (default: projects/)")
     p.add_argument("--strict", action="store_true", help="also fail on warnings")
     p.set_defaults(fn=cmd_check)
+
+    p = sp.add_parser("broll", help="collect the b-roll only (search, check, download) and write build/broll_report.txt "
+                                    "+ broll_sheet.jpg to review before rendering")
+    p.add_argument("project", help="project folder with script.yaml")
+    p.add_argument("--refresh", action="store_true", help="search everything again instead of reusing earlier answers")
+    p.set_defaults(fn=cmd_broll)
 
     p = sp.add_parser("doctor", help="check installed tools")
     p.set_defaults(fn=cmd_doctor)

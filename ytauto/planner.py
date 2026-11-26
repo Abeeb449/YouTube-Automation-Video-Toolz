@@ -316,12 +316,24 @@ def _thumb_text(title: str, limit: int = 40) -> str:
     return cut or t[:limit]
 
 
-def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "video") -> str:
-    sources = [ln.split(":", 1)[1].strip() for ln in script.splitlines() if re.match(r"\s*sources?\s*:", ln, re.I)]
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()
-              and not re.match(r"^\s*(subject|sources?)\s*:", b, re.I)]
-    title = title or (blocks[0].lstrip("#").strip()[:70] if blocks and blocks[0].startswith("#") else "Untitled Documentary")
-    narration = "\n".join(ln for ln in script.splitlines() if not re.match(r"\s*sources?\s*:", ln, re.I))
+def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "video", broll: str = "script") -> str:
+    """`broll`: "script" (default) = stock video/photos only where the creator's script asks for them, with the
+    creator's own search words; "auto" = the toolkit also picks search words from each line itself."""
+    global _AUTO_BROLL
+    from .scriptfmt import parse_script
+    ps = parse_script(script)
+    _AUTO_BROLL = broll == "auto"
+    script = ps.clean()            # narration only: no direction line is ever narrated or searched by accident
+    sources = ps.sources
+    blocks = []
+    para_of: dict[int, object] = {}
+    for p_ in ps.paras:
+        if p_.chapter:
+            blocks.append(f"# {p_.chapter}")
+        para_of[len(blocks)] = p_
+        blocks.append(p_.text)
+    title = title or (ps.title[:70] if ps.title else "Untitled Documentary")
+    narration = script
     subject = find_subject(narration, title) if style in ("nature", "ocean") else find_topic(narration, title)
     ctx = _script_context(narration, subject)
     topic_q = f"{subject} {ctx}".strip() if ctx else subject
@@ -347,7 +359,8 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
     weak = style not in ("nature", "ocean") and not any(
         w in body_low for w in re.findall(r"[a-z]{4,}", (subject or "").lower()) if w not in _STOPW)
     local_subject, local_q = subject, topic_q
-    for block in blocks:
+    for bi, block in enumerate(blocks):
+        para = para_of.get(bi)
         if block.startswith("#"):
             chapter = block.splitlines()[0].lstrip("#").strip()
             rest = "\n".join(block.splitlines()[1:]).strip()
@@ -357,12 +370,12 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             numbered = re.match(num_re, chapter, re.I)
             head = re.sub(num_re, "", chapter, flags=re.I)
             head = re.sub(r"^(?:the|a|an)\s+", "", head, flags=re.I).strip(" .:!?")
-            if style not in ("nature", "ocean") and head and blocks.index(block) > 0 and (numbered or weak):
+            if style not in ("nature", "ocean") and head and bi > 0 and (numbered or weak):
                 if weak or subject.lower() in head.lower():
                     local_subject = local_q = head          # a list video: each item is its own subject
                 else:
                     local_subject = local_q = f"{subject} {head}"   # steps of one thing: 'Sourdough starter'
-            elif blocks.index(block) > 0:
+            elif bi > 0:
                 local_subject, local_q = subject, topic_q
             if not rest:
                 continue
@@ -378,7 +391,12 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
                 cur = f"{cur} {s}".strip()
         if cur:
             beats.append(cur)
-        for beat in beats:
+        # the creator's b-roll for this paragraph, shared out over its beats in order (extra ones go to the last)
+        asked = list(para.broll) if para is not None else []
+        per_beat: list[list] = [[] for _ in beats]
+        for k, item in enumerate(asked):
+            per_beat[min(k, len(beats) - 1)].append(item)
+        for beat, items in zip(beats, per_beat):
             n += 1
             sc: dict = {}
             if chapter:
@@ -388,7 +406,11 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             # every scene's words and emotion at render time; write mood:/sfx: by hand only to override it
             sc["text"] = beat
             vis = _rule_visual(beat, style, main, n, local_subject, local_q)
+            if items:
+                vis = _with_script_broll(vis, items, n)
             sc["visuals" if isinstance(vis, list) else "visual"] = vis
+            if para is not None and para.notes and beat == beats[0]:
+                sc["note"] = "; ".join(para.notes)     # the creator's own direction for this scene (not narrated)
             scenes.append(sc)
     data = {
         "preset": [style, "shorts"] if fmt == "shorts" else style, "title": title,
@@ -397,10 +419,69 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
         "tags": _tags(title, subject, script),
         **({"sources": [x.strip() for src in sources for x in re.split(r";\s*", src) if x.strip()]} if sources else {}),
         "thumbnail": {"text": _thumb_text(title)}, "youtube": {"privacy": "private"},
+        **_intro_plan(ps, scenes, title, fmt),
         "scenes": scenes,
     }
+    if not _AUTO_BROLL and not ps.broll_count:
+        log("No B-roll lines in the script: every scene uses drawn/3D shots and graphics. To add stock video or "
+            "photos, write lines like 'B-roll: <search words>' under the paragraphs that need them.")
+    elif ps.broll_count:
+        log(f"B-roll: {ps.broll_count} request(s) taken from the script, with the script's own search words")
     return "# Planned automatically by the rule-based director — edit freely, then render.\n" + \
         yaml.safe_dump(data, sort_keys=False, allow_unicode=True, width=110)
+
+
+_AUTO_BROLL = False   # set per plan: True only with --broll auto
+
+
+def _broll_visual(item, drawn: dict, n: int) -> dict:
+    """One b-roll request from the script → a stock visual that uses the creator's search words as written and is
+    checked against them (or against the creator's "must show" details). The scene's own drawn shot is the fallback."""
+    check = item.detail or None
+    if item.kind == "photo":
+        v = _photo(item.search, drawn, n=n, verify=check)
+    elif item.kind == "video":
+        v = {"stock": item.search, **({"verify": check} if check else {}), "fallback_visual": drawn}
+    else:   # either: a clip if one passes the check, else a photo, else the drawn shot
+        v = {"stock": item.search, **({"verify": check} if check else {}),
+             "fallback_visual": _photo(item.search, drawn, n=n, verify=check)}
+    v["broll"] = "script"
+    return v
+
+
+def _with_script_broll(vis, items: list, n: int):
+    """Put the creator's b-roll into a beat: it takes the place of the beat's drawn shot (which stays as its
+    fallback); date cards and number graphics the beat already has are kept in front of it."""
+    shots = vis if isinstance(vis, list) else [vis]
+    keep = [v for v in shots if isinstance(v, dict) and v.get("remotion") in ("DateStamp", "Counter", "DotGrid")]
+    rest = [v for v in shots if v not in keep]
+    drawn = rest[0] if rest else {"remotion": "KineticText", "props": {}}
+    out = keep[:1] + [_broll_visual(it, drawn, n + k) for k, it in enumerate(items)]
+    return out if len(out) > 1 else out[0]
+
+
+def _intro_plan(ps, scenes: list[dict], title: str, fmt: str) -> dict:
+    """The opening the script asks for: `Intro: 30` → 30 s of music and picture before the first word. With b-roll
+    lines under it, those pictures play; otherwise the first scene's opening shot holds, or a title card when the
+    first shot is a text/number card that would have nothing to show yet."""
+    if ps.intro is None and not ps.intro_broll:
+        return {}
+    from .config import parse_seconds
+    secs = parse_seconds(ps.intro) if ps.intro is not None else None
+    if secs is not None and secs <= 0:
+        return {"intro": 0}
+    title_card = {"remotion": "TitleCard", "props": {"title": title}}
+    if ps.intro_broll:
+        vis = [_broll_visual(b, title_card, k) for k, b in enumerate(ps.intro_broll)]
+    else:
+        first = scenes[0].get("visual") or (scenes[0].get("visuals") or [None])[0] if scenes else None
+        texty = isinstance(first, dict) and first.get("remotion") in (
+            "KineticText", "Statement", "Counter", "DotGrid", "DateStamp", "Quote", "BigNumber")
+        vis = [title_card] if texty else None
+    out: dict = {"seconds": secs} if secs is not None else {}
+    if vis:
+        out["visuals"] = vis
+    return {"intro": out if vis else secs}
 
 
 # What the line says about WHERE/HOW the animal is, so the picture is checked against it (ytauto/verify.py)
@@ -470,7 +551,11 @@ def _general_visual(beat: str, style: str, main: str, n: int, subject: str, draw
             return {"remotion": "Anatomy", "props": {"sprite": ana["sprite"], "backdrop": "abyss",
                     "callouts": [{"x": x, "y": y, "label": label, "at": p.group(1), "side": "right" if x > 0.5 else "left"}],
                     "zoom": [{"at": p.group(1), "x": x, "y": y, "scale": 1.35}]}}
+        if not _AUTO_BROLL:
+            return None      # no model of this part: the scene keeps its drawn shot; photos only where the script asks
         return _photo(f"{subject} {part}", drawn, callout=_clause_with(beat, p.group(1)), n=n)
+    if not _AUTO_BROLL:
+        return None
     if style == "nature":
         want = _describe(subject, beat)
         if n % 2 == 0:  # real video clip every other shot (falls back to a checked photo, then the drawn shot)
@@ -752,7 +837,7 @@ def _general_beat_visual(beat: str, n: int, topic: str, drawn: dict, topic_q: st
                                                        "countAt": cue, **_figure_heading(beat, cue)}}
         if not _entities(beat) and not _key_nouns(beat):
             return figure
-    qs = _queries(beat, topic, topic_q)
+    qs = _queries(beat, topic, topic_q) if _AUTO_BROLL else []   # the toolkit's own search words: only with --broll auto
     if figure and qs:
         # the line names a thing AND a figure: show the thing, then the number as it is said (or the other way round
         # when the number comes first), each for half the line
@@ -813,7 +898,7 @@ def _ocean_visual(beat: str, main: str, n: int, creature: str) -> dict:
             "depth": 0.85, "actors": [{"creature": creature, "x": 0.45, "y": 0.55, "to": [0.5, 0.55], "scale": 1.3}],
             "bigText": line.upper().rstrip("!") if len(line) <= 22 else " ".join(line.split()[-2:]).upper(),
             "bigAt": _first_word(line), "bigColor": "#e5372f" if DANGER.search(line) else "#e6edf2"}}
-    if n % 5 == 0:  # real B-roll every fifth beat
+    if n % 5 == 0 and _AUTO_BROLL:  # real B-roll every fifth beat (only with --broll auto)
         name = {"spermWhale": "sperm whale", "giantSquid": "squid", "fishSchool": "fish school", "anglerfish": "deep sea fish"}.get(creature, creature)
         props = {"footage": f"stock:{name} underwater",
                  "fallback": {"depth": 0.6, "actors": [{"creature": creature, "x": 0.3, "y": 0.5, "to": [0.6, 0.5], "scale": 1.1}]}}
@@ -854,20 +939,26 @@ def _ocean_visual(beat: str, main: str, n: int, creature: str) -> dict:
 
 
 def plan(script: str, style: str, title: str | None, director: str = "rules", model: str | None = None,
-         fmt: str = "video") -> str:
+         fmt: str = "video", broll: str = "script") -> str:
     if style not in STYLES:
         raise YtautoError(f"Unknown style {style!r} (use {', '.join(STYLES)})")
     log("Planning scenes with the built-in director (free, offline)")
-    return plan_with_rules(script, style, title, fmt)
+    return plan_with_rules(script, style, title, fmt, broll)
 
 
-def auto_style(script: str, title: str | None = None) -> str:
-    """Pick the look from the topic: an animal → nature (real photos, 3D close-ups); anything else (history, science,
-    space, places, what-if scenarios) → documentary (maps, globes, counters, timelines)."""
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", script.strip()) if b.strip()]
-    title = title or (blocks[0].lstrip("#").strip() if blocks and blocks[0].startswith("#") else "")
+def auto_style(script: str, title: str | None = None, broll: str = "script") -> str:
+    """Pick the look from the topic. An animal the toolkit can draw and model in 3D (the sea creatures in
+    CREATURE_WORDS) → ocean (animated 3D/drawn scenes; b-roll only where the script asks). Any other animal →
+    nature. Anything else (history, science, space, places, what-if scenarios) → documentary (maps, counters,
+    date cards, timelines)."""
+    from .scriptfmt import parse_script
+    ps = parse_script(script)
+    script = ps.clean()
+    title = title or ps.title or ""
     subject = find_subject(script, title)
-    if re.search(r"^\s*subject\s*:", script, re.I | re.M) or _creature(subject) or _creature(title):
+    if _creature(subject) or _creature(title):
+        return "nature" if broll == "auto" else "ocean"
+    if re.search(r"^\s*subject\s*:", script, re.I | re.M):
         return "nature"
     # an animal-like name alone is not enough ("telescope" is also a sea snail): the script itself must read like
     # it is about a living creature
@@ -889,12 +980,12 @@ def auto_style(script: str, title: str | None = None) -> str:
 
 
 def write_plan(script_path: Path, out_dir: Path, style: str, title: str | None, director: str = "rules", model: str | None = None,
-               fmt: str = "video") -> Path:
+               fmt: str = "video", broll: str = "script") -> Path:
     raw = script_path.read_text(encoding="utf-8")
     if style == "auto":
-        style = auto_style(raw, title)
+        style = auto_style(raw, title, broll)
         log(f"Style: {style} (picked from the topic; use --style to choose)")
-    text = plan(raw, style, title, director, model, fmt)
+    text = plan(raw, style, title, director, model, fmt, broll)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "assets").mkdir(exist_ok=True)
     out = out_dir / "script.yaml"

@@ -12,8 +12,8 @@ from pathlib import Path
 from .config import Project
 from .cues import find_word_time, resolve_cues
 from .music import MOODS, build_duck_envelope, build_score, speech_from_audio
-from .sound import BUILTIN, build_track
-from .tts import Cue, SceneAudio, build_scene_audio, narration_inputs, shutdown_workers, strip_directives
+from .sound import ALLOWED, BUILTIN, TRANSITION, build_track
+from .tts import Cue, SceneAudio, build_scene_audio, lead_in, narration_inputs, shutdown_workers, strip_directives
 from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
 
@@ -46,6 +46,21 @@ def _ass_time(t: float) -> str:
     m, cs = divmod(cs, 6000)
     s, cs = divmod(cs, 100)
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def _shift_numeric_cues(spec, by: float):
+    """Add `by` seconds to every cue written as a number (`at`, `…At`), in the visual and its fallbacks."""
+    if isinstance(spec, list):
+        return [_shift_numeric_cues(x, by) for x in spec]
+    if not isinstance(spec, dict):
+        return spec
+    out = {}
+    for k, v in spec.items():
+        if (k == "at" or k.endswith("At")) and isinstance(v, (int, float)) and not isinstance(v, bool):
+            out[k] = v + by
+        else:
+            out[k] = _shift_numeric_cues(v, by)
+    return out
 
 
 def _with_narration_text(spec, text: str):
@@ -188,7 +203,12 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     # 1) Voiceover --------------------------------------------------------------------------
     from . import stock
     stock.species_photos = bool(st.get("species_photos", True))
-    log("Step 1/5: generating voiceover")
+    # 1) B-roll first: every stock photo/clip the script asks for is searched, checked and downloaded before any
+    #    voice or picture is made, so the edit starts with all its material on disk (build/broll_report.txt)
+    log("Step 1/6: collecting b-roll (search, check, download)")
+    from .broll import collect_broll
+    collect_broll(project)
+    log("Step 2/6: generating voiceover")
     from .sound_director import direct_narration
     direct_narration(project)   # how the narrator sounds, from the script's own content
     if (st.get("voice") or {}).get("engine") in ("qwen", "chatterbox"):
@@ -203,16 +223,37 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         audios = list(ex.map(do_audio, project.scenes))
     shutdown_workers()  # release voice-model memory before rendering
 
+    # The opening: `intro` seconds of music and picture before the first word. Silent scenes at the top (an intro
+    # with its own visuals) count toward it; the rest is added in front of the first narrated scene, whose opening
+    # shot simply starts that much earlier.
+    lead, lead_scene = 0.0, None
+    intro = float(st.get("intro") or 0)
+    if intro > 0:
+        silent = 0.0
+        for k, scene in enumerate(project.scenes):
+            if scene.text:
+                lead, lead_scene = max(0.0, intro - silent), k
+                break
+            silent += audios[k].duration
+        if lead > 0.05 and lead_scene is not None:
+            audios[lead_scene] = lead_in(audios[lead_scene], lead, voice_cache)
+            project.scenes[lead_scene].raw["_lead"] = lead
+            log(f"   opening: {intro:.0f}s of music and picture before the first word")
+        else:
+            lead, lead_scene = 0.0, None
+
     plans: list[ScenePlan] = []
     t = 0.0
-    for scene, audio in zip(project.scenes, audios):
+    for k, (scene, audio) in enumerate(zip(project.scenes, audios)):
         dur = audio.duration + (float(st["padding"]) if scene.text else 0.0)
         if scene.duration:
-            dur = max(dur, scene.duration)
+            dur = max(dur, scene.duration + (lead if k == lead_scene else 0.0))
         total_frames = max(len(scene.visuals), round(dur * fps))
         n = len(scene.visuals)
-        base, extra = divmod(total_frames, n)
+        lead_frames = min(total_frames - n, round(lead * fps)) if k == lead_scene else 0
+        base, extra = divmod(total_frames - lead_frames, n)
         frames = [base + (1 if i < extra else 0) for i in range(n)]
+        frames[0] += lead_frames   # the opening shot carries the intro
         dur = total_frames / fps  # snap to whole frames so audio and video never drift
         plans.append(ScenePlan(scene.index, t, dur, audio, frames))
         t += dur
@@ -220,7 +261,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     log(f"   narration ready — video length will be {fmt_ts(total)} ({total:.1f}s)")
 
     # 2) Visual clips -----------------------------------------------------------------------
-    log("Step 2/5: rendering visuals")
+    log("Step 3/6: rendering visuals")
     renderer = ClipRenderer(project)
     sprite_man = {}
     if st.get("render3d", True):
@@ -245,6 +286,10 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
                 spec = _with_sprites(spec, sprite_man)
             # Word cues (at: "Hiroshima") → seconds within this clip, in the visual AND in its fallbacks
             # (a fallback that still held cue words crashed the animation when a stock search failed).
+            # In the scene that carries the opening, timings written in seconds count from the first word, not from
+            # the start of the music (a label "at 0.2" must not pop up 30 s before the narrator speaks).
+            if vi == 0 and scene.raw.get("_lead"):
+                spec = _shift_numeric_cues(spec, float(scene.raw["_lead"]))
             spec = _resolve_spec_cues(spec, plan.audio.words, offset_frames / fps, fr / fps, f"scene {plan.scene_index + 1}")
             jobs.append((seq, spec, fr / fps, vi == 0, vi == len(scene.visuals) - 1))
             offset_frames += fr
@@ -269,7 +314,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     # 3) Join video + narration ------------------------------------------------------------
     from .verify import shutdown as _verify_shutdown
     _verify_shutdown()   # free the picture-check model before the heavy joins
-    log("Step 3/5: joining clips and narration")
+    log("Step 4/6: joining clips and narration")
     work = cache / "work"
     work.mkdir(parents=True, exist_ok=True)
     vlist = work / "video_list.txt"
@@ -289,7 +334,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", alist, "-c", "copy", narration])
 
     # 4) Audio mix: narration + sfx + ducked music + loudness normalisation -----------------
-    log("Step 4/5: mixing audio")
+    log("Step 5/6: mixing audio")
     _apply_sound_director(project, plans)
     # Mix, then check: if any sudden non-voice sound remains, the music track playing at that moment is banned
     # and the music is rebuilt without it (up to 3 rounds). Moments right at a planned effect are not counted.
@@ -401,7 +446,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
          "-c:a", "aac", "-b:a", "192k", mixed])
 
     # 5) Captions, watermark, chapters, final mux -----------------------------------------
-    log("Step 5/5: captions + final encode")
+    log("Step 6/6: captions + final encode")
     all_cues = [Cue(round(p.start + c.start, 3), round(p.start + c.end, 3), c.text) for p in plans for c in p.audio.cues]
     srt, ass = write_captions(all_cues, build, st)
 
@@ -584,6 +629,13 @@ def _apply_sound_director(project: Project, plans: list[ScenePlan]) -> None:
     moods, sfx, trans = direct([s.text or "" for s in scenes], [s.chapter for s in scenes],
                                [s.raw.get("mood") for s in scenes], [bool(s.sfx) for s in scenes],
                                durations=[dur[i] for i in seen])
+    # a silent opening scene plays the mood of the first words, so the music doesn't change when the voice comes in
+    k = next((i for i, sc in enumerate(scenes) if sc.text), 0)
+    if k > 0 and not scenes[0].raw.get("mood"):
+        moods[0] = moods[k] or scenes[k].raw.get("mood") or moods[0]
+        for j in range(1, k + 1):
+            if not scenes[j].raw.get("mood"):
+                moods[j] = None      # the same mood simply continues
     n_fx = 0
     for s, m, fx, tr in zip(scenes, moods, sfx, trans):
         if m and not s.raw.get("mood"):
@@ -592,32 +644,20 @@ def _apply_sound_director(project: Project, plans: list[ScenePlan]) -> None:
             s.sfx = fx
             n_fx += len(fx)
         s.raw["_transition"] = tr
-    log(f"   sound director: {sum(1 for m in moods if m)} mood changes, {n_fx} effects, "
-        f"{sum(trans)} chapter transitions (from the script's own words)")
+    log(f"   sound director: {sum(1 for m in moods if m)} mood changes, {n_fx} effects "
+        f"(from the script's own words; no transition sounds)")
 
 
 def collect_sfx(project: Project, plans: list[ScenePlan]):
-    """Scene `sfx` → (synth events, file events). Also adds automatic whooshes on cuts."""
+    """Scene `sfx` → (synth events, file events). Transition-style sounds are never included."""
     snd = project.settings.get("sound") or {}
     synth: list[tuple[float, str, float, float | None]] = []
     files: list[tuple[float, Path, float]] = []
     if snd.get("effects", True) is False:   # a project can switch every effect off with sound: {effects: false}
         return synth, files
-    if snd.get("whoosh_on_cut"):
-        wv = float(snd.get("whoosh_volume", 0.22))
-        mode = snd.get("whoosh_on_cut")
-        first_seen: set[int] = set()
-        for plan in plans[1:]:
-            sc = project.scenes[plan.scene_index]
-            if plan.scene_index in first_seen:
-                continue
-            first_seen.add(plan.scene_index)
-            if mode == "auto":     # only where the sound director heard the mood or energy change
-                if not sc.raw.get("_transition"):
-                    continue
-            elif mode == "chapters" and not sc.chapter:
-                continue
-            synth.append((plan.start, "whoosh", wv, None))
+    # No transition sounds, ever: no whoosh on cuts or chapter changes (the old `whoosh_on_cut` setting is ignored)
+    # and any whoosh / swell / riser / glitch a script still lists is left out of the mix.
+    dropped = 0
     for plan in plans:
         raw = project.scenes[plan.scene_index].sfx
         if not raw:
@@ -627,6 +667,8 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
             if isinstance(it, str):
                 it = {"sound": it} if it in BUILTIN else {"file": it}
             at = it.get("at", 0)
+            if not isinstance(at, str):   # seconds count from the first word when the scene carries the opening
+                at = float(at) + float(project.scenes[plan.scene_index].raw.get("_lead") or 0)
             if isinstance(at, str):
                 wt = find_word_time(at, plan.audio.words)
                 if wt is None:
@@ -636,8 +678,11 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
             t = max(0.0, plan.start + float(at) + float(it.get("offset", 0)))
             vol = float(it.get("volume", 0.7))
             if it.get("sound"):
+                if it["sound"] in TRANSITION:
+                    dropped += 1
+                    continue
                 if it["sound"] not in BUILTIN:
-                    warn(f"unknown built-in sound {it['sound']!r} (have: {', '.join(sorted(BUILTIN))})")
+                    warn(f"unknown built-in sound {it['sound']!r} (have: {', '.join(sorted(ALLOWED))})")
                     continue
                 synth.append((t, it["sound"], vol, it.get("dur")))
             elif it.get("file"):
@@ -646,6 +691,8 @@ def collect_sfx(project: Project, plans: list[ScenePlan]):
                     files.append((t, path, vol))
                 else:
                     warn(f"sfx not found: {path}")
+    if dropped:
+        log(f"   left out {dropped} transition-style sound(s) the script listed (whoosh/swell/riser/glitch are never used)")
     return synth, files
 
 

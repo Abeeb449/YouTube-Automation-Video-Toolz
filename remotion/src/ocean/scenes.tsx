@@ -25,6 +25,11 @@ export type Actor = {
   /** Force the flat drawing even when a 3D sprite exists. */
   flat?: boolean;
   flip?: boolean; rotate?: number;
+  /** Turn toward another actor (its index in `actors`, or its creature name) or 'left' / 'right'. A hunter that
+   *  waits should look at what it hunts. Actors that travel always face where they are going. */
+  lookAt?: number | string;
+  /** Keep `flip` exactly as written even while travelling the other way (an animal backing off). */
+  keepFacing?: boolean;
   at?: number;
   enter?: 'fade' | 'left' | 'right' | 'none';
   /** Draw as a flat silhouette (e.g. "#000" for a looming shape, "#39ff88" for sonar). */
@@ -184,6 +189,59 @@ const spriteFor = (a: Actor, man?: SpriteManifest): {key: string; view: string; 
   return meta ? {key, view, meta} : null;
 };
 
+/** Which way every actor faces, decided once for the scene. Drawings and 3D models look right; `flip` turns them
+ *  left. An animal must never swim backwards or turn its back on what the line is about, so:
+ *   1. an actor that travels sideways faces the way it goes (this beats a hand-written `flip`, unless keepFacing);
+ *   2. otherwise `lookAt` turns it toward that actor (or 'left' / 'right');
+ *   3. otherwise one that slides in from a side faces into the frame;
+ *   4. otherwise a hunter with no `flip` of its own turns toward the nearest animal it hunts in the scene;
+ *   5. otherwise `flip` as written.
+ *  An actor that mostly rises or sinks and has no `rotate` of its own tilts its nose along its path. */
+/** Who looks at whom when nothing else says so: the hunter turns toward these, if one is in the scene. */
+export const HUNTS: Record<string, string[]> = {
+  leopardSeal: ['seaLion', 'penguin', 'diver', 'krill', 'fishSchool'],
+  orca: ['seaLion', 'leopardSeal', 'penguin', 'shark', 'fishSchool', 'diver'],
+  shark: ['seaLion', 'fishSchool', 'diver', 'penguin'],
+  spermWhale: ['giantSquid', 'diver'],
+  giantSquid: ['fishSchool', 'diver'],
+  anglerfish: ['fishSchool'],
+};
+
+export const orientActors = (actors: Actor[]): Actor[] => actors.map((a) => {
+  const onLand = !!(a.detail && ((a.detail as {rest?: boolean; stand?: boolean}).rest || (a.detail as {stand?: boolean}).stand));
+  const x0 = a.x ?? 0.5, y0 = a.y ?? 0.5;
+  const dx = (a.to?.[0] ?? x0) - x0, dy = (a.to?.[1] ?? y0) - y0;
+  let flip = !!a.flip;
+  if (Math.abs(dx) > 0.02 && !a.keepFacing) {
+    flip = dx < 0;
+  } else if (a.lookAt !== undefined && !a.keepFacing) {
+    if (a.lookAt === 'left' || a.lookAt === 'right') {
+      flip = a.lookAt === 'left';
+    } else {
+      const target = typeof a.lookAt === 'number' ? actors[a.lookAt] : actors.find((b) => b !== a && b.creature === a.lookAt);
+      const tx = target ? (target.x ?? 0.5) : x0;
+      if (target && Math.abs(tx - x0) > 0.01) flip = tx < x0;
+    }
+  } else if (a.flip === undefined && (a.enter === 'left' || a.enter === 'right')) {
+    flip = a.enter === 'right';
+  } else if (a.flip === undefined && !onLand && a.creature && HUNTS[a.creature]) {
+    // a hunter that waits looks at what it hunts (the nearest one), never away from it
+    const prey = actors.filter((b) => b !== a && b.creature && HUNTS[a.creature as string].includes(b.creature))
+      .map((b) => b.to?.[0] ?? b.x ?? 0.5).filter((bx) => Math.abs(bx - x0) > 0.05)
+      .sort((p1, p2) => Math.abs(p1 - x0) - Math.abs(p2 - x0));
+    if (prey.length) flip = prey[0] < x0;
+  }
+  let rotate = a.rotate;
+  if (rotate === undefined && !onLand && Math.abs(dy) > 0.12) {
+    const tilt = Math.atan2(dy * 9, Math.max(0.0001, Math.abs(dx)) * 16) * 180 / Math.PI;   // + = heading down
+    if (Math.abs(tilt) > 12) {
+      const t2 = Math.max(-75, Math.min(75, tilt)) * 0.85;
+      rotate = flip ? -t2 : t2;
+    }
+  }
+  return {...a, flip, rotate};
+});
+
 const ActorView: React.FC<{a: Actor; i: number; maxRight?: number; split?: OceanSceneProps['split']; sprites?: SpriteManifest}> = ({a, i, maxRight, split, sprites}) => {
   const {t, dur, s, width, height} = useT();
   const onLand = !!(a.detail && (a.detail.rest || a.detail.stand));
@@ -329,7 +387,7 @@ export const OceanScene: React.FC<OceanSceneProps> = (p) => {
         {p.footage ? <Footage src={p.footage} startFrom={p.footageStart} dim={p.footageDim} />
           : <OceanBackdrop depth={p.depth ?? (p.split ? 0.35 : 0.6)} depthTo={p.depthTo} surface={p.surface} rays={p.rays} />}
         {p.split && !p.footage ? <SplitSurface cfg={p.split} /> : null}
-        {(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} split={p.footage ? undefined : p.split} sprites={p.sprites} />)}
+        {orientActors(p.actors ?? []).map((a, i) => <ActorView key={i} a={a} i={i} maxRight={p.facts && p.facts.length ? 0.66 : undefined} split={p.footage ? undefined : p.split} sprites={p.sprites} />)}
       </AbsoluteFill>
       {p.title ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: 70 * s, textAlign: 'center', opacity: tp}}>

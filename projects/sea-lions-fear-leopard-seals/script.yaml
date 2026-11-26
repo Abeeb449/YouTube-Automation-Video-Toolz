@@ -20,7 +20,6 @@ settings:
     name: ryan
     instruct: "Narrate like a calm, deep-voiced nature documentary narrator: measured, intimate and gripping, with a sense of wonder."
   music: {source: incompetech, mood: mystery}
-  sound: {whoosh_on_cut: auto, whoosh_volume: 0.1}   # transition sounds only where the story turns
 
 thumbnail: {text: "WHY SEA LIONS FEAR THIS SEAL"}
 youtube: {privacy: private, category_id: 15, synthetic_media: true}   # AI narration: ticks YouTube's "altered or synthetic content" box
@@ -39,7 +38,6 @@ scenes:
           - {creature: seaLion, x: 0.42, y: 0.33, scale: 0.32, detail: {pup: true, rest: true}, label: {text: "Fur seal pup", at: "young"}}
           - {creature: seaLion, x: 0.12, y: 0.3, scale: 0.42, detail: {rest: true}, at: "colony"}
           - {creature: seaLion, x: 0.26, y: 0.28, scale: 0.38, detail: {rest: true}, flip: true, at: "colony"}
-    sfx: [{sound: swell, at: 0.2, volume: 0.25}]
 
   - text: "[tone hushed, slow] In front of it, the Southern Ocean. [pause 0.4] Grey. [pause 0.3] Calm. [pause 0.3] And completely silent."
     visual:
@@ -68,7 +66,6 @@ scenes:
           actors:
             - {creature: seaLion, x: 0.22, y: 0.27, scale: 0.3, detail: {pup: true, rest: true}}
             - {creature: leopardSeal, x: 0.95, y: 0.74, to: [0.62, 0.72], scale: 1.0, silhouette: "#071118", opacity: 0.85, at: "somewhere", enter: fade}
-    sfx: [{sound: swell, at: "fear", volume: 0.35}]
 
   - text: "[tone low and menacing] It does not chase you across the open ocean. [pause 0.5] It waits right here, at the edge."
     visual:
@@ -250,7 +247,6 @@ scenes:
         title: "The leopard seal"
         titleColor: red
         titleAt: "predators"
-    sfx: [{sound: swell, at: 0.0, volume: 0.3}]
 
   - mood: wonder
     text: "[tone fascinated, vivid] The leopard seal is long, sleek and spotted, with a broad head that looks almost reptilian."
@@ -415,7 +411,6 @@ scenes:
             facts:
               - {text: "Long front flippers", at: "flippers"}
               - {text: "Sudden bursts of speed", at: "bursts", red: true}
-    sfx: [{sound: whoosh, at: "bursts", volume: 0.4}]
 
   - text: "Almost nothing hunts the leopard seal in return. Its main natural enemy is the orca."
     visual:
@@ -491,7 +486,7 @@ scenes:
         actors:
           - {creature: seaLion, x: 0.5, y: 0.34, scale: 0.32, detail: {pup: true}, target: {at: "below"}}
           - {creature: leopardSeal, x: 0.5, y: 1.05, to: [0.5, 0.5], scale: 1.0, rotate: -80, detail: {jaw: 0.7}, at: "below"}
-    sfx: [{sound: riser, at: 0.0, volume: 0.35, dur: 1.4}, {sound: hit, at: "Fast", volume: 0.6}]
+    sfx: [{sound: hit, at: "Fast", volume: 0.6}]
 
   - text: "Leopard seals often shake their prey hard at the surface, tearing it into pieces small enough to swallow. Researchers watching from shore have seen it happen again and again during the pupping season."
     visual:
@@ -877,7 +872,6 @@ scenes:
           bigText: "LOOKING BACK."
           bigAt: "back"
           bigColor: "#e6edf2"
-    sfx: [{sound: swell, at: "beneath", volume: 0.35}]
 
   - mood: wonder
     text: "[tone warm, inviting] If you want to meet more of the ocean's most fascinating hunters, subscribe. There is a lot more down there."

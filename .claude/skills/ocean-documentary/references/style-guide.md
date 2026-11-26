@@ -37,5 +37,5 @@ mostly flow inside one underwater world).
 - **Pacing:** a new visual element every 3–6 seconds. Hold no more than about 10 seconds on one composition.
 
 ## 4. Sound
-Use the preset's drone and whooshes. Add `ticks` under echolocation, `swell` when something appears in the dark,
+Never use transition sounds (whoosh, swell, riser, glitch). Add `ticks` under echolocation, a soft `thud` when something appears in the dark,
 `hit` on name reveals, `thud` on stamps or "TEETH.", and `boom` only for real impacts.

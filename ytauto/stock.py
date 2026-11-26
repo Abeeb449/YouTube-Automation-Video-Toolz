@@ -658,7 +658,70 @@ _rejected: set[str] = set()
 _paused: dict[str, float] = {}   # provider -> time until which it is skipped (rate limits)   # candidates that failed the picture check (never retried in this render)
 
 
+_requests: list[dict] = []        # every stock request of this run and how it ended (for the b-roll report)
+_missing: dict[str, str] = {}     # requests already searched in this run with no usable result (not searched twice)
+
+
+def _resolved_file(cache: Path) -> Path:
+    return cache / "stock" / "resolved.json"
+
+
+def _resolved_load(cache: Path) -> dict:
+    f = _resolved_file(cache)
+    try:
+        return json.loads(f.read_text()) if f.exists() else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def forget_resolved(cache: Path) -> None:
+    """Search everything again next time (`ytauto broll --refresh`)."""
+    _resolved_file(cache).unlink(missing_ok=True)
+    _missing.clear()
+
+
 def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wanted: str | None = None) -> tuple[Path, str]:
+    """One stock request → a checked local file. The answer is remembered (cache/stock/resolved.json): the b-roll
+    collection step that runs before anything is rendered finds and checks every item once, and the render then
+    uses exactly those files without searching again."""
+    key = stable_hash("resolved-v1", query, kind, nth, wanted, sorted(allowed_licenses()), species_photos)
+    entry = {"query": query, "kind": kind, "wanted": wanted, "ok": False}
+    with _lock:
+        hit = _resolved_load(cache).get(key)
+        gone = _missing.get(key)
+    if hit and Path(hit["path"]).exists():
+        path, cid, rec = Path(hit["path"]), hit.get("cid"), hit.get("credit")
+        with _lock:
+            if cid:
+                _path_ids[str(path)] = cid
+                _used.add(cid)
+                if rec:
+                    _credits.setdefault(cid, rec)
+        if cid and getattr(_tl, "ids", None) is not None:
+            _tl.ids.append(cid)
+        return path, hit.get("kind", kind)
+    if gone:
+        raise YtautoError(gone)
+    try:
+        path, got = _fetch_stock_alts(query, kind, cache, width, nth, wanted)
+    except YtautoError as exc:
+        with _lock:
+            _missing[key] = str(exc)
+            _requests.append({**entry, "reason": str(exc)})
+        raise
+    with _lock:
+        cid = _path_ids.get(str(path))
+        rec = _credits.get(cid) if cid else None
+        memo = _resolved_load(cache)
+        memo[key] = {"path": str(path), "kind": got, "cid": cid, "credit": rec, "query": query, "wanted": wanted}
+        f = _resolved_file(cache)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(memo, indent=1))
+        _requests.append({**entry, "ok": True, "kind": got, "path": str(path), "cid": cid, "credit": rec})
+    return path, got
+
+
+def _fetch_stock_alts(query: str, kind: str, cache: Path, width: int, nth: int = 0, wanted: str | None = None) -> tuple[Path, str]:
     """`query` may list alternatives, most specific first: "Great Pyramid of Giza|pharaoh Khufu|pyramid". Each is
     searched (and every result picture-checked against THAT alternative) until one gives a usable picture."""
     alts = [q.strip() for q in query.split("|") if q.strip()]
