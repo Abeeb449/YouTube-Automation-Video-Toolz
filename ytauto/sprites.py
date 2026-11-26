@@ -63,6 +63,8 @@ def render_set(creature: str, view: str, frames: int, force: bool = False) -> Pa
     pngs = sorted(tmp.glob("*.png"))
     if not pngs:
         raise YtautoError(f"Blender produced no frames for {creature}/{view}")
+    # the finished set is built beside its place and moved in whole, so a half-written set is never seen (or committed)
+    final, out = out, out.with_name(view + ".new.tmp")
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     for i, p in enumerate(pngs, 1):  # WebP with alpha: ~10x smaller than PNG, crisp at 1080p
@@ -80,7 +82,9 @@ def render_set(creature: str, view: str, frames: int, force: bool = False) -> Pa
     (out / "meta.json").write_text(json.dumps({"frames": len(pngs), "w": im.width, "h": im.height, "bbox": bbox, "fps": 24,
                                                "loop": creature not in ONCE}))
     shutil.rmtree(tmp, ignore_errors=True)
-    return out
+    shutil.rmtree(final, ignore_errors=True)
+    out.rename(final)
+    return final
 
 
 def manifest() -> dict:
