@@ -110,6 +110,18 @@ def _prepare(raw: str) -> str:
     lines = [re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", ln).replace("\u00a0", " ").rstrip()
              for ln in raw.replace("\r\n", "\n").replace("\f", "\n").split("\n")]
     lines = [re.sub(r"^\s*[•●▪◦·]\s*", "", ln) for ln in lines]
+    # text copied from a chat or a document often carries Markdown: "## SCENE 2: …", "**[B-roll] IMAGE:** …",
+    # "> [B-roll] …", "*3D footage only in this scene.*". The marks are layout, never words.
+    plain = []
+    for ln in lines:
+        bare = re.sub(r"^\s*(?:>\s*)*(?:#{1,6}\s*)?", "", ln)
+        bare = re.sub(r"(\*\*|__|\*|`)", "", bare).strip()
+        bare = re.sub(r"^_(.*)_$", r"\1", bare)
+        if any(rx.match(bare) for rx in (SCENE_HEAD, CUE_LINE, ONLY_3D, END_SECTION, META_LINE, SKIP_LINE, INTRO_LINE)) or KEYWORDS.match(bare):
+            plain.append(bare)
+        else:
+            plain.append(re.sub(r"\*\*|__", "", re.sub(r"^\s*(?:>\s*)+", "", ln)))
+    lines = plain
     out: list[str] = []
     i = 0
     while i < len(lines):
