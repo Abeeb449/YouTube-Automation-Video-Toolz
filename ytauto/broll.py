@@ -75,11 +75,9 @@ def collect_broll(project: Project, refresh: bool = False) -> dict:
             warn(f"scene {sc.index + 1}: b-roll could not be collected ({str(exc)[:160]})")
         new = stock._requests[mark:]
         kind, search, must = _first_request(spec)
-        got = [r for r in new if r.get("ok")]
-        if not new:   # answered from an earlier collection: look the files up in the remembered answers
-            memo = stock._resolved_load(project.cache_dir)
-            got = [{"ok": True, **v} for v in memo.values()
-                   if v.get("query") and (v["query"] == search) and Path(v["path"]).exists()][:1]
+        got_any = [r for r in new if r.get("ok")]
+        # what was asked for, not what its fallback turned up (b-roll that isn't found may fall back to the 3D model)
+        got = [r for r in got_any if (r.get("kind") == "model") == (kind == "3D model")]
         opening = sum(1 for x in project.scenes[:sc.index + 1] if x.raw.get("_intro"))   # the opening is not a script scene
         item = {"scene": "Opening" if sc.raw.get("_intro") else sc.index + 1 - opening, "shot": vi + 1,
                 "text": (sc.text or "(opening: music and picture, no narration)")[:90],
@@ -87,11 +85,13 @@ def collect_broll(project: Project, refresh: bool = False) -> dict:
                 "files": [{"path": g["path"], "kind": g.get("kind"), "id": g.get("cid"),
                            **{k: (g.get("credit") or {}).get(k) for k in ("title", "author", "license", "url", "provider")}}
                           for g in got],
+                "fallback": "the 3D model" if got_any and not got else None,
                 "tried": [r.get("reason", "")[:400] for r in new if not r.get("ok")]}
         items.append(item)
         log(f"   {'opening' if item['scene'] == 'Opening' else 'scene ' + str(item['scene'])}: "
             f"{'found' if item['found'] else 'NOT FOUND'}  [{kind}] {search[:70]}")
     verify.shutdown()     # free the picture-check model before the voice models load
+    # the sheet shows each file once, even when several scenes use it
     data = {"title": project.title, "requested": len(items), "found": sum(1 for i in items if i["found"]), "items": items}
     build = project.build_dir
     build.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,8 @@ def _report(data: dict) -> str:
                 out.append(f"  FOUND ({f.get('kind') or 'file'}): {who or f.get('id') or Path(f['path']).name}"
                            + (f", {f['license']}" if f.get("license") else "") + (f"\n         {f['url']}" if f.get("url") else ""))
         else:
-            out.append("  NOT FOUND: nothing passed the picture check, so this scene keeps its drawn/3D shot.")
+            out.append("  NOT FOUND: nothing usable passed the checks, so this scene uses its fallback shot"
+                       + (f" ({it['fallback']})." if it.get("fallback") else "."))
             for t in it["tried"][:2]:
                 out.append(f"    tried: {t}")
         out.append("")
@@ -128,12 +129,13 @@ def _report(data: dict) -> str:
 
 def _sheet(data: dict, out: Path, cols: int = 4) -> None:
     from PIL import Image, ImageDraw
-    cells = []
+    cells, shown = [], set()
     for it in data["items"]:
         for f in it["files"]:
             p = Path(f["path"])
-            if not p.exists():
+            if not p.exists() or str(p) in shown:
                 continue
+            shown.add(str(p))
             if f.get("kind") == "model":
                 rgba = Image.open(p).convert("RGBA")
                 im = Image.new("RGB", rgba.size, (14, 22, 34))

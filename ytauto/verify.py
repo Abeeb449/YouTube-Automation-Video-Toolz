@@ -83,9 +83,11 @@ DETAILS: dict[str, list[tuple[str, str, str]]] = {
 }
 DETAIL_MIN = {"place": 0.35, "count": 0.7, "time": 0.5, "view": 0.45}
 # Question 5: nothing graphic. Wildlife sources hold kills, carcasses and skeletons; none of that goes in a video
-# (calibrated: ordinary photos >= 0.8 "pleasant", kills / remains <= 0.54).
-CLEAN = ["a pleasant wildlife photo or an ordinary scene", "a gory photo of a predator eating bloody prey",
-         "a photo of a skeleton, a carcass or animal remains"]
+# (calibrated on wildlife and on objects/places: ordinary pictures >= 0.67, kills / remains <= 0.02, borderline 0.5).
+CLEAN = ["a pleasant wildlife photo", "an ordinary photo of an object, a machine, a vehicle, a building or a place",
+         "a photo of people", "a gory photo of a predator eating bloody prey",
+         "a photo of a dead animal, a carcass, a skeleton or animal remains"]
+CLEAN_OK = 3      # the first three are fine; the rest are what is kept out
 CLEAN_MIN = 0.6
 
 
@@ -279,7 +281,7 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     animal = _is_animal(query)
     from .stock import _subject
     want_details = _details(wanted or query, _subject(query) if animal else ())
-    key = stable_hash("verify-v9", str(image), image.stat().st_size, pos, negs, trusted, animal, want_details)
+    key = stable_hash("verify-v10", str(image), image.stat().st_size, pos, negs, trusted, animal, want_details)
     memo_file = _memo_path(cache)
     with _lock:
         memo = json.loads(memo_file.read_text()) if memo_file.exists() else {}
@@ -313,7 +315,7 @@ def _judge(image: Path, query: str, cache: Path, wanted: str | None, trusted: bo
     general = not animal and not trusted
     if general and subject_ok and margin < MARGIN_MIN:
         subject_ok = False
-    clean = res["groups"][at["clean"]][0][0]
+    clean = sum(res["groups"][at["clean"]][0][:CLEAN_OK])
     detail_ok, detail_why, detail_note = True, "", []
     for g, wanted_idx in want_details.items():
         pr = res["groups"][at[g]][0]

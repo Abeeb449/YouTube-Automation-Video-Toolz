@@ -53,28 +53,40 @@ def _names(query: str, title: str) -> bool:
 def _smithsonian(query: str) -> list[dict]:
     if not stock._license_ok("cc0"):
         return []
-    q = urllib.parse.urlencode({"q": query, "file_type": "glb", "limit": 100})
-    rows = stock._retry_json(f"https://3d-api.si.edu/api/v1.0/content/file/search?{q}", tries=2).get("rows", [])
+    rows = []
+    for start in range(0, 60, 10):      # the search gives 10 files a page; an object's whole-model file can be pages in
+        q = urllib.parse.urlencode({"q": query, "file_type": "glb", "start": start})
+        page = stock._retry_json(f"https://3d-api.si.edu/api/v1.0/content/file/search?{q}", tries=2).get("rows", [])
+        rows += page
+        if len(page) < 10:
+            break
     packs: dict[str, list] = {}
     for r in rows:
         c = r.get("content") or {}
         if c.get("uri") and _names(query, r.get("title", "")):
             packs.setdefault(c.get("model_url") or c["uri"], []).append((r["title"], c))
     out = []
-    order = {"Medium": 0, "Low": 1, "High": 2, "AR": 3, "Thumb": 4}
+    order = {"Medium": 0, "Low": 1, "High": 2, "AR": 3, "Thumb": 5}
     for pid, files in packs.items():
-        # the whole object rather than one part of it, at a sensible size
+        # the whole object seen from outside, rather than one part of it, at a sensible size
         def rank(tc):
             name = tc[1]["uri"].rsplit("/", 1)[-1].lower()
-            part = bool(re.search(r"interior|seat|hatch|panel|detail|part|fragment|inside", name))
-            whole = bool(re.search(r"combined|exterior|full|complete|whole", name))
-            return (part and not whole, order.get(tc[1].get("quality"), 5), name)
-        title, c = sorted(files, key=rank)[0]
+            inside = bool(re.search(r"interior|inside|seat|hatch|panel|graffiti|detail|fragment", name))
+            piece = bool(re.search(r"shell|filler|[-_]top|[-_]bottom|[-_]part|section|engine|wheel|propeller|wing[-_]", name))
+            whole = bool(re.search(r"exterior|full|complete|whole", name))
+            kind = (0 if whole and not inside and not piece else 1 if not inside and not piece and "combined" not in name
+                    else 2 if "combined" in name or "multi" in name else 3 if not inside else 4)
+            flat = re.sub(r"[^a-z0-9]", "", name)
+            named = any(w in flat for w in _words(query) if len(w) > 3)     # the file is named after the object itself
+            return (kind, not named, order.get(tc[1].get("quality"), 4), name)
+        best = sorted(files, key=rank)[0]
+        title, c = best
+        best_rank = rank(best)
         uid = pid.split(":")[-1]
-        out.append({"cid": f"smithsonian-{uid[:13]}", "provider": "smithsonian", "title": title, "url": c["uri"], "ext": ".glb",
-                    "author": "Smithsonian Institution", "code": "cc0", "license": "CC0 (Smithsonian Open Access)",
-                    "page": c["uri"]})
-    return out
+        out.append((best_rank, {"cid": f"smithsonian-{uid[:13]}-{stable_hash(c['uri'])[:6]}", "provider": "smithsonian",
+                                "title": title, "url": c["uri"], "ext": ".glb", "author": "Smithsonian Institution",
+                                "code": "cc0", "license": "CC0 (Smithsonian Open Access)", "page": c["uri"]}))
+    return [c for _r, c in sorted(out, key=lambda rc: rc[0])]
 
 
 def _polyhaven(query: str) -> list[dict]:
@@ -300,6 +312,8 @@ def find_model(query: str, cache: Path) -> dict:
     hit = memo.get(key_q)
     if hit and sprite_meta(hit["key"], cache):
         _register(hit)
+        stock._requests.append({"query": query, "kind": "model", "wanted": None, "ok": True, "reused": True,
+                                "path": str(sprite_dir(hit["key"]) / "0001.webp"), "cid": hit["cid"], "credit": hit["credit"]})
         return {**hit, "meta": sprite_meta(hit["key"])}
     if key_q in stock._missing:
         raise YtautoError(stock._missing[key_q])

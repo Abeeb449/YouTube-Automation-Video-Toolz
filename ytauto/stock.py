@@ -677,6 +677,7 @@ def _resolved_load(cache: Path) -> dict:
 def forget_resolved(cache: Path) -> None:
     """Search everything again next time (`ytauto broll --refresh`)."""
     _resolved_file(cache).unlink(missing_ok=True)
+    (cache / "models" / "resolved.json").unlink(missing_ok=True)     # 3D models are looked for again too
     _missing.clear()
 
 
@@ -699,6 +700,9 @@ def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wa
                     _credits.setdefault(cid, rec)
         if cid and getattr(_tl, "ids", None) is not None:
             _tl.ids.append(cid)
+        with _lock:     # an answer found earlier still counts as found in this run's report
+            _requests.append({**entry, "ok": True, "reused": True, "kind": hit.get("kind", kind), "path": str(path),
+                              "cid": cid, "credit": rec})
         return path, hit.get("kind", kind)
     if gone:
         raise YtautoError(gone)
