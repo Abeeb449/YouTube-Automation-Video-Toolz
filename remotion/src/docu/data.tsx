@@ -15,8 +15,9 @@ export type CounterProps = DocuProps & {
 
 export const Counter: React.FC<CounterProps> = (p) => {
   const {t, dur, s, width} = useT();
-  const at = p.countAt ?? 0.3;
-  const cd = p.countDur ?? Math.min(dur * 0.7, 3.5);
+  // a number said near the end of the shot still finishes counting on screen (shorter count, never cut off)
+  const at = Math.min(p.countAt ?? 0.3, Math.max(0, dur - 1.0));
+  const cd = Math.max(0.5, Math.min(p.countDur ?? Math.min(dur * 0.7, 3.5), dur - at - 0.4));
   const v = interpolate(t, [at, at + cd], [p.from ?? 0, p.to], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const tl = p.timeline;
   const x0 = 120 * s, x1 = width - 120 * s, y = 760 * s;
