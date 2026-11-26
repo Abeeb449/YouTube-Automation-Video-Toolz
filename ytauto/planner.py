@@ -234,7 +234,8 @@ grew grow knew know ran run saw see sees sat sit won win works work changed chan
 hunts hunt kills kill does did happened happen built imagine imagined picture consider remember notice noticed
 think thought look looked drives drive keeps means gives takes causes caused pulls pulled pushes pushed turns turned
 moves moved stays stayed brings bringing helps helped shows showed lets needs wants seems seemed sits lies lay
-depends depend lives live""".split())
+depends depend lives live feed feeds fed expands expand expanded eats eat ate breathes breathe traps trap
+mix mixed springs spring rises rise rose bakes bake baked""".split())
 _GENERIC_NAMES = {"Earth", "World", "Universe", "God", "Christmas", "Christmas Day", "Christmas Eve", "Easter",
                   "New Year", "New Year's Day", "Celsius", "Fahrenheit", "Kelvin", "Today", "Mr", "Mrs", "Dr"}
 
@@ -350,11 +351,15 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             rest = "\n".join(block.splitlines()[1:]).strip()
             # a list video ('# 3. Velcro') or a title that names nothing in the script: each chapter is about its
             # own thing, so its lines are searched with the chapter's subject, not the video's title
-            numbered = re.match(r"^(?:#?\d+[.):]?|number\s+\d+[.:]?)\s+", chapter, re.I)
-            head = re.sub(r"^(?:#?\d+[.):]?|number\s+\d+[.:]?)\s+", "", chapter, flags=re.I)
+            num_re = r"^(?:#?\d+[.):]?|(?:number|step|part|tip|stage|phase|day|chapter|reason|rule)\s+\d+[.:)]?)\s*[-–—:]?\s*"
+            numbered = re.match(num_re, chapter, re.I)
+            head = re.sub(num_re, "", chapter, flags=re.I)
             head = re.sub(r"^(?:the|a|an)\s+", "", head, flags=re.I).strip(" .:!?")
             if style not in ("nature", "ocean") and head and blocks.index(block) > 0 and (numbered or weak):
-                local_subject = local_q = head
+                if weak or subject.lower() in head.lower():
+                    local_subject = local_q = head          # a list video: each item is its own subject
+                else:
+                    local_subject = local_q = f"{subject} {head}"   # steps of one thing: 'Sourdough starter'
             elif blocks.index(block) > 0:
                 local_subject, local_q = subject, topic_q
             if not rest:
@@ -548,7 +553,7 @@ seventy eighty ninety hundred hundreds thousand thousands million millions billi
 quarter percent""".split())
 _PEOPLE = set("""people person archaeologists scientists researchers historians experts someone everyone anyone
 nobody man men woman women""".split())
-_ADJ = set("""oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
+_ADJ = set("""wild tiny huge giant little strange ancient modern famous oldest largest biggest smallest greatest longest highest tallest deepest first last only entire whole
 ancient old new great big small huge tiny vast giant early late modern famous same other own single main final
 best worst true real wet dry dark bright heavy light hidden lost secret strange golden silver thin thick
 powerful huge massive tiny distant nearby empty full narrow wide deep shallow""".split())
