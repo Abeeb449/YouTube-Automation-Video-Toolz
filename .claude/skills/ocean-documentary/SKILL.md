@@ -45,6 +45,10 @@ Shortcut: if the user just gives narration, save it as `projects/<slug>/script.t
 
 ## 3D animals
 
+Great whites, bronze whalers, sevengills and orcas (also Port and Starboard with their collapsed fins) are 3D models
+built from measurements (`blender/sealife.py`): side, three-quarter and top views, a beached pose, an upside-down pose
+and see-through "liver" / "swim bladder" views. Stage a filmed hunt from above with `aerial: true` and `view: top`,
+a stranding with `beach: true` and `view: beached`, and label restaged events `source: "3D reconstruction"`.
 Leopard seals, sea lions / fur seals and pups render as Blender 3D models (`blender/creatures3d.py`, procedural mesh,
 spotted shader, armature swim loop) instead of flat drawings. Sprites are cached in `remotion/public/sprites/` and built
 automatically when a video needs a set that is missing (`python -m ytauto sprites` to pre-build). Per actor:

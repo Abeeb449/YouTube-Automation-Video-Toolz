@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -503,6 +504,17 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         desc += "\n\nMusic:\n" + "\n".join(music_credits)
     from .stock import credits, providers_used, write_credits
     chapter_block = ("\n\nChapters:\n" + "\n".join(f"{fmt_ts(s)} {n}" for s, n in marks)) if len(marks) >= 3 else ""
+    # A long source list with links can fill YouTube's 5000 characters on its own. The full list always goes to
+    # build/sources.txt (for a pinned comment); the description keeps the links only while everything fits.
+    src_lines = [ln for ln in desc.split("\n") if ln.startswith("- ")] if "\nSources:\n" in desc else []
+    if src_lines:
+        (build / "sources.txt").write_text("Sources:\n" + "\n".join(src_lines) + "\n", encoding="utf-8")
+        if len(desc) + len(chapter_block) > 4300 and any(re.search(r"https?://", ln) for ln in src_lines):
+            head, _sep, tail = desc.partition("\nSources:\n")
+            names = [re.sub(r"\s+[—–-]\s+https?://\S+$", "", ln) for ln in tail.split("\n")]
+            desc = head + "\nSources (links to each one are in the pinned comment):\n" + "\n".join(names)
+            log("   The source list is long: the description names every source, and build/sources.txt holds the links "
+                "(paste it as a pinned comment).")
     if providers_used():
         desc += "\n\nStock footage and photos: " + ", ".join(providers_used())
     # Credits: every photo/clip with author, licence and source link. YouTube allows 5000 characters, so if they

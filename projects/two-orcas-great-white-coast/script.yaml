@@ -843,14 +843,9 @@ scenes:
       - name: False Bay
         lon: 18.68
         lat: -34.22
-      pulses:
-      - lon: 18.47
-        lat: -34.2
-        label: The divers' reef
-        at: reef
       title: Two years earlier
       subtitle: False Bay, 2015
-      zoom: 1.1
+      zoom: 1.14
 - text: On a good dive they could count up to 70 sevengill sharks there.
   visual:
     remotion: OceanScene
@@ -2746,7 +2741,7 @@ scenes:
           label: Surveys begin
           at: surveyed
         - year: 2018
-          label: 'Last one: August 2018'
+          label: None after August 2018
           at: August
         band:
           from: 2018.6
@@ -2811,7 +2806,7 @@ scenes:
         sky: polar
         floes: false
       heading: Cape fur seal sightings
-      bigText: × 6
+      bigText: ABOUT 6×
       bigAt: six
       bigColor: '#e6edf2'
       actors:

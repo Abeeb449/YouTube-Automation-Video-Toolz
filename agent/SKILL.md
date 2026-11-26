@@ -157,6 +157,17 @@ leopardSeal, seaLion (= furSeal), penguin, krill** (`view: jaw` on leopardSeal =
 
 **3D sprites:** leopardSeal (side, three_quarter, rest), seaLion/furSeal (side, rest) and pups (side, rest) are drawn as
 rendered Blender 3D models (swimming loops at 24 fps, resting poses grounded on the shore with a contact shadow).
+Sharks and whales are modelled from measurements in `blender/sealife.py`: `greatWhite` (side, three_quarter, top,
+beached, upside), `greatWhiteLiver` (see-through, liver lit), `sevengill` (side, top, beached), `bronzeWhaler` (side),
+`orca` (side, top), `orcaMale` (side), `orcaPort` / `orcaStarboard` (side, three_quarter, top: the two males whose
+dorsal fins lie over to the left / right; a mirrored picture uses the twin automatically so left stays left),
+`fishBladder` (see-through fish with its swim bladder). Sizes: orca ≈ 1.4, big great white ≈ 1.0, young ≈ 0.5,
+sevengill ≈ 0.5, bronze whaler ≈ 0.6, fur seal ≈ 0.4.
+Settings besides underwater and `split`: `aerial: true | {tone: bay|open|shallow}` (the sea from straight above, as a
+drone films it; use `view: top`; animals turn to point where they go, and `orbit: {cx, cy, r, turns, phase}` swims a
+circle) and `beach: true | {sky: day|dusk|overcast}` (a shore; use `view: beached`). `net: {x0, x1, top, bottom}` hangs
+a shark net, `longline: {y, hooks}` a baited long line. Mark shots that restage a real event with
+`source: "3D reconstruction"`.
 The renderer builds any missing set before the video, about 2 min per swim loop on CPU, and caches them in
 `remotion/public/sprites/`. Rebuild with `python -m ytauto sprites --force [creature:view …]`. Other creatures keep their
 2D drawings. Turn 3D off for a project with `settings: {render3d: false}`.

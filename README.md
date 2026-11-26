@@ -50,6 +50,9 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    in `description.txt` automatically, and `credits.json` keeps the licence record of each one.
    | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#8-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.
+   Tick **collect_only** to get just the review sheet first (every 3D model, photo and clip found and checked, about
+   15 minutes, no video). A video longer than about 11 minutes does not finish inside one 6-hour job: run the workflow
+   a second time and it continues from what the first run saved.
 4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 14 days. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.
    *(Optional: tick **Also publish as a GitHub Release** for a direct link. On a public repo that download is public.)*
 
@@ -119,14 +122,24 @@ Sources: Krause et al. (2020); Muir, Barnes & Reid (2006)
 | `Visual: …`, `Note: …` | Kept as a note on the scene. Not narrated. |
 | `Sources: …` | Listed in the description. Not narrated. |
 
+**A script from the script writer is read as it is** (pasted text or the PDF itself: `python -m ytauto plan script.pdf
+--out projects/<name>`). `SCENE 2: THE SHARK CAPITAL (0:46 to 1:55)` becomes a chapter; a cue written
+`[B-roll] IMAGE: what to show. Keywords: "a", "b"` (or `VIDEO:`) sits above the narration it covers, so it belongs to
+the paragraph that follows it, its keywords are the search words (tried in order) and the sentence before them is
+what the picture must show; `3D footage only in this scene.`, the header lines, the B-roll keyword list and the
+numbered sources are never narrated, and the sources go to the description. A source list too long for YouTube's
+5,000 characters keeps its names in the description and its links in `build/sources.txt` (paste it as a pinned comment).
+
 **The video is built in 3D; b-roll is an extra.** Whatever the video is about is shown as a 3D model when a
 free-licence one exists: the toolkit looks for the video's subject (or the words of your `3D:` line) in Smithsonian
 Open Access 3D (CC0), Poly Haven (CC0), Wikimedia Commons, and Sketchfab if you add a free account token as
 `SKETCHFAB_TOKEN`. Blender lights it and renders it turning (`blender/model3d.py`); scenes then push in, move
 around it and label it. A model is used only if its own title names the subject and the render passes a check that
 it looks like it; its credit goes in the description (a model whose licence requires attribution, CC BY, also
-gets a small credit line on screen). Animals the toolkit models itself (seals, sea lions, whales,
-squid, sharks, penguins…) are animated 3D scenes. **When no free model exists, one is built by hand** in Blender
+gets a small credit line on screen). Animals the toolkit models itself are animated 3D scenes: seals, sea lions and
+pups; great white, bronze whaler and sevengill sharks; orcas (female, male, and Port and Starboard with their collapsed
+fins), each from the side, from three quarters and from straight above, with beach, upside-down and see-through
+("liver", "swim bladder") poses (`blender/creatures3d.py`, `blender/sealife.py`). **When no free model exists, one is built by hand** in Blender
 (`blender/handmade/`, checked against the real thing from every side with `python -m ytauto model "<name>"`); the
 Great Pyramid of Giza is the first. Where no model exists, the scene is a 3D motion graphic: kinetic
 type in a 3D space, stat cards, counters, date cards, maps, quote and list cards, each chosen from what the line

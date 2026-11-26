@@ -193,8 +193,8 @@ S(1, sea(sg(0.9, 0.6, 1.1, to=[0.55, 0.58], label={"text": "Sevengill shark", "a
 
 # ====================================================================================== 4. TWO BENT FINS
 S(1, tpl("MapScene", bbox=[[18.0, -34.6], [19.3, -33.75]], cities=[{**CAPE_TOWN, "at": "Cape"}],
-         countryLabels=[{"name": "False Bay", "lon": 18.68, "lat": -34.22}], pulses=[{"lon": 18.47, "lat": -34.2, "label": "The divers' reef", "at": "reef"}],
-         title="Two years earlier", subtitle="False Bay, 2015", zoom=1.1),
+         countryLabels=[{"name": "False Bay", "lon": 18.68, "lat": -34.22}],
+         title="Two years earlier", subtitle="False Bay, 2015", zoom=1.14),
   chapter="Two Bent Fins", mood="mystery")
 S(1, sea(sg(0.15, 0.62, 0.5, to=[0.4, 0.6]), sg(0.75, 0.7, 0.55, to=[0.5, 0.72]), sg(0.4, 0.8, 0.45, to=[0.62, 0.82]),
          sg(0.9, 0.52, 0.4, to=[0.7, 0.5]), sg(0.25, 0.44, 0.38, to=[0.45, 0.42]), sg(0.6, 0.36, 0.34, to=[0.4, 0.34]),
@@ -386,7 +386,7 @@ S(1, clip("great white shark breach",
               heading="Seal Island", callout="Great whites leaping clear of the water", calloutAt="leaping", source=RECON)))
 S(2, tpl("Counter", backdrop="ocean", **{"from": 2000}, to=2018, plain=True, label="Great whites recorded at Seal Island",
          countAt=0.5, countDur=6, timeline={"start": 2000, "end": 2026, "tickEvery": 4,
-                                           "events": [{"year": 2000, "label": "Surveys begin", "at": "surveyed"}, {"year": 2018, "label": "Last one: August 2018", "at": "August"}],
+                                           "events": [{"year": 2000, "label": "Surveys begin", "at": "surveyed"}, {"year": 2018, "label": "None after August 2018", "at": "August"}],
                                            "band": {"from": 2018.6, "to": 2026, "label": "none recorded"}}))
 S(2, tpl("BarCompare", backdrop="ocean", heading="Great white sightings", kicker="SHARK SPOTTERS, CAPE TOWN BEACHES",
          bars=[{"label": "2011", "value": 300, "display": "More than 300", "at": "logged"}, {"label": "2019", "value": 0, "display": "None", "at": "none"}]))
@@ -396,7 +396,7 @@ S(1, sea(seal(0.08, 0.3, 0.4, detail={"rest": True}), seal(0.2, 0.28, 0.36, deta
          seal(0.43, 0.3, 0.34, detail={"rest": True}, flip=True), seal(0.53, 0.3, 0.3, detail={"rest": True, "pup": True}),
          seal(0.72, 0.6, 0.42, to=[0.86, 0.56]), seal(0.62, 0.8, 0.4, to=[0.48, 0.76]), seal(0.9, 0.82, 0.36, to=[0.74, 0.86]),
          split={"y": 0.42, "land": "rocks", "landWidth": 0.62, "sky": "polar", "floes": False},
-         heading="Cape fur seal sightings", bigText="× 6", bigAt="six", bigColor="#e6edf2"))
+         heading="Cape fur seal sightings", bigText="ABOUT 6×", bigAt="six", bigColor="#e6edf2"))
 S(1, tpl("SourceList", backdrop="ocean", tag="Knock-on effects", tagNote="False Bay",
          rows=[{"title": "More fur seals", "source": "the fish they eat became harder to find", "at": "fish"},
                {"title": "More sevengill sharks", "source": "the small sharks they hunt became harder to find", "at": "small"}]))
