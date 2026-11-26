@@ -11,8 +11,15 @@ visuals, music and sound. The sea-lion / leopard-seal project is only a test exa
 look from the topic (`ytauto plan --style auto`): `ocean` for sea animals the toolkit can animate in 3D,
 `nature` for other animals, `documentary` for history, science, places and what-ifs.
 
-**The video is an animated 3D documentary.** Animated 3D/drawn scenes, close-ups, maps and data graphics carry
-it. Stock video and photos (b-roll) are an extra, used only where the creator's script asks for them.
+**Every video is built in 3D, whatever it is about.** The subject is shown as a 3D model: `visual: {model:
+"<subject>", props: {shot, callout, callouts, heading}}` finds a free-licence model (Smithsonian, Poly Haven,
+Wikimedia Commons, Sketchfab with a token), Blender renders it, and the scene moves the camera around it
+(`shot: turn | push | left | right | top | base`) and labels it (`callouts`). Built-in animals are animated 3D
+scenes (`OceanScene`, `Anatomy`). When no model exists, build the scene as a 3D motion graphic with the kit:
+`KineticText` (3D type), `StatCards` (`center: true`), `Counter`, `DotGrid`, `DateStamp`, `MapScene`, `Globe`,
+`BarCompare`, `Quote`, `BulletList`, `ClipCard`. Use the whole kit: pick the graphic the line calls for, give
+every scene motion, and never leave a plain text card where a model or a graphic would show the thing itself.
+Stock video and photos (b-roll) are an extra, used only where the creator's script asks for them.
 
 Read `agent/SKILL.md` before you start. It holds the full technical reference: the software stack, every
 template and prop, the voice direction tags, the music and sound rules, and the commands. Follow it exactly.
@@ -37,6 +44,10 @@ else and follow them exactly:
 
 - `Intro: 4` → `intro: 4` in script.yaml: seconds of music and picture before the first word (default 4).
   Lines right under it are the opening's own pictures.
+- `3D: …` after a paragraph → a 3D model for THAT scene (`model: "<those words>"`); at the very top of the
+  script it names the model the whole video is built around.
+- `B-roll: …` → a clip when the scene is about movement, a photo when it is a still subject, a mix across the
+  video; `Video: …` / `Photo: …` force one kind.
 - `B-roll: …`, `Video: …`, `Photo: …` after a paragraph → stock footage for THAT scene, searched with THOSE words
   (`|` = alternatives in order), checked against them or against a `Details:` line / the text after `->`.
 - **Never choose b-roll search words yourself, and never add stock footage to a scene the script didn't mark.**

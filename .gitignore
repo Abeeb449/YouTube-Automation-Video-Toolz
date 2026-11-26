@@ -9,3 +9,6 @@ client_secret*.json
 /.cache/
 remotion/public/ytauto/
 remotion/public/sprites/*/*.tmp/
+
+# 3D model sprite sets are rendered per project (kept in the project's .cache between runs)
+remotion/public/sprites/model-*/

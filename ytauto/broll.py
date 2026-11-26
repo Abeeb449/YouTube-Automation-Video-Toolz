@@ -21,7 +21,7 @@ from .utils import log, warn
 
 
 def _asks_stock(spec) -> bool:
-    return bool(re.search(r'"stock"\s*:|"(?:stock|pexels|pixabay|pexels-photo|photo):', json.dumps(spec, default=str))
+    return bool(re.search(r'"stock"\s*:|"model"\s*:|"(?:stock|pexels|pixabay|pexels-photo|photo):', json.dumps(spec, default=str))
                 or (isinstance(spec, str) and spec.split(":")[0] in ("stock", "pexels", "pixabay")))
 
 
@@ -30,6 +30,8 @@ def _first_request(spec) -> tuple[str, str, str | None]:
     if isinstance(spec, str):
         return "video", spec.split(":", 1)[-1], None
     if isinstance(spec, dict):
+        if "model" in spec:
+            return "3D model", str(spec["model"]), None
         if "stock" in spec:
             fb = spec.get("fallback_visual")
             either = isinstance(fb, dict) and fb.get("remotion") == "PhotoStory"
@@ -61,9 +63,10 @@ def collect_broll(project: Project, refresh: bool = False) -> dict:
         (sc, vi, spec) for sc in project.scenes for vi, spec in enumerate(sc.visuals))]
     asked = [t for t in todo if _asks_stock(t[2])]
     if not asked:
-        log("   no b-roll requested in this script: nothing to collect")
+        log("   no 3D models or b-roll requested in this script: nothing to collect")
         return {"requested": 0, "found": 0, "items": []}
-    log(f"   {len(asked)} scene shot(s) ask for b-roll: searching, checking and downloading them now")
+    log(f"   {len(asked)} scene shot(s) need outside material (3D models, b-roll): finding, checking and "
+        "preparing it now")
     for sc, vi, spec, seq in asked:
         mark = len(stock._requests)
         try:
@@ -131,7 +134,12 @@ def _sheet(data: dict, out: Path, cols: int = 4) -> None:
             p = Path(f["path"])
             if not p.exists():
                 continue
-            if p.suffix.lower() in (".mp4", ".mov", ".webm"):
+            if f.get("kind") == "model":
+                rgba = Image.open(p).convert("RGBA")
+                im = Image.new("RGB", rgba.size, (14, 22, 34))
+                im.paste(rgba, (0, 0), rgba)
+                tag = "3D MODEL"
+            elif p.suffix.lower() in (".mp4", ".mov", ".webm"):
                 frame = out.parent / ".sheet_broll.jpg"
                 subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", "1", "-i", str(p), "-frames:v", "1", str(frame)], check=False)
                 if not frame.exists():

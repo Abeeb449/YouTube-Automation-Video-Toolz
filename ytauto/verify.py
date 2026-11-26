@@ -415,3 +415,35 @@ def check_video(clip: Path, query: str, cache: Path, wanted: str | None = None) 
             return True, f"{want:.0f}s of checked footage from {start:.0f}s ({len(oks)} of {n} scan frames good)"
         last = bad["reason"] if bad else "no frame"
     return False, f"no {want:.0f}s stretch shows the subject throughout ({last})"
+
+
+MODEL_BASE = ["a 3D model", "a 3D render of an object", "an object", "a picture"]
+MODEL_MIN = 0.04     # calibrated: the right model >= 0.07 over the baseline, a different object <= 0.03
+
+
+def check_model(frame: Path, query: str, cache: Path) -> tuple[bool, str]:
+    """Is this rendered 3D model the thing that was searched for? (A library title can match by accident:
+    a "Moon boot" for "Moon".) The render must fit "a 3D model of <query>" clearly better than "a 3D model"."""
+    if not enabled():
+        return True, "check off"
+    global _disabled_reason
+    from PIL import Image
+    try:
+        im = Image.open(frame).convert("RGBA")
+        box = im.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox() or (0, 0, im.width, im.height)
+        flat = Image.new("RGB", im.size, (120, 124, 130))
+        flat.paste(im, (0, 0), im)
+        flat = flat.crop((max(0, box[0] - 40), max(0, box[1] - 40), min(im.width, box[2] + 40), min(im.height, box[3] + 40)))
+        tmp = cache / "models" / f"check_{stable_hash(str(frame), query)}.jpg"
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        flat.save(tmp, quality=90)
+        res = _clip().run({"images": [str(tmp)], "texts": [f"a 3D model of {query}", *MODEL_BASE]})
+    except Exception as exc:  # noqa: BLE001
+        _disabled_reason = str(exc)
+        warn(f"3D model check unavailable ({exc})")
+        return True, "check unavailable"
+    sims = res["sims"][0]
+    margin = sims[0] - max(sims[1:])
+    return margin >= MODEL_MIN, (f"matches ({margin:+.3f})" if margin >= MODEL_MIN else
+                                 f"doesn't look like '{query}' (fits it only {margin:+.3f} better than any 3D model)")
+

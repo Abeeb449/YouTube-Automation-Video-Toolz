@@ -72,6 +72,8 @@ export const Counter: React.FC<CounterProps> = (p) => {
 export type StatCardsProps = DocuProps & {
   cards: {label: string; value: string; bar?: number; at?: number}[];
   stamp?: {text: string; at?: number; color?: string};
+  /** Big centred cards in 3D, for a shot that is only the figures (what the planner uses). */
+  center?: boolean;
 };
 
 export const StatCards: React.FC<StatCardsProps> = (p) => {
@@ -80,18 +82,26 @@ export const StatCards: React.FC<StatCardsProps> = (p) => {
   const sa = st ? (st.at ?? dur * 0.6) : 0;
   const sp = st ? interpolate(t, [sa, sa + 0.18, sa + 0.3], [0, 1.08, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}) : 0;
   const shake = st && t > sa && t < sa + 0.3 ? Math.sin(t * 90) * 6 * s : 0;
+  // `center`: the cards ARE the shot (nothing behind them): big, centred, swinging in in 3D
+  const big = !!p.center;
   return (
     <DocuFrame {...p}>
       <AbsoluteFill style={{transform: `translateX(${shake}px)`}}>
-        <div style={{position: 'absolute', left: 110 * s, top: 280 * s, display: 'flex', flexDirection: 'column', gap: 22 * s}}>
+        <div style={big
+          ? {position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', justifyContent: 'center', gap: 44 * s, perspective: 1400 * s}
+          : {position: 'absolute', left: 110 * s, top: 280 * s, display: 'flex', flexDirection: 'column', gap: 22 * s}}>
           {p.cards.map((c, i) => {
             const at = c.at ?? stagger(i, p.cards.length, dur, 0.5, 0.5);
             const bp = prog(t, at + 0.2, 0.9);
+            const tilt = big ? (1 - prog(t, at, 0.7)) * -38 + Math.sin(t * 0.6 + i) * 2.5 : 0;   // cards swing in, then breathe
             return (
               <Reveal key={i} at={at}>
-                <div style={{background: C.panel, borderLeft: `${3 * s}px solid ${C.faint}`, padding: `${14 * s}px ${22 * s}px`, width: 420 * s}}>
-                  <div style={{fontSize: 20 * s, color: C.dim, letterSpacing: 2 * s, textTransform: 'uppercase'}}>{c.label}</div>
-                  <div style={{fontFamily: F.mono, fontSize: 34.0 * s, marginTop: 4 * s}}>{c.value}</div>
+                <div style={big
+                  ? {background: C.panel, borderTop: `${4 * s}px solid ${C.red}`, padding: `${34 * s}px ${44 * s}px`, minWidth: 380 * s, textAlign: 'center',
+                     transform: `rotateY(${tilt}deg)`, boxShadow: `0 ${24 * s}px ${60 * s}px rgba(0,0,0,0.45)`}
+                  : {background: C.panel, borderLeft: `${3 * s}px solid ${C.faint}`, padding: `${14 * s}px ${22 * s}px`, width: 420 * s}}>
+                  <div style={{fontSize: (big ? 26 : 20) * s, color: C.dim, letterSpacing: 2 * s, textTransform: 'uppercase'}}>{c.label}</div>
+                  <div style={{fontFamily: big ? undefined : F.mono, fontWeight: big ? 800 : undefined, fontSize: (big ? 120 : 34) * s, marginTop: (big ? 10 : 4) * s, lineHeight: 1.05}}>{c.value}</div>
                   {c.bar !== undefined ? <div style={{height: 3 * s, width: `${c.bar * 100 * bp}%`, background: C.red, marginTop: 8 * s}} /> : null}
                 </div>
               </Reveal>

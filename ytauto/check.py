@@ -93,6 +93,8 @@ def _kind(v) -> tuple[str, list]:
         if name == "PhotoStory" and all(str(ph.get("photo", "")).startswith("stock:") for ph in props.get("photos") or [{}]):
             return "PhotoStory(stock)", cards
         return name, cards
+    if "model" in v:
+        return "3D model", cards
     if "stock" in v or "url" in v:
         return "stock", cards
     for k in ("blender", "image", "video"):

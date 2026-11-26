@@ -32,10 +32,18 @@ export const Anatomy: React.FC<AnatomyProps> = (p) => {
   const meta = p.sprite ? p.sprites?.[p.sprite.creature]?.[p.sprite.view] : undefined;
   // subject box: the visible animal fills ~78% of the frame width, centred slightly left of the callouts
   let file: string | null = null;
+  let file2: string | null = null, mix = 0;      // next frame + how far we are into it (blended turns)
   let iw = 1, ih = 1, bx0 = 0, by0 = 0, bx1 = 1, by1 = 1;
   if (meta) {
     iw = meta.w; ih = meta.h; [bx0, by0, bx1, by1] = meta.bbox;
     file = `sprites/${p.sprite!.creature}/${p.sprite!.view}/${String(p.sprite!.hold ? meta.frames : spriteFrame(meta, t - 0.2)).padStart(4, '0')}.webp`;
+    if (meta.blend && meta.loop !== false && !p.sprite!.hold && meta.frames > 1) {
+      const pos = Math.max(0, t) * meta.fps;
+      const a = Math.floor(pos) % meta.frames, b = (a + 1) % meta.frames;
+      mix = pos - Math.floor(pos);
+      file = `sprites/${p.sprite!.creature}/${p.sprite!.view}/${String(a + 1).padStart(4, '0')}.webp`;
+      file2 = `sprites/${p.sprite!.creature}/${p.sprite!.view}/${String(b + 1).padStart(4, '0')}.webp`;
+    }
   } else if (p.image) {
     file = p.image;
   }
@@ -72,6 +80,10 @@ export const Anatomy: React.FC<AnatomyProps> = (p) => {
           <Img src={staticFile(file)} style={{position: 'absolute', left, top, width: dw, height: dh, opacity: enter,
             transform: `${p.flip ? 'scaleX(-1) ' : ''}translateX(${(1 - enter) * -40 * s}px)`,
             filter: `drop-shadow(0 ${20 * s}px ${40 * s}px rgba(0,0,0,0.45))`}} />
+        ) : null}
+        {file2 ? (
+          <Img src={staticFile(file2)} style={{position: 'absolute', left, top, width: dw, height: dh, opacity: enter * mix,
+            transform: `${p.flip ? 'scaleX(-1) ' : ''}translateX(${(1 - enter) * -40 * s}px)`}} />
         ) : null}
         {/* callout anchors + leader lines live in the zoomed space so they stay glued to the animal */}
         <svg width={width} height={height} style={{position: 'absolute', inset: 0, overflow: 'visible'}}>

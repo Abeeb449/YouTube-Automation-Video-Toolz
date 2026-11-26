@@ -222,6 +222,20 @@ class ClipRenderer:
             ext = Path(url.split("?")[0]).suffix.lower() or ".bin"
             local = download(url, self.cache / "downloads" / f"{stable_hash(url)}{ext}")
             spec["image" if ext in IMAGE_EXT else "video"] = str(local)
+        if "model" in spec:
+            # a 3D model of the subject (free-licence library or the creator's own file) → the 3D shot that shows it
+            from .models3d import model_shot
+            try:
+                shot = model_shot(spec, self.p, seq)
+                if isinstance(spec.get("fallback_visual"), (dict, str)):
+                    shot["fallback_visual"] = spec["fallback_visual"]
+                return shot
+            except Exception as exc:  # noqa: BLE001
+                fb = spec.get("fallback_visual")
+                if isinstance(fb, (dict, str)):
+                    warn(f"3D model '{spec['model']}': {str(exc)[:220]}. Using the fallback visual instead.")
+                    return self._resolve_sources(normalize_spec(fb), seq)
+                raise YtautoError(f"3D model '{spec['model']}': {exc}") from exc
         if "stock" in spec:
             query = spec.pop("stock")
             kind = "image" if spec.pop("type", "video") in ("photo", "image") else "video"

@@ -12,6 +12,9 @@ Directions are short labelled lines; they are never read aloud:
     Video: leopard seal swimming underwater                        a video clip only
     Photo: fur seal pups on a rocky beach -> a colony of fur seals with pups on rocks
                                                                    search words -> what the picture must show
+    3D: Apollo 11 command module                                   a 3D model for this scene (free-licence
+                                                                   libraries, or your own file: 3D: assets/x.glb)
+    (a "3D:" line at the very top, before any narration, names the model the whole video is built around)
 
     Sources: Author (year), Journal; another source
 
@@ -29,7 +32,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-_KIND = r"(?:b[\s-]?roll|stock|footage|videos?|clips?|photos?|images?|pictures?|pics?)"
+_KIND = r"(?:b[\s-]?roll|stock|footage|videos?|clips?|photos?|images?|pictures?|pics?|3[\s-]?d(?:\s+models?)?|models?)"
 BROLL_LINE = re.compile(
     rf"^\s*[\[(]?\s*(?P<label>{_KIND}(?:\s+{_KIND})?(?:\s+(?:search(?:\s+(?:terms?|words?))?|keywords?|terms?))?"
     r"|search(?:\s+(?:terms?|words?))?|keywords?)"
@@ -38,7 +41,7 @@ BROLL_INLINE = re.compile(rf"\[\s*(?P<label>{_KIND}(?:\s+{_KIND})?)\s*[:=]\s*(?P
 DETAIL_LINE = re.compile(r"^\s*[\[(]?\s*(?:details?|shows?|must\s+show|should\s+show|description|check)\s*[:=]\s*(.+?)\s*[\])]?\s*$", re.I)
 INTRO_LINE = re.compile(r"^\s*[\[(]?\s*(?:music\s+)?(?:intro|opening|cold\s+open)(?:\s+music)?\s*[:=]?\s*"
                         r"(?P<v>\d[\d:.]*\s*(?:s|secs?|seconds?|m|mins?|minutes?)?(?:\s+of\b[^\])]*)?)\s*[\])]?\s*$", re.I)
-NOTE_LINE = re.compile(r"^\s*[\[(]?\s*(?:visuals?|on[\s-]?screen|notes?|direction|shot|animation|graphic|3d)\s*[:=]\s*(.+?)\s*[\])]?\s*$", re.I)
+NOTE_LINE = re.compile(r"^\s*[\[(]?\s*(?:visuals?|on[\s-]?screen|notes?|direction|shot|animation|graphic)\s*[:=]\s*(.+?)\s*[\])]?\s*$", re.I)
 SOURCES_LINE = re.compile(r"^\s*sources?\s*:\s*(.+)$", re.I)
 SUBJECT_LINE = re.compile(r"^\s*subject\s*:\s*(.+)$", re.I)
 SCENE_LABEL = re.compile(r"^\s*(?:scene|shot|part)\s*\d+\s*[:.\-–—]?\s*$", re.I)        # a bare "Scene 3" line
@@ -47,7 +50,7 @@ SPOKEN_PREFIX = re.compile(r"^\s*(?:(?:scene|shot)\s*\d+\s*[:.\-–—]\s*)?(?:n
 
 @dataclass
 class Broll:
-    kind: str                 # "video" | "photo" | "either" (video first, photo if no clip passes the check)
+    kind: str                 # "video" | "photo" | "either" (a clip or a photo, whichever suits the scene) | "model" (3D)
     search: str               # the creator's search words; alternatives joined with "|"
     detail: str | None = None  # what the picture must show (checked); None = the search words themselves
 
@@ -66,6 +69,7 @@ class Script:
     subject: str | None = None
     intro: str | None = None                      # as written ("30", "0:30"); None = not stated
     intro_broll: list[Broll] = field(default_factory=list)
+    subject_model: str | None = None              # "3D: …" written before the first paragraph: the video's own 3D model
     paras: list[Para] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
     trailing_chapter: str | None = None
@@ -88,7 +92,8 @@ class Script:
 
 def _broll(label: str, body: str) -> Broll:
     lab = label.lower()
-    kind = ("video" if re.search(r"video|clip|footage", lab) else
+    kind = ("model" if re.search(r"3[\s-]?d|model", lab) else
+            "video" if re.search(r"video|clip|footage", lab) else
             "photo" if re.search(r"photo|image|picture|pic", lab) else "either")
     detail = None
     m = re.split(r"\s*(?:->|=>|→|⇒)\s*", body, maxsplit=1)
@@ -125,6 +130,8 @@ def parse_script(raw: str) -> Script:
             flush()
         if sc.paras:
             sc.paras[-1].broll.append(b)
+        elif b.kind == "model" and not after_intro:
+            sc.subject_model = b.search       # before any narration: the 3D model the whole video is built around
         elif after_intro:
             sc.intro_broll.append(b)
         else:

@@ -360,6 +360,14 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
     weak = style not in ("nature", "ocean") and not any(
         w in body_low for w in re.findall(r"[a-z]{4,}", (subject or "").lower()) if w not in _STOPW)
     local_subject, local_q = subject, topic_q
+    # The subject in 3D: the creator's "3D: …" line at the top of the script, else the video's own topic. Found in
+    # free-licence model libraries at collection time; "3D: none" turns it off.
+    model_q = ps.subject_model or (topic_q if style != "ocean" else None)
+    if model_q and model_q.strip().lower() in ("none", "off", "no"):
+        model_q = None
+    local_model = None
+    seen = {"countries": set()}
+    chap_no = 0
     for bi, block in enumerate(blocks):
         para = para_of.get(bi)
         if block.startswith("#"):
@@ -371,13 +379,16 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             numbered = re.match(num_re, chapter, re.I)
             head = re.sub(num_re, "", chapter, flags=re.I)
             head = re.sub(r"^(?:the|a|an)\s+", "", head, flags=re.I).strip(" .:!?")
-            if style not in ("nature", "ocean") and head and bi > 0 and (numbered or weak):
+            is_title = chapter == (ps.title or "")       # the first heading is the video's title, not a list item
+            if style not in ("nature", "ocean") and head and not is_title and (numbered or weak):
                 if weak or subject.lower() in head.lower():
                     local_subject = local_q = head          # a list video: each item is its own subject
+                    local_model = head
                 else:
                     local_subject = local_q = f"{subject} {head}"   # steps of one thing: 'Sourdough starter'
-            elif bi > 0:
+            elif not is_title:
                 local_subject, local_q = subject, topic_q
+                local_model = None
             if not rest:
                 continue
             block = rest
@@ -407,6 +418,13 @@ def plan_with_rules(script: str, style: str, title: str | None, fmt: str = "vide
             # every scene's words and emotion at render time; write mood:/sfx: by hand only to override it
             sc["text"] = beat
             vis = _rule_visual(beat, style, main, n, local_subject, local_q)
+            if style != "ocean":
+                vis = _enrich(vis, beat, n, seen)
+            if model_q and style != "ocean" and n % 3 != 0:     # two beats in three: the subject in 3D; the third stays a graphic
+                vis = _subject_3d(vis, local_model or model_q, beat, n)
+            if "chapter" in sc and style != "ocean":
+                chap_no += 1
+                vis = _chapter_mark(vis, sc["chapter"], chap_no if chap_no > 1 else None)
             if items:
                 vis = _with_script_broll(vis, items, n, beat)
             sc["visuals" if isinstance(vis, list) else "visual"] = vis
@@ -447,6 +465,130 @@ _STILL = re.compile(r"\b(portraits?|close-?ups?|photo(?:graph)?s?|pictures?|pain
                     r"monuments?|historic\w*|archiv\w*|vintage|1[0-8]\d\d|19[0-4]\d|faces?|eyes?|teeth|details?|"
                     r"textures?|landscapes?|skyline|interior|exterior|logo|model|diagram)\b", re.I)
 _broll_mix = {"video": 0, "photo": 0}
+_SHOTS = ["turn", "push", "left", "top", "right", "base"]      # camera moves around a 3D model, varied shot to shot
+
+
+def _key_phrase(beat: str) -> str:
+    """The few words of a line that a 3D shot carries as its caption: its shortest full sentence, else its first clause."""
+    sents = [x.strip().rstrip(".!") for x in re.split(r"(?<=[.!?])\s+", strip_tags(beat)) if x.strip()]
+    short = sorted((x for x in sents if 2 <= len(x.split()) <= 9), key=len)
+    if short:
+        return short[0]
+    clause = re.split(r"[,;:—–]", sents[0] if sents else beat)[0].strip()
+    return clause if len(clause) <= 64 else clause[:64].rsplit(" ", 1)[0] + "…"
+
+
+def strip_tags(text: str) -> str:
+    return re.sub(r"\[[^\]]*\]", " ", text)
+
+
+# Countries the map template can frame by name (remotion/src/docu/geo.ts)
+def _countries() -> set[str]:
+    skip = {"Africa", "Asia", "Europe", "America", "Antarctica", "Oceania", "Britain", "USA", "UK", "England", "Scotland",
+            "Wales", "Korea", "Soviet", "Russian", "American", "British", "French", "German", "Chinese", "Japanese",
+            "Italian", "Spanish", "European", "African", "Asian", "Danish", "Swedish", "Norwegian", "Dutch", "Indian",
+            "Mexican", "Brazilian", "Canadian", "Australian", "Korean", "Egyptian", "Greek", "Turkish", "Irish",
+            "Scottish", "Soviet Union", "North America", "South America", "Atlantic", "Pacific", "Indian Ocean",
+            "Atlantic Ocean", "Pacific Ocean", "Arctic", "Mediterranean"}
+    return {c for c in _BROAD_PLACES if c not in skip}
+
+
+_PLAIN = ("KineticText",)
+
+
+def _is_plain(v) -> bool:
+    """A filler text card (not a punch line, not a graphic that shows something)."""
+    return isinstance(v, dict) and not v.get("broll") and (
+        v.get("remotion") in _PLAIN or (v.get("remotion") == "Statement" and "at" not in (v.get("props") or {})))
+
+
+def _enrich(vis, beat: str, n: int, seen: dict):
+    """Use the whole motion-graphics kit where the line itself calls for it:
+      several figures in one line        → StatCards (one card per figure, each landing on its spoken word)
+      a country named for the first time → MapScene framed on it, before the line's own shot
+      words in quotation marks           → Quote
+      a list after a colon               → BulletList
+    A graphic only replaces a plain text card or joins the line's shot; it never pushes out b-roll or a 3D shot."""
+    shots = list(vis) if isinstance(vis, list) else [vis]
+    numeric = words_to_digits(strip_tags(beat))
+
+    # 1) several figures → stat cards
+    figs = [m for m in NUMBER.finditer(numeric)
+            if not re.match(r"\s*(?:later|ago|after|before|earlier|on|afterwards)\b", numeric[m.end():], re.I)]
+    if len(figs) >= 2 and not DATE.search(numeric):
+        cards = []
+        for m in figs[:3]:
+            val = _num(m.group(1))
+            cv = _counter_value(val, numeric[:m.start()])
+            num = f"{cv.get('prefix', '')}{cv['to']:,.{cv.get('decimals', 0)}f}{cv.get('suffix', '')}"
+            tail = re.match(r"\s+(long|wide|tall|high|deep|thick|across|a day|a year|an hour|per second|per hour|old)\b", numeric[m.end():], re.I)
+            cards.append({"value": num, "label": (m.group(2) + (" " + tail.group(1) if tail else "")).upper(),
+                          "at": _spoken(beat, m.group(1))})
+        card = {"remotion": "StatCards", "props": {"cards": cards, "center": True}}
+        kept = [v for v in shots if not (isinstance(v, dict) and v.get("remotion") in ("Counter", "DotGrid"))]
+        shots = (kept if any(not _is_plain(v) for v in kept) else []) + [card]
+
+    # 2) quoted words → a quote card in place of a plain text card
+    q = re.search(r"[“\"]([^”\"]{18,170})[”\"]", beat)
+    if q and any(_is_plain(v) for v in shots):
+        who = re.search(r"(?:said|wrote|recalled|warned|called it|according to|told)\s+((?:[A-Z][\w'-]+\s?){1,3})", beat)
+        qc = {"remotion": "Quote", "props": {"quote": q.group(1).strip(), **({"author": who.group(1).strip()} if who else {})}}
+        shots = [qc if _is_plain(v) else v for v in shots]
+
+    # 3) a list after a colon → a list card in place of a plain text card
+    lm = re.search(r"([^.:!?]{8,60}):\s*((?:[^,.;:!?]{2,40},\s*){2,5}(?:and\s+)?[^,.;:!?]{2,60})[.!?]", beat)
+    if lm and any(_is_plain(v) for v in shots):
+        items = [re.sub(r"^and\s+", "", x.strip()) for x in lm.group(2).split(",") if x.strip()]
+        if 3 <= len(items) <= 6 and all(len(x.split()) <= 7 for x in items):
+            bl = {"remotion": "BulletList", "props": {"title": lm.group(1).strip().capitalize(), "items": [x[0].upper() + x[1:] for x in items]}}
+            shots = [bl if _is_plain(v) else v for v in shots]
+
+    # 4) a country named for the first time → a map framed on it, then the line's own shot
+    for e in _entities(beat):
+        if e in _countries() and e not in seen["countries"] and len(shots) < 3:
+            seen["countries"].add(e)
+            mp = {"remotion": "MapScene", "props": {"focus": [e], "highlight": [e], "title": e, "zoom": 1.06,
+                                                    "pulses": [], "countryLabels": [e]}}
+            shots = [mp] + [v for v in shots if not _is_plain(v)] if any(not _is_plain(v) for v in shots) else [mp]
+            break
+    return shots if len(shots) > 1 else shots[0]
+
+
+def _chapter_mark(vis, chapter: str, number: int | None):
+    """A new chapter is announced on its first shot (heading, and "CHAPTER n" above it) where the shot can carry it."""
+    shots = list(vis) if isinstance(vis, list) else [vis]
+    v = shots[0]
+    if isinstance(v, dict) and not v.get("broll") and (
+            "model" in v or v.get("remotion") in ("StatCards", "MapScene", "DotGrid", "Anatomy")):
+        props = dict(v.get("props") or {})
+        if not props.get("heading") and not props.get("title"):
+            props["heading"] = chapter[:48]
+            if number:
+                props["kicker"] = f"CHAPTER {number}"
+            shots[0] = {**v, "props": props}
+    return shots if isinstance(vis, list) else shots[0]
+
+
+def _subject_3d(vis, model_q: str, beat: str, n: int):
+    """The video's subject in 3D is the base shot: where a beat would only have a plain text card, show the 3D
+    model with the line's key words instead (the text card stays as the fallback when no model exists)."""
+    def swap(v):
+        if not isinstance(v, dict) or v.get("broll"):
+            return v
+        plain = v.get("remotion") == "KineticText" or (
+            v.get("remotion") == "Statement" and "at" not in (v.get("props") or {}))   # the filler card, not a punch line
+        if not plain:
+            return v
+        return {"model": model_q, "props": {"shot": _SHOTS[n % len(_SHOTS)], "callout": _key_phrase(beat),
+                                            "calloutAt": _first_word(_key_phrase(beat))},
+                "fallback_visual": v}
+    out = [swap(v) for v in vis] if isinstance(vis, list) else swap(vis)
+    # a line that is only a number graphic: show the subject first, then the figure as it is said
+    if isinstance(out, dict) and out.get("remotion") in ("Counter", "DotGrid", "StatCards") and n % 2 == 0:
+        return [{"model": model_q, "props": {"shot": _SHOTS[n % len(_SHOTS)], "callout": _key_phrase(beat),
+                                             "calloutAt": _first_word(_key_phrase(beat))},
+                 "fallback_visual": {"remotion": "KineticText", "props": {}}}, out]
+    return out
 
 
 def _broll_first(item, beat: str) -> str:
@@ -466,6 +608,9 @@ def _broll_visual(item, drawn: dict, n: int, beat: str = "") -> dict:
     "Photo:" ask for that kind only. The scene's own drawn/3D shot is always the last fallback."""
     check = item.detail or None
     vcheck = {"verify": check} if check else {}
+    if item.kind == "model":       # "3D: …" → a 3D model shot (free-licence library or the creator's own file)
+        return {"model": item.search, "props": {"shot": _SHOTS[n % len(_SHOTS)], **({"callout": item.detail[:60]} if item.detail else {})},
+                "fallback_visual": drawn, "broll": "script"}
     if item.kind == "photo":
         v = _photo(item.search, drawn, n=n, verify=check)
         first = "photo"

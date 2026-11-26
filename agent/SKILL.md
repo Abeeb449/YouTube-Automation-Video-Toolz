@@ -195,6 +195,7 @@ when a scene has two ideas (the teeth, then the krill).
 | `Horizon` | `mood: dusk\|night\|grey, title, subtitle, events: [{type: flash\|fireball\|shockwave\|mushroom\|sun, at}]` |
 | `Equation`, `Clock`, `SplitCompare`, `Radius` | Maths steps, doomsday clock, side by side, impact rings |
 | `TitleCard`, `KineticText`, `BulletList`, `BigNumber`, `Quote` | General templates |
+| `model: "<search words>"` (a visual, not a template) | A 3D model of the subject from free-licence libraries, or `model: assets/x.glb`. `props: {shot: turn\|push\|left\|right\|top\|base, callout, calloutAt, callouts: [{x, y, label, at}], heading, kicker, backdrop, tint, front}`. Always give a `fallback_visual`. |
 
 All of them also take `heading`, `subheading`, `kicker`, `callout`, `calloutAt`, `source`, `hud`, `stats`,
 `footage`.

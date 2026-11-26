@@ -38,6 +38,7 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    |---|---|---|
    | `UNSPLASH_ACCESS_KEY` | free high-quality photos (Unsplash License, commercial use OK) | https://unsplash.com/developers → New Application → *Access Key* |
    | `PIXABAY_API_KEY` | free stock videos/photos | https://pixabay.com/api/docs/ (log in, the key is shown on that page) |
+   | `SKETCHFAB_TOKEN` | optional: many more free 3D models (CC0 / CC BY) for the 3D shots | https://sketchfab.com/settings/password (free account → *API token*) |
    | `PEXELS_API_KEY` | optional second stock source, if you already have a key | https://www.pexels.com/api/ |
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
 
@@ -110,12 +111,23 @@ Sources: Krause et al. (2020); Muir, Barnes & Reid (2006)
 | Line | What it does |
 |---|---|
 | `Intro: 4` | Seconds of music and picture before the narrator's first word (`0:04` also works). Default 4; `Intro: 0` starts straight away. Lines right under it are the opening's own pictures; without any, the opening shot holds. |
-| `B-roll: <search words>` | Stock footage for the paragraph above: a video clip if one passes the check, else a photo. |
+| `3D: <search words>` | A 3D model for the paragraph above, from free-licence model libraries (or your own file: `3D: assets/x.glb`). Written at the very top, before any narration, it names the model the whole video is built around. `3D: none` turns the automatic one off. |
+| `B-roll: <search words>` | Stock footage for the paragraph above: a clip when the words or the line describe movement, a photo when they describe a still subject, a mix of both across the video. Each falls back to the other kind. |
 | `Video: …` / `Photo: …` | The same, but only a clip / only a photo. |
 | `a \| b` | Alternatives, tried in order (most exact first). |
 | `Details: …` or `search -> must show` | What the picture has to show. Without it, the search words are what is checked. |
 | `Visual: …`, `Note: …` | Kept as a note on the scene. Not narrated. |
 | `Sources: …` | Listed in the description. Not narrated. |
+
+**The video is built in 3D; b-roll is an extra.** Whatever the video is about is shown as a 3D model when a
+free-licence one exists: the toolkit looks for the video's subject (or the words of your `3D:` line) in Smithsonian
+Open Access 3D (CC0), Poly Haven (CC0), Wikimedia Commons, and Sketchfab if you add a free account token as
+`SKETCHFAB_TOKEN`. Blender lights it and renders it turning (`blender/model3d.py`); scenes then push in, move
+around it and label it. A model is used only if its own title names the subject and the render passes a check that
+it looks like it; its credit goes in the description. Animals the toolkit models itself (seals, sea lions, whales,
+squid, sharks, penguins…) are animated 3D scenes. Where no model exists, the scene is a 3D motion graphic: kinetic
+type in a 3D space, stat cards, counters, date cards, maps, quote and list cards, each chosen from what the line
+itself says (several figures → stat cards, a country → a map, quoted words → a quote card, a list → a list card).
 
 **B-roll comes from your script, never from guesses.** Stock video and photos are used only where the script asks
 for them, with exactly the search words you wrote. Every other scene is an animated 3D/drawn scene or a graphic

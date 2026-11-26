@@ -47,7 +47,9 @@ export type Actor = {
   ring?: {at?: number; x?: number; y?: number; r?: number; local?: [number, number]};
 };
 
-export type SpriteMeta = {frames: number; w: number; h: number; bbox: [number, number, number, number]; fps: number; loop?: boolean};
+export type SpriteMeta = {frames: number; w: number; h: number; bbox: [number, number, number, number]; fps: number; loop?: boolean;
+  /** Cross-fade neighbouring frames (slow turning 3D models rendered at a low frame rate). */
+  blend?: boolean};
 export type SpriteManifest = Record<string, Record<string, SpriteMeta>>;
 
 export type OceanSceneProps = DocuProps & {
