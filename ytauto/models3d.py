@@ -302,7 +302,7 @@ def render_model(model: Path, key: str, tint: str | None = None, front: float = 
     if not blender:
         raise YtautoError("Blender is needed to render 3D models")
     out = sprite_dir(key)
-    tmp = out.with_name("orbit.tmp")
+    tmp = out.with_name(f"orbit.{os.getpid()}.tmp")      # own folder: two renders of one model never share frames
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
     log(f"Rendering 3D model {model.name} ({FRAMES} frames) with Blender …")
@@ -456,11 +456,10 @@ def model_shot(spec: dict, project, seq: int = 0) -> dict:
     else:
         got = find_model(src, project.cache_dir)
         key, meta = got["key"], got["meta"]
-        # the maker of every library model is named on screen (also public-domain ones); the channel's own
-        # hand-built models carry no credit
-        if got["credit"]["code"] != "own" and not props.get("source"):
-            lic = {"cc0": "CC0 (public domain)", "pdm": "public domain", "by": "CC BY", "by-sa": "CC BY-SA"}.get(
-                got["credit"]["code"], got["credit"]["license"])
+        # every credit goes in the description; on screen, a small line only where the licence requires
+        # attribution (CC BY). Public-domain models and the channel's own hand-built ones show none
+        if got["credit"]["code"] not in (*stock.NO_CREDIT_NEEDED, "own") and not props.get("source"):
+            lic = {"by": "CC BY", "by-sa": "CC BY-SA"}.get(got["credit"]["code"], got["credit"]["license"])
             props["source"] = f"3D model: {got['credit']['author']} · {lic}"
     shot = props.pop("shot", None) or list(SHOTS)[seq % 2]        # turn / push by default
     zoom = props.pop("zoom", None) or SHOTS.get(shot, [])
