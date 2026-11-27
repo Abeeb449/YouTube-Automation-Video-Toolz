@@ -219,13 +219,27 @@ def scene_tones(texts: list[str], given: list[bool]) -> list[str | None]:
     return out
 
 
+# The default delivery: one even voice from the first word to the last. A narrator whose tone, pace and volume
+# change with every scene's mood sounds as if it rises and falls; the picture and the music carry the mood instead.
+STEADY = ("Narrate as a calm, steady documentary narrator. Keep the same even pace, the same pitch and the same "
+          "volume from the first word to the last, with no sudden emphasis.")
+
+
 def direct_narration(project) -> None:
-    """Set the narrator's direction from the content, before the voice is recorded: the overall style (unless the
-    project sets voice.instruct itself) and a per-scene tone (unless a scene has its own [tone …] or voice tone)."""
+    """Set the narrator's direction before the voice is recorded. `voice.delivery`:
+      steady      (default) one even direction for the whole video, no per-scene changes of tone;
+      expressive  the overall style from the content (unless the project sets voice.instruct itself) and a
+                  per-scene tone (unless a scene has its own [tone …] or voice tone)."""
     st = project.settings
     snd = st.get("sound") or {}
     voice = st.get("voice") or {}
     if snd.get("director", True) is False or voice.get("follow_content") is False:
+        return
+    if str(voice.get("delivery", "steady")).lower() != "expressive":
+        if not voice.get("instruct") or str(voice.get("instruct")).strip().lower() == "auto":
+            voice["instruct"] = STEADY
+        voice["delivery"] = "steady"
+        st["voice"] = voice
         return
     texts = [s.text or "" for s in project.scenes]
     if not voice.get("instruct") or str(voice.get("instruct")).strip().lower() == "auto":

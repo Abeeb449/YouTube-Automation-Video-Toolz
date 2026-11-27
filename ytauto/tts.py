@@ -91,6 +91,9 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
     st = {**st, "voice_polish": {"enabled": False}, "sentence_gap": 0.0}
     voice = {k: v for k, v in voice.items() if k != "sampling"}
     voice["fluent"] = False
+    if voice.get("delivery") == "steady" and voice.get("engine") == "qwen":
+        # a steady read: less randomness in how each line is spoken, so lines sound alike in pace and energy
+        voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
     return strip_directives(text), voice, st
 
 
@@ -686,10 +689,42 @@ def expected_seconds(text: str) -> float:
     return 0.45 + len(re.sub(r"\s+", " ", t).strip()) / 15.0
 
 
-TAKE_BAND = (0.8, 1.5)     # a take this much shorter / longer than expected is rushed, dragged, or carries extra sound
+TAKE_BAND = (0.86, 1.32)   # a take this much shorter / longer than expected is rushed, dragged, or carries extra sound
+SPEECH_LEVEL = -20.0       # dB RMS of the spoken parts: every line is brought to this, so the voice never rises or sinks
 
 
-def guard_take(text: str, voice: dict, raw: Path, tries: int = 3) -> None:
+def level_take(raw: Path) -> None:
+    """Give a recorded line the same loudness as every other line: gentle compression (loud syllables come down a
+    little), then one gain for the whole line so its spoken parts sit at SPEECH_LEVEL, with a limiter on the peaks."""
+    import subprocess
+
+    import numpy as np
+
+    def speech_rms(path: Path) -> float | None:
+        pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
+                             capture_output=True).stdout
+        x = np.frombuffer(pcm, dtype=np.float32)
+        act = x[np.abs(x) > 0.02]
+        return float(20 * np.log10(np.sqrt(np.mean(act ** 2)) + 1e-9)) if len(act) > 1600 else None
+
+    comp = raw.with_name(raw.stem + ".comp.wav")
+    out = raw.with_name(raw.stem + ".lev.wav")
+    try:
+        run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-af", "acompressor=threshold=-24dB:ratio=2.2:attack=6:release=140:makeup=1",
+             "-c:a", "pcm_s16le", comp])
+        lvl = speech_rms(comp)
+        if lvl is None:
+            return
+        gain = max(-12.0, min(12.0, SPEECH_LEVEL - lvl))
+        run(["ffmpeg", "-y", "-v", "error", "-i", comp, "-af", f"volume={gain:.2f}dB,alimiter=limit=0.89:attack=3:release=60",
+             "-c:a", "pcm_s16le", out])
+        out.replace(raw)
+    finally:
+        comp.unlink(missing_ok=True)
+        out.unlink(missing_ok=True)
+
+
+def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
     """A neural voice now and then rushes a line, drags it, or adds a sound that is not in the script (a hum, an
     'ah', extra words). Such a take is far from the length its words need: it is recorded again (new seed) and the
     take closest to a natural pace is kept."""
@@ -850,6 +885,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
             if not _fresh(raw):
                 synthesize(sent, v, raw)
                 guard_take(sent, v, raw)
+                if v.get("engine") in ("qwen", "chatterbox") and v.get("level") is not False:
+                    level_take(raw)
             wav = polish(raw, pol)
         used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))
         d = ffprobe_duration(wav)
