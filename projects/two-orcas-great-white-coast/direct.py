@@ -364,8 +364,7 @@ S(1, aerial(star(0.16, 0.5, 1.1, view="top", idle=False, label={"text": "Starboa
             scaleBar={"x1": 0.28, "x2": 0.74, "y": 0.5, "label": "About 100 metres", "at": "hundred"}, source=RECON))
 S(1, beach(gw(0.5, 0.74, 1.25, view="beached"), sky="overcast", kicker="THE SAME DAY", heading="A second great white",
            scaleBar={"x1": 0.28, "x2": 0.72, "y": 0.9, "label": "3.5 metres", "at": "metres"}))
-S(1, sea(seal(0.3, 0.4, 0.42, to=[0.5, 0.44]), A("fishSchool", 0.72, 0.64, 0.55, to=[0.58, 0.6]), depth=0.3,
-         hud={"label": "Great whites kept away for", "value": "≈ 4 months"}))
+S(1, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Great whites kept away from that part of the bay for", "value": "≈ 4 months", "at": "four"}]))
 S(1, sea(bw(1.1, 0.5, 0.7, to=[0.62, 0.5], at="other"), bw(1.2, 0.72, 0.6, to=[0.74, 0.7], at="other"), depth=0.3,
          callout="Other animals took their place", calloutAt="place"))
 
