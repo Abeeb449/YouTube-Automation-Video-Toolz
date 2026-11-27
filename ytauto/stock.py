@@ -491,6 +491,8 @@ def _pexels_video(query: str, width: int, nth: int) -> list[tuple[str, str]]:
         f = big[0] if big else max(files, key=lambda f: f["width"])
         cid = f"pexels-v{v['id']}"
         _credit(cid, "pexels", "", (v.get("user") or {}).get("name") or "Pexels", "pexels", "Pexels License", v.get("url") or "")
+        if v.get("image"):
+            _thumbs[cid] = v["image"]
         out.append((cid, f["link"]))
     return out
 
@@ -519,6 +521,9 @@ def _pixabay_video(query: str, width: int) -> list[tuple[str, str]]:
             if v and v.get("url") and (v.get("width", 0) >= min(width, 1280) or size == "small"):
                 cid = f"pixabay-v{h['id']}"
                 _credit(cid, "pixabay", "", h.get("user") or "Pixabay", "pixabay", "Pixabay Content License", h.get("pageURL") or "")
+                thumb = v.get("thumbnail") or next((x.get("thumbnail") for x in vids.values() if x and x.get("thumbnail")), None)
+                if thumb:
+                    _thumbs[cid] = thumb
                 out.append((cid, v["url"]))
                 break
     return out
@@ -538,6 +543,12 @@ def _pixabay_photo(query: str) -> list[tuple[str, str]]:
 
 
 # ------------------------------------------------------------------------------------------------ fetching
+_thumbs: dict[str, str] = {}      # video id -> its still preview picture (checked before the whole clip is downloaded)
+# How many candidates one search phrase may turn down before the toolkit moves on. A phrase no library can answer
+# (footage of one news event) otherwise costs dozens of downloads and checks, and an hour of a render.
+MAX_REJECTS = {"video": 10, "image": 12}
+
+
 def _pick(candidates: list[tuple[str, str]]) -> tuple[str, str]:
     """candidates: (id, url). Prefer one not used yet in this render."""
     with _lock:
@@ -748,11 +759,29 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
     errors = []
     later: list[tuple[str, list]] = []   # species photos when the query also asks for a detail ("seal teeth")
 
+    budget = {"left": MAX_REJECTS.get(kind, 12)}
+
+    def turn_down(cid: str, url: str, why: str, path: Path | None = None) -> None:
+        log(f"   skipped {cid} for '{query}': {why}")
+        if kind == "video":   # don't keep gigabytes of rejected footage; remember the verdict instead
+            marker = cache / "stock" / f"{cid}_{stable_hash(url)}.mp4.rejected"
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(f"{query}\t{why}\n")
+            if path is not None:
+                path.unlink(missing_ok=True)
+        with _lock:
+            _used.discard(cid)
+            _rejected.add(cid)
+        ids = getattr(_tl, "ids", None)
+        if ids is not None and cid in ids:
+            ids.remove(cid)
+        budget["left"] -= 1
+
     def attempt(prov: str, cands: list) -> Path | None:
         rot = cands[nth % len(cands):] + cands[:nth % len(cands)]
         rot = [c for c in rot if c[0] not in _rejected]
         tries = 0
-        while rot and tries < 8:
+        while rot and tries < 8 and budget["left"] > 0:
             try:
                 cid, url = _pick(rot)
             except YtautoError as exc:
@@ -765,6 +794,17 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
                 with _lock:
                     _used.discard(cid)
                 continue   # already checked and turned down for this exact search
+            # a clip's still preview is checked first: a clip whose preview is clearly something else is never downloaded
+            if kind == "video" and cid in _thumbs and verify.enabled():
+                try:
+                    thumb = download(_thumbs[cid], cache / "stock" / "previews" / f"{cid}.jpg", max_mb=8)
+                    ok, why = verify.check(thumb, query, cache, wanted)
+                except Exception:  # noqa: BLE001 — no preview: judge the clip itself
+                    ok, why = True, ""
+                if not ok:
+                    turn_down(cid, url, f"preview: {why}")
+                    errors.append(f"{prov}: {cid} rejected by its preview picture")
+                    continue
             try:
                 path = _fetch(cid, url, kind, query, cache)
             except Exception as exc:  # noqa: BLE001 — try the next result
@@ -776,17 +816,10 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
                        else verify.check(path, query, cache, wanted, trusted=(prov == "inaturalist")))
             if ok:
                 return _good_part(path) if kind == "video" else path
-            log(f"   skipped {cid} for '{query}': {why}")
-            if kind == "video":   # don't keep gigabytes of rejected footage; remember the verdict instead
-                path.with_name(path.name + ".rejected").write_text(f"{query}\t{why}\n")
-                path.unlink(missing_ok=True)
-            with _lock:
-                _used.discard(cid)
-                _rejected.add(cid)
-            ids = getattr(_tl, "ids", None)
-            if ids is not None and cid in ids:
-                ids.remove(cid)
+            turn_down(cid, url, why, path)
             errors.append(f"{prov}: {cid} rejected by picture check")
+        if budget["left"] <= 0:
+            errors.append(f"{prov}: stopped after {MAX_REJECTS.get(kind, 12)} results that did not show it")
         return None
 
     for prov in provider_order(kind):
