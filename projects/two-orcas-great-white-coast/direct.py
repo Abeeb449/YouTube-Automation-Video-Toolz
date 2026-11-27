@@ -512,6 +512,76 @@ S(3, sea(port(0.1, 0.4, 1.3, to=[0.42, 0.4]), star(0.0, 0.64, 1.3, to=[0.32, 0.6
 assert _pos == len(SENT), f"{len(SENT) - _pos} sentence(s) of the script have no shot yet"
 
 
+# ====================================================================================== real b-roll
+# The script's own cues ask for footage of the actual events, which no free library holds. So that the video still
+# carries real pictures, these lines get real photos or clips of the animal or the place the sentence is about
+# (never of a different event). Every library is searched (iNaturalist, Unsplash, Pexels, Pixabay, Openverse,
+# Wikimedia Commons, NASA); only licences that allow commercial use pass; each find is checked against `shows`.
+# A line whose search finds nothing keeps its 3D shot (the list of finds is pruned after the collection run).
+import copy  # noqa: E402
+
+
+def real(words, shows, fallback, first="video"):
+    ph = {"remotion": "PhotoStory", "props": {"layout": "full", "photos": [{"photo": "stock:" + words, "parallax": True, "verify": shows}]},
+          "fallback_visual": fallback}
+    return ph if first == "photo" else {"stock": words, "verify": shows, "fallback_visual": ph}
+
+
+def add_real(starts, words, shows, first="video", place="before"):
+    sc = next(s for s in scenes if s["text"].startswith(starts))
+    vs = sc.pop("visuals", None) or [sc.pop("visual")]
+    r = real(words, shows, copy.deepcopy(vs[0] if place == "before" else vs[-1]), first)
+    sc["visuals"] = [r] + vs if place == "before" else vs + [r]
+
+
+def widen(starts, more_words, photo_words=None, photo_shows=None):
+    """One of the script's own cues: more search words after the script's, and a photo when no clip is found."""
+    sc = next(s for s in scenes if s["text"].startswith(starts))
+    for v in sc.get("visuals") or [sc["visual"]]:
+        if "stock" in v:
+            v["stock"] += "|" + more_words
+            if photo_words:
+                v["fallback_visual"] = real(photo_words, photo_shows or v["verify"], v["fallback_visual"], first="photo")
+        elif v.get("remotion") == "PhotoStory":
+            v["props"]["photos"][0]["photo"] += "|" + more_words
+
+
+add_real("The story starts in a small fishing town", "Gansbaai harbour|Gansbaai|Kleinbaai harbour",
+         "the small fishing town of Gansbaai on the South African coast", first="photo", place="after")
+add_real("A few kilometres offshore lies Dyer Island", "Cape fur seal colony|Cape fur seals|seal colony South Africa",
+         "a large colony of Cape fur seals on rocks by the sea")
+add_real("For years, the sharks were here", "great white shark Gansbaai|great white shark South Africa|great white shark swimming",
+         "a great white shark swimming in the sea")
+add_real("After that, cage diving grew fast.", "shark cage diving|great white shark cage diving|cage diving South Africa",
+         "people in a shark diving cage in the sea")
+add_real("Sevengills are smaller sharks", "broadnose sevengill shark|sevengill shark|Notorynchus cepedianus",
+         "a sevengill shark swimming underwater", first="photo")
+add_real("The answer starts with how a shark stays afloat.", "great white shark underwater|great white shark swimming underwater",
+         "a great white shark swimming underwater")
+add_real("Orcas learn from one another", "orca pod|killer whales swimming|orcas swimming", "a pod of orcas swimming together")
+add_real("In years when orcas visited", "northern elephant seal|elephant seals beach California|elephant seal",
+         "elephant seals lying on a beach", first="photo")
+add_real("On the sixteenth of May 2022", "Mossel Bay|Mossel Bay coast|Mossel Bay aerial",
+         "the town and bay of Mossel Bay on the South African coast", first="photo", place="after")
+add_real("At Gansbaai, a smaller shark called the bronze whaler", "bronze whaler shark|copper shark|Carcharhinus brachyurus",
+         "a bronze whaler shark swimming underwater", first="photo", place="after")
+add_real("In False Bay the change went further.", "Seal Island False Bay|False Bay Cape Town|False Bay aerial",
+         "False Bay near Cape Town: the sea with its coast or an island", first="photo", place="after")
+add_real("On the beaches of Cape Town, shark spotters", "Shark Spotters Muizenberg|Muizenberg beach|Fish Hoek beach",
+         "a swimming beach at Cape Town", first="photo")
+add_real("Reported sightings of Cape fur seals", "Cape fur seals swimming|Cape fur seal|fur seals swimming underwater",
+         "Cape fur seals in the water or on rocks")
+add_real("Fishing boats that target smaller sharks", "longline fishing boat|commercial fishing boat at sea|fishing trawler",
+         "a commercial fishing boat at sea")
+add_real("Orcas in other oceans have learned the same hunt.", "killer whales ocean|orca pod aerial|orcas",
+         "orcas swimming in the open sea", place="after")
+widen("They stayed for about two and a half hours.", "Southeast Farallon Island|Farallon Islands")
+widen("Seal Island there was once famous", "great white shark breaching|great white shark jumping out of the water",
+      "great white shark breaching|great white shark breach", "a great white shark leaping out of the water")
+widen("Shark nets and baited hooks", "shark nets|shark net buoys beach", "Durban beachfront|Durban beach|Umhlanga beach",
+      "a swimming beach in KwaZulu-Natal")
+
+
 # ------------------------------------------------------------------------------------------ checks + write
 def _cue_words(node, text, where):
     if isinstance(node, dict):
