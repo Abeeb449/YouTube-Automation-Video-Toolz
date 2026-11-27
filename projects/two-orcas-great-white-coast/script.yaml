@@ -57,6 +57,16 @@ youtube:
   privacy: private
   category_id: 15
   synthetic_media: true
+settings:
+  stock_approved:
+  - inaturalist-599687346
+  - inaturalist-245792457
+  - unsplash-iyVSCp0ZUj0
+  - inaturalist-592508768
+  - pixabay-p7015038
+  - pixabay-v261267
+  - pixabay-v6412
+  - unsplash-qM9tSt_5orU
 scenes:
 - chapter: Intro
   mood: mystery
@@ -262,8 +272,8 @@ scenes:
 - chapter: The Shark Capital
   mood: calm
   text: The story starts in a small fishing town called Gansbaai, on the coast southeast of Cape Town.
-  visuals:
-  - remotion: MapScene
+  visual:
+    remotion: MapScene
     props:
       bbox: &id001
       - - 17.3
@@ -297,118 +307,9 @@ scenes:
         at: Gansbaai
       title: South Africa's south coast
       zoom: 1.1
-  - remotion: PhotoStory
-    props:
-      layout: full
-      photos:
-      - photo: stock:Gansbaai harbour|Gansbaai|Kleinbaai harbour
-        parallax: true
-        verify: the small fishing town of Gansbaai on the South African coast
-    fallback_visual:
-      remotion: MapScene
-      props:
-        bbox:
-        - - 17.3
-          - -35.7
-        - - 23.4
-          - -33.0
-        countryLabels:
-        - name: South Africa
-          lon: 21.0
-          lat: -33.35
-        cities:
-        - name: Cape Town
-          lon: 18.42
-          lat: -33.92
-          at: Cape
-        - name: Gansbaai
-          lon: 19.35
-          lat: -34.58
-          at: Gansbaai
-        - name: Mossel Bay
-          lon: 22.13
-          lat: -34.18
-          at: 0.6
-        - name: False Bay
-          lon: 18.68
-          lat: -34.22
-          at: 0.4
-        pulses:
-        - lon: 19.35
-          lat: -34.58
-          at: Gansbaai
-        title: South Africa's south coast
-        zoom: 1.1
 - text: A few kilometres offshore lies Dyer Island, home to a large colony of Cape fur seals.
-  visuals:
-  - stock: Cape fur seal colony|Cape fur seals|seal colony South Africa
-    verify: a large colony of Cape fur seals on rocks by the sea
-    fallback_visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-        - photo: stock:Cape fur seal colony|Cape fur seals|seal colony South Africa
-          parallax: true
-          verify: a large colony of Cape fur seals on rocks by the sea
-      fallback_visual:
-        remotion: OceanScene
-        props:
-          split:
-            y: 0.42
-            land: rocks
-            landWidth: 0.6
-            sky: polar
-            floes: false
-          zoom:
-          - 1.08
-          - 1.0
-          kicker: A FEW KILOMETRES OFFSHORE
-          heading: Dyer Island
-          callout: A large colony of Cape fur seals
-          calloutAt: colony
-          actors:
-          - creature: seaLion
-            x: 0.1
-            y: 0.3
-            scale: 0.42
-            detail:
-              rest: true
-          - creature: seaLion
-            x: 0.24
-            y: 0.28
-            scale: 0.38
-            detail:
-              rest: true
-            flip: true
-          - creature: seaLion
-            x: 0.37
-            y: 0.3
-            scale: 0.4
-            detail:
-              rest: true
-          - creature: seaLion
-            x: 0.48
-            y: 0.3
-            scale: 0.3
-            detail:
-              rest: true
-              pup: true
-          - creature: seaLion
-            x: 0.7
-            y: 0.62
-            scale: 0.45
-            to:
-            - 0.86
-            - 0.56
-          - creature: seaLion
-            x: 0.62
-            y: 0.8
-            scale: 0.4
-            to:
-            - 0.5
-            - 0.74
-  - remotion: OceanScene
+  visual:
+    remotion: OceanScene
     props:
       split:
         y: 0.42
@@ -510,47 +411,8 @@ scenes:
         opacity: 0.9
         at: great
 - text: For years, the sharks were here on almost every day of the year, and people travelled to see them.
-  visuals:
-  - stock: great white shark Gansbaai|great white shark South Africa|great white shark swimming
-    verify: a great white shark swimming in the sea
-    fallback_visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-        - photo: stock:great white shark Gansbaai|great white shark South Africa|great white shark swimming
-          parallax: true
-          verify: a great white shark swimming in the sea
-      fallback_visual:
-        remotion: OceanScene
-        props:
-          depth: 0.3
-          callout: Sharks on almost every day of the year
-          calloutAt: every
-          actors:
-          - creature: greatWhite
-            x: 0.25
-            y: 0.34
-            scale: 0.8
-            to:
-            - 0.55
-            - 0.32
-          - creature: greatWhite
-            x: 0.8
-            y: 0.58
-            scale: 1.0
-            to:
-            - 0.5
-            - 0.6
-            view: three_quarter
-          - creature: greatWhite
-            x: 0.3
-            y: 0.82
-            scale: 0.6
-            to:
-            - 0.6
-            - 0.84
-  - remotion: OceanScene
+  visual:
+    remotion: OceanScene
     props:
       depth: 0.3
       callout: Sharks on almost every day of the year
@@ -587,36 +449,8 @@ scenes:
       line1: South Africa protects the great white
       line2: The first country to do so
 - text: After that, cage diving grew fast.
-  visuals:
-  - stock: shark cage diving|great white shark cage diving|cage diving South Africa
-    verify: people in a shark diving cage in the sea
-    fallback_visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-        - photo: stock:shark cage diving|great white shark cage diving|cage diving South Africa
-          parallax: true
-          verify: people in a shark diving cage in the sea
-      fallback_visual:
-        remotion: OceanScene
-        props:
-          depth: 0.25
-          zoom:
-          - 1.0
-          - 1.12
-          callout: Cage diving grew fast
-          calloutAt: cage
-          actors:
-          - creature: greatWhite
-            x: 0.75
-            y: 0.5
-            scale: 1.5
-            to:
-            - 0.5
-            - 0.5
-            view: three_quarter
-  - remotion: OceanScene
+  visual:
+    remotion: OceanScene
     props:
       depth: 0.25
       zoom:
@@ -769,29 +603,26 @@ scenes:
         view: beached
 - text: She lay on Franskraal beach.
   visual:
-    remotion: PhotoStory
+    remotion: MapScene
     props:
-      layout: full
-      photos:
-      - photo: stock:4.9m great white shark Franskraal 2017|great white shark necropsy Gansbaai 2017|Alison Towner white shark necropsy
-        parallax: true
-        verify: the 4.9 metre female great white on Franskraal beach, with researchers beside her
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        beach:
-          sky: dusk
-        zoom:
-        - 1.0
-        - 1.06
-        heading: Franskraal beach
-        source: 3D reconstruction
-        actors:
-        - creature: greatWhite
-          x: 0.5
-          y: 0.74
-          scale: 1.7
-          view: beached
+      bbox:
+      - - 18.95
+        - -34.85
+      - - 19.85
+        - -34.38
+      cities:
+      - name: Gansbaai
+        lon: 19.35
+        lat: -34.58
+        at: 0.3
+      pulses:
+      - lon: 19.395
+        lat: -34.605
+        label: Franskraal beach
+        at: 0.5
+      title: 3 May 2017
+      subtitle: Franskraal beach
+      zoom: 1.1
 - text: Biologist Alison Towner and her team from the Dyer Island Conservation Trust measured her at 4.9 metres, about 16 feet.
   visual:
     remotion: OceanScene
@@ -1299,46 +1130,38 @@ scenes:
           dy: 0.43
 - text: Local boat crews named them Port and Starboard, the sailor's words for left and right.
   visual:
-    remotion: PhotoStory
+    remotion: OceanScene
     props:
-      layout: full
-      photos:
-      - photo: stock:Port and Starboard orcas|orca collapsed dorsal fin South Africa|Port Starboard killer whales fins
-        parallax: true
-        verify: Port and Starboard at the surface, showing their bent dorsal fins
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        aerial:
-          tone: bay
-        zoom:
-        - 1.06
-        - 1.12
-        callout: Port = left · Starboard = right
-        calloutAt: sailor's
-        actors:
-        - creature: orcaPort
-          x: 0.34
-          y: 0.45
-          scale: 1.3
-          view: top
-          rotate: -90
-          idle: false
-          label:
-            text: Port
-            at: Port
-            dy: 0.42
-        - creature: orcaStarboard
-          x: 0.66
-          y: 0.45
-          scale: 1.3
-          view: top
-          rotate: -90
-          idle: false
-          label:
-            text: Starboard
-            at: Starboard
-            dy: 0.42
+      aerial:
+        tone: bay
+      zoom:
+      - 1.06
+      - 1.12
+      callout: Port = left · Starboard = right
+      calloutAt: sailor's
+      actors:
+      - creature: orcaPort
+        x: 0.34
+        y: 0.45
+        scale: 1.3
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: Port
+          at: Port
+          dy: 0.42
+      - creature: orcaStarboard
+        x: 0.66
+        y: 0.45
+        scale: 1.3
+        view: top
+        rotate: -90
+        idle: false
+        label:
+          text: Starboard
+          at: Starboard
+          dy: 0.42
 - text: Nobody knows how old they are. Early genetic work hints that they may be half-brothers.
   visual:
     remotion: OceanScene
@@ -1461,34 +1284,8 @@ scenes:
 - chapter: Why the Liver
   mood: wonder
   text: The answer starts with how a shark stays afloat.
-  visuals:
-  - stock: great white shark underwater|great white shark swimming underwater
-    verify: a great white shark swimming underwater
-    fallback_visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-        - photo: stock:great white shark underwater|great white shark swimming underwater
-          parallax: true
-          verify: a great white shark swimming underwater
-      fallback_visual:
-        remotion: OceanScene
-        props:
-          depth: 0.35
-          heading: Why the Liver
-          kicker: PART 4
-          callout: How does a shark stay afloat?
-          calloutAt: afloat
-          actors:
-          - creature: greatWhite
-            x: 0.3
-            y: 0.6
-            scale: 1.3
-            to:
-            - 0.55
-            - 0.46
-  - remotion: OceanScene
+  visual:
+    remotion: OceanScene
     props:
       depth: 0.35
       heading: Why the Liver
@@ -2002,42 +1799,31 @@ scenes:
       subtitle: Orcas pass the island
 - text: They stayed for about two and a half hours.
   visual:
-    remotion: PhotoStory
+    remotion: OceanScene
     props:
-      layout: full
-      photos:
-      - photo: stock:Southeast Farallon Island aerial|Farallon Islands map San Francisco|Southeast Farallon Island|Farallon Islands
-        parallax: true
-        verify: Map or aerial photo of Southeast Farallon Island off San Francisco
+      aerial:
+        tone: open
       hud:
-        label: Orcas near the island for
+        label: Near the island for
         value: ≈ 2.5 hours
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        aerial:
-          tone: open
-        hud:
-          label: Near the island for
-          value: ≈ 2.5 hours
-        source: 3D reconstruction
-        actors:
-        - creature: orca
-          x: -0.1
-          y: 0.4
-          scale: 1.2
-          view: top
-          to:
-          - 0.9
-          - 0.36
-        - creature: orca
-          x: -0.25
-          y: 0.6
-          scale: 1.1
-          view: top
-          to:
-          - 0.75
-          - 0.58
+      source: 3D reconstruction
+      actors:
+      - creature: orca
+        x: -0.1
+        y: 0.4
+        scale: 1.2
+        view: top
+        to:
+        - 0.9
+        - 0.36
+      - creature: orca
+        x: -0.25
+        y: 0.6
+        scale: 1.1
+        view: top
+        to:
+        - 0.75
+        - 0.58
 - text: Seventeen tagged great whites were feeding around the island that day.
   visual:
     remotion: DotGrid
@@ -2120,8 +1906,14 @@ scenes:
       layout: full
       photos:
       - photo: stock:northern elephant seal|elephant seals beach California|elephant seal
-        parallax: true
+        parallax: false
         verify: elephant seals lying on a beach
+        focus:
+        - 0.6
+        - 0.45
+        zoom:
+        - 1.0
+        - 1.05
     fallback_visual:
       remotion: BarCompare
       props:
@@ -2213,8 +2005,8 @@ scenes:
 - chapter: Caught on Camera
   mood: danger
   text: On the sixteenth of May 2022, drone pilot Christiaan Stopforth was flying over Mossel Bay, further east along the coast.
-  visuals:
-  - remotion: MapScene
+  visual:
+    remotion: MapScene
     props:
       bbox: *id001
       countryLabels:
@@ -2247,114 +2039,66 @@ scenes:
         curve: 0.15
       title: 16 May 2022
       subtitle: A drone over Mossel Bay
-  - remotion: PhotoStory
-    props:
-      layout: full
-      photos:
-      - photo: stock:Mossel Bay|Mossel Bay coast|Mossel Bay aerial
-        parallax: true
-        verify: the town and bay of Mossel Bay on the South African coast
-    fallback_visual:
-      remotion: MapScene
-      props:
-        bbox:
-        - - 17.3
-          - -35.7
-        - - 23.4
-          - -33.0
-        countryLabels:
-        - name: South Africa
-          lon: 21.0
-          lat: -33.35
-        cities:
-        - name: Cape Town
-          lon: 18.42
-          lat: -33.92
-          at: 0.3
-        - name: Gansbaai
-          lon: 19.35
-          lat: -34.58
-          at: 0.4
-        pulses:
-        - lon: 22.13
-          lat: -34.18
-          label: Mossel Bay
-          at: Mossel
-        arrows:
-        - from:
-          - 19.6
-          - -34.75
-          to:
-          - 22.0
-          - -34.35
-          at: further
-          dur: 1.4
-          curve: 0.15
-        title: 16 May 2022
-        subtitle: A drone over Mossel Bay
 - text: Below him, five orcas were chasing a great white shark.
   visual:
-    stock: orcas kill great white shark drone Mossel Bay 2022|Christiaan Stopforth orca drone footage|orcas hunting great white aerial
-    verify: orcas hunting great white sharks off Mossel Bay, May 2022
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        aerial:
-          tone: bay
-        heading: Mossel Bay
-        kicker: 16 MAY 2022
-        callout: Five orcas, one great white
-        calloutAt: five
-        source: 3D reconstruction
-        actors:
-        - creature: greatWhite
-          x: 0.62
-          y: 0.46
-          scale: 0.8
-          view: top
-          to:
-          - 0.9
-          - 0.4
-        - creature: orcaStarboard
-          x: 0.34
-          y: 0.5
-          scale: 1.2
-          view: top
-          to:
-          - 0.62
-          - 0.46
-        - creature: orca
-          x: 0.2
-          y: 0.3
-          scale: 1.05
-          view: top
-          to:
-          - 0.5
-          - 0.28
-        - creature: orca
-          x: 0.16
-          y: 0.7
-          scale: 1.05
-          view: top
-          to:
-          - 0.46
-          - 0.68
-        - creature: orca
-          x: 0.02
-          y: 0.44
-          scale: 1.0
-          view: top
-          to:
-          - 0.32
-          - 0.4
-        - creature: orca
-          x: -0.02
-          y: 0.62
-          scale: 0.9
-          view: top
-          to:
-          - 0.26
-          - 0.6
+    remotion: OceanScene
+    props:
+      aerial:
+        tone: bay
+      heading: Mossel Bay
+      kicker: 16 MAY 2022
+      callout: Five orcas, one great white
+      calloutAt: five
+      source: 3D reconstruction
+      actors:
+      - creature: greatWhite
+        x: 0.62
+        y: 0.46
+        scale: 0.8
+        view: top
+        to:
+        - 0.9
+        - 0.4
+      - creature: orcaStarboard
+        x: 0.34
+        y: 0.5
+        scale: 1.2
+        view: top
+        to:
+        - 0.62
+        - 0.46
+      - creature: orca
+        x: 0.2
+        y: 0.3
+        scale: 1.05
+        view: top
+        to:
+        - 0.5
+        - 0.28
+      - creature: orca
+        x: 0.16
+        y: 0.7
+        scale: 1.05
+        view: top
+        to:
+        - 0.46
+        - 0.68
+      - creature: orca
+        x: 0.02
+        y: 0.44
+        scale: 1.0
+        view: top
+        to:
+        - 0.32
+        - 0.4
+      - creature: orca
+        x: -0.02
+        y: 0.62
+        scale: 0.9
+        view: top
+        to:
+        - 0.26
+        - 0.6
 - text: One of the five orcas was Starboard.
   visual:
     remotion: OceanScene
@@ -3067,47 +2811,35 @@ scenes:
         zoom: 1.12
 - text: Seal Island there was once famous for great whites leaping clear of the water after seals.
   visual:
-    stock: great white shark breach Seal Island False Bay|flying shark False Bay seal|Air Jaws Seal Island breach|great white shark
-      breaching|great white shark jumping out of the water
-    verify: a great white leaping out of the water after a seal at Seal Island, False Bay
-    fallback_visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-        - photo: stock:great white shark breaching|great white shark breach
-          parallax: true
-          verify: a great white shark leaping out of the water
-      fallback_visual:
-        remotion: OceanScene
-        props:
-          split:
-            y: 0.34
-            land: rocks
-            landWidth: 0.24
-            sky: polar
-            floes: false
-          heading: Seal Island
-          callout: Great whites leaping clear of the water
-          calloutAt: leaping
-          source: 3D reconstruction
-          actors:
-          - creature: seaLion
-            x: 0.62
-            y: 0.3
-            scale: 0.4
-            to:
-            - 0.8
-            - 0.22
-          - creature: greatWhite
-            x: 0.36
-            y: 0.95
-            scale: 1.3
-            to:
-            - 0.56
-            - 0.3
-            rotate: -62
-            at: 0.3
+    remotion: OceanScene
+    props:
+      split:
+        y: 0.34
+        land: rocks
+        landWidth: 0.24
+        sky: polar
+        floes: false
+      heading: Seal Island
+      callout: Great whites leaping clear of the water
+      calloutAt: leaping
+      source: 3D reconstruction
+      actors:
+      - creature: seaLion
+        x: 0.62
+        y: 0.3
+        scale: 0.4
+        to:
+        - 0.8
+        - 0.22
+      - creature: greatWhite
+        x: 0.36
+        y: 0.95
+        scale: 1.3
+        to:
+        - 0.56
+        - 0.3
+        rotate: -62
+        at: 0.3
 - text: Shark scientist Neil Hammerschlag and his team have surveyed the island since 2000. Their boats recorded no great whites after
     August 2018.
   visual:
@@ -3136,30 +2868,8 @@ scenes:
           to: 2026
           label: none recorded
 - text: On the beaches of Cape Town, shark spotters logged more than 300 great white sightings in 2011. By 2019 they were logging none.
-  visuals:
-  - remotion: PhotoStory
-    props:
-      layout: full
-      photos:
-      - photo: stock:Shark Spotters Muizenberg|Muizenberg beach|Fish Hoek beach
-        parallax: true
-        verify: a swimming beach at Cape Town
-    fallback_visual:
-      remotion: BarCompare
-      props:
-        backdrop: ocean
-        heading: Great white sightings
-        kicker: SHARK SPOTTERS, CAPE TOWN BEACHES
-        bars:
-        - label: '2011'
-          value: 300
-          display: More than 300
-          at: logged
-        - label: '2019'
-          value: 0
-          display: None
-          at: none
-  - remotion: BarCompare
+  visual:
+    remotion: BarCompare
     props:
       backdrop: ocean
       heading: Great white sightings
@@ -3390,67 +3100,59 @@ scenes:
         - 0.68
 - text: In February 2023, about twenty sharks washed up near Gansbaai after a single visit by the pair.
   visual:
-    remotion: PhotoStory
+    remotion: OceanScene
     props:
-      layout: full
-      photos:
-      - photo: stock:sevengill sharks washed up Gansbaai 2023|dead sevengill sharks beach orca|Marine Dynamics sevengill carcasses
-        parallax: true
-        verify: the sevengill shark carcasses on the beach near Gansbaai, February 2023
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        beach:
-          sky: overcast
-        kicker: FEBRUARY 2023
-        heading: Near Gansbaai
-        callout: About twenty sharks after one visit
-        calloutAt: twenty
-        source: 3D reconstruction
-        actors:
-        - creature: sevengill
-          x: 0.1
-          y: 0.66
-          scale: 0.42
-          view: beached
-        - creature: sevengill
-          x: 0.26
-          y: 0.76
-          scale: 0.55
-          view: beached
-          flip: true
-        - creature: sevengill
-          x: 0.42
-          y: 0.66
-          scale: 0.42
-          view: beached
-        - creature: sevengill
-          x: 0.56
-          y: 0.8
-          scale: 0.6
-          view: beached
-        - creature: sevengill
-          x: 0.72
-          y: 0.68
-          scale: 0.45
-          view: beached
-          flip: true
-        - creature: sevengill
-          x: 0.88
-          y: 0.78
-          scale: 0.52
-          view: beached
-        - creature: sevengill
-          x: 0.34
-          y: 0.9
-          scale: 0.5
-          view: beached
-          flip: true
-        - creature: sevengill
-          x: 0.76
-          y: 0.92
-          scale: 0.5
-          view: beached
+      beach:
+        sky: overcast
+      kicker: FEBRUARY 2023
+      heading: Near Gansbaai
+      callout: About twenty sharks after one visit
+      calloutAt: twenty
+      source: 3D reconstruction
+      actors:
+      - creature: sevengill
+        x: 0.1
+        y: 0.66
+        scale: 0.42
+        view: beached
+      - creature: sevengill
+        x: 0.26
+        y: 0.76
+        scale: 0.55
+        view: beached
+        flip: true
+      - creature: sevengill
+        x: 0.42
+        y: 0.66
+        scale: 0.42
+        view: beached
+      - creature: sevengill
+        x: 0.56
+        y: 0.8
+        scale: 0.6
+        view: beached
+      - creature: sevengill
+        x: 0.72
+        y: 0.68
+        scale: 0.45
+        view: beached
+        flip: true
+      - creature: sevengill
+        x: 0.88
+        y: 0.78
+        scale: 0.52
+        view: beached
+      - creature: sevengill
+        x: 0.34
+        y: 0.9
+        scale: 0.5
+        view: beached
+        flip: true
+      - creature: sevengill
+        x: 0.76
+        y: 0.92
+        scale: 0.5
+        view: beached
 - text: Nearly all were sevengills, each with its liver removed.
   visual:
     remotion: Anatomy
@@ -3671,37 +3373,26 @@ scenes:
         lat: -28.6
       title: KwaZulu-Natal
       subtitle: Shark nets and baited hooks
-  - stock: shark nets KwaZulu-Natal beach|KZN Sharks Board nets drumlines|shark net buoys Durban|shark nets|shark net buoys beach
-    verify: shark nets and floats off a KwaZulu-Natal swimming beach
-    fallback_visual:
-      remotion: PhotoStory
-      props:
-        layout: full
-        photos:
-        - photo: stock:Durban beachfront|Durban beach|Umhlanga beach
-          parallax: true
-          verify: a swimming beach in KwaZulu-Natal
-      fallback_visual:
-        remotion: OceanScene
-        props:
-          depth: 0.25
-          surface: true
-          net:
-            x0: 0.05
-            x1: 0.56
-            top: 0.05
-            bottom: 0.82
-          heading: Shark nets
-          callout: Protecting swimming beaches
-          calloutAt: protect
-          actors:
-          - creature: greatWhite
-            x: 0.8
-            y: 0.56
-            scale: 1.0
-            to:
-            - 0.66
-            - 0.56
+  - remotion: OceanScene
+    props:
+      depth: 0.25
+      surface: true
+      net:
+        x0: 0.05
+        x1: 0.56
+        top: 0.05
+        bottom: 0.82
+      heading: Shark nets
+      callout: Protecting swimming beaches
+      calloutAt: protect
+      actors:
+      - creature: greatWhite
+        x: 0.8
+        y: 0.56
+        scale: 1.0
+        to:
+        - 0.66
+        - 0.56
 - text: Between 1978 and 2018, that gear caught 1,317 great whites, and 1,108 of them died.
   visual:
     remotion: StatCards
@@ -4196,34 +3887,31 @@ scenes:
   mood: calm
   text: On the twenty-third of September 2026, a tour boat filmed a young great white just north of Seal Island in False Bay.
   visual:
-    stock: great white shark False Bay September 2026|white shark Seal Island 2026 sighting|great white returns False Bay
-    verify: the young great white filmed near Seal Island, False Bay, in September 2026
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        depth: 0.2
-        surface: true
-        rays: true
-        kicker: 23 SEPTEMBER 2026
-        heading: Just north of Seal Island
-        callout: A young great white, filmed from a tour boat
-        calloutAt: filmed
-        source: 3D reconstruction
-        actors:
-        - creature: greatWhite
-          x: -0.1
-          y: 0.56
-          scale: 0.75
-          to:
-          - 0.5
-          - 0.5
-        - creature: fishSchool
-          x: 0.8
-          y: 0.3
-          scale: 0.5
-          to:
-          - 0.7
-          - 0.26
+    remotion: OceanScene
+    props:
+      depth: 0.2
+      surface: true
+      rays: true
+      kicker: 23 SEPTEMBER 2026
+      heading: Just north of Seal Island
+      callout: A young great white, filmed from a tour boat
+      calloutAt: filmed
+      source: 3D reconstruction
+      actors:
+      - creature: greatWhite
+        x: -0.1
+        y: 0.56
+        scale: 0.75
+        to:
+        - 0.5
+        - 0.5
+      - creature: fishSchool
+        x: 0.8
+        y: 0.3
+        scale: 0.5
+        to:
+        - 0.7
+        - 0.26
 - text: The crew said it was the first they had seen there in about eight years.
   visual:
     remotion: OceanScene

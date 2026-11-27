@@ -204,6 +204,7 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     # 1) Voiceover --------------------------------------------------------------------------
     from . import stock
     stock.species_photos = bool(st.get("species_photos", True))
+    stock.APPROVED = set(st["stock_approved"]) if st.get("stock_approved") else None
     # 1) B-roll first: every stock photo/clip the script asks for is searched, checked and downloaded before any
     #    voice or picture is made, so the edit starts with all its material on disk (build/broll_report.txt)
     log("Step 1/6: collecting b-roll (search, check, download)")

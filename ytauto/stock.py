@@ -664,6 +664,9 @@ def provider_order(kind: str) -> list[str]:
 
 
 species_photos = True   # set per project (settings.species_photos): only animal/nature videos use iNaturalist
+# set per project (settings.stock_approved): the ids the creator approved on the review sheet. When given, nothing
+# else is ever downloaded or used, so a render shows exactly the pictures and clips that were looked at.
+APPROVED: set[str] | None = None
 
 
 _rejected: set[str] = set()
@@ -702,6 +705,8 @@ def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wa
     with _lock:
         hit = _resolved_load(cache).get(key)
         gone = _missing.get(key)
+    if hit and APPROVED is not None and hit.get("cid") not in APPROVED:
+        hit = None                    # found in an earlier run, but not approved on the review sheet
     if hit and Path(hit["path"]).exists():
         path, cid, rec = Path(hit["path"]), hit.get("cid"), hit.get("credit")
         with _lock:
@@ -783,7 +788,7 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
 
     def attempt(prov: str, cands: list) -> Path | None:
         rot = cands[nth % len(cands):] + cands[:nth % len(cands)]
-        rot = [c for c in rot if c[0] not in _rejected]
+        rot = [c for c in rot if c[0] not in _rejected and (APPROVED is None or c[0] in APPROVED)]
         tries = 0
         while rot and tries < 8 and budget["left"] > 0 and not (DEADLINE is not None and _time.time() > DEADLINE):
             try:

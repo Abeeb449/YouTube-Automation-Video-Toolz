@@ -59,6 +59,7 @@ def collect_broll(project: Project, refresh: bool = False, minutes: float | None
     from .visuals import ClipRenderer
     st = project.settings
     stock.species_photos = bool(st.get("species_photos", True))
+    stock.APPROVED = set(st["stock_approved"]) if st.get("stock_approved") else None
     if refresh:
         stock.forget_resolved(project.cache_dir)
     renderer = ClipRenderer(project)

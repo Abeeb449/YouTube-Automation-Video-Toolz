@@ -87,14 +87,27 @@ def tpl(name, **props):
     return {"remotion": name, "props": props}
 
 
+# The script's eight b-roll cues ask for footage of the actual events (the 4.9 m shark on Franskraal beach, Port and
+# Starboard, the Farallon island, the 2022 drone hunt, a breach at Seal Island, the 2023 sevengill carcasses, the KZN
+# nets, the September 2026 sighting). The collection runs of 27 November 2026 searched every library with the
+# script's own keywords: nothing free for commercial use shows them (what came back was a captive orca, Cape Town
+# harbour, a snorkeller …, all turned down). Those moments are therefore shown as 3D reconstructions. To use real
+# footage of one, put the licensed file in assets/ and point the shot at it.
+SEARCH_SCRIPT_CUES = False
+
+
 def photo(first_words, fallback, **props):
     b = cue(first_words)
+    if not SEARCH_SCRIPT_CUES:
+        return fallback
     return {"remotion": "PhotoStory", "props": {"layout": "full", "photos": [{"photo": "stock:" + b.search, "parallax": True, "verify": b.detail}], **props},
             "fallback_visual": fallback}
 
 
 def clip(first_words, fallback):
     b = cue(first_words)
+    if not SEARCH_SCRIPT_CUES:
+        return fallback
     return {"stock": b.search, "verify": b.detail, "fallback_visual": fallback}
 
 
@@ -164,7 +177,9 @@ S(2, beach(gw(0.5, 0.76, 0.95, view="beached"), sky="overcast", zoom=[1.0, 1.06]
   chapter="Bodies on the Beach", mood="mystery")
 S(1, beach(gw(0.5, 0.74, 1.25, view="beached"), sky="overcast", zoom=[1.08, 1.2], callout="Body whole. Cause unknown.", calloutAt="nobody"))
 S(1, beach(gw(0.5, 0.74, 1.7, view="beached"), sky="dusk", zoom=[1.1, 1.0], kicker="3 MAY 2017", heading="The big female"))
-S(1, photo("4.9m great white", beach(gw(0.5, 0.74, 1.7, view="beached"), sky="dusk", zoom=[1.0, 1.06], heading="Franskraal beach", source=RECON)))
+S(1, photo("4.9m great white", tpl("MapScene", bbox=[[18.95, -34.85], [19.85, -34.38]], cities=[{**GANSBAAI, "at": 0.3}],
+                                   pulses=[{"lon": 19.395, "lat": -34.605, "label": "Franskraal beach", "at": 0.5}],
+                                   title="3 May 2017", subtitle="Franskraal beach", zoom=1.1)))
 S(1, beach(gw(0.5, 0.72, 1.7, view="beached"), sky="dusk", heading="Franskraal beach", kicker="DYER ISLAND CONSERVATION TRUST",
            scaleBar={"x1": 0.2, "x2": 0.8, "y": 0.9, "label": "4.9 metres · about 16 feet", "at": "measured"}))
 S(2, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Length", "value": "4.9 m", "at": 0.3}, {"label": "Weight", "value": "1,110 kg", "at": "weight"}],
@@ -521,16 +536,17 @@ assert _pos == len(SENT), f"{len(SENT) - _pos} sentence(s) of the script have no
 import copy  # noqa: E402
 
 
-def real(words, shows, fallback, first="video"):
-    ph = {"remotion": "PhotoStory", "props": {"layout": "full", "photos": [{"photo": "stock:" + words, "parallax": True, "verify": shows}]},
+def real(words, shows, fallback, first="video", **look):
+    """look: how the photo is framed (focus: [x, y] = the part to keep in view, zoom: [from, to], parallax: False)."""
+    ph = {"remotion": "PhotoStory", "props": {"layout": "full", "photos": [{"photo": "stock:" + words, "parallax": True, "verify": shows, **look}]},
           "fallback_visual": fallback}
     return ph if first == "photo" else {"stock": words, "verify": shows, "fallback_visual": ph}
 
 
-def add_real(starts, words, shows, first="video", place="before"):
+def add_real(starts, words, shows, first="video", place="before", **look):
     sc = next(s for s in scenes if s["text"].startswith(starts))
     vs = sc.pop("visuals", None) or [sc.pop("visual")]
-    r = real(words, shows, copy.deepcopy(vs[0] if place == "before" else vs[-1]), first)
+    r = real(words, shows, copy.deepcopy(vs[0] if place == "before" else vs[-1]), first, **look)
     sc["visuals"] = [r] + vs if place == "before" else vs + [r]
 
 
@@ -546,40 +562,36 @@ def widen(starts, more_words, photo_words=None, photo_shows=None):
             v["props"]["photos"][0]["photo"] += "|" + more_words
 
 
-add_real("The story starts in a small fishing town", "Gansbaai harbour|Gansbaai|Kleinbaai harbour",
-         "the small fishing town of Gansbaai on the South African coast", first="photo", place="after")
-add_real("A few kilometres offshore lies Dyer Island", "Cape fur seal colony|Cape fur seals|seal colony South Africa",
-         "a large colony of Cape fur seals on rocks by the sea")
-add_real("For years, the sharks were here", "great white shark Gansbaai|great white shark South Africa|great white shark swimming",
-         "a great white shark swimming in the sea")
-add_real("After that, cage diving grew fast.", "shark cage diving|great white shark cage diving|cage diving South Africa",
-         "people in a shark diving cage in the sea")
+# Looked at on the review sheet of collection run #9 (27 November 2026). Kept: the eight below. Turned down and
+# removed: a cliff coast with no seals (for the seal colony), a snorkeller (for cage diving), Cape Town harbour (for
+# Mossel Bay), a drone photo of a swimming shark (for the breach), a swim-zone buoy line (for the shark nets), a Shark Spotters flag that is mostly a clothing brand's logo; nothing
+# was found for Gansbaai town or for a great white swimming.
 add_real("Sevengills are smaller sharks", "broadnose sevengill shark|sevengill shark|Notorynchus cepedianus",
          "a sevengill shark swimming underwater", first="photo")
-add_real("The answer starts with how a shark stays afloat.", "great white shark underwater|great white shark swimming underwater",
-         "a great white shark swimming underwater")
 add_real("Orcas learn from one another", "orca pod|killer whales swimming|orcas swimming", "a pod of orcas swimming together")
 add_real("In years when orcas visited", "northern elephant seal|elephant seals beach California|elephant seal",
-         "elephant seals lying on a beach", first="photo")
-add_real("On the sixteenth of May 2022", "Mossel Bay|Mossel Bay coast|Mossel Bay aerial",
-         "the town and bay of Mossel Bay on the South African coast", first="photo", place="after")
+         "elephant seals lying on a beach", first="photo", parallax=False, focus=[0.6, 0.45], zoom=[1.0, 1.05])
 add_real("At Gansbaai, a smaller shark called the bronze whaler", "bronze whaler shark|copper shark|Carcharhinus brachyurus",
          "a bronze whaler shark swimming underwater", first="photo", place="after")
 add_real("In False Bay the change went further.", "Seal Island False Bay|False Bay Cape Town|False Bay aerial",
          "False Bay near Cape Town: the sea with its coast or an island", first="photo", place="after")
-add_real("On the beaches of Cape Town, shark spotters", "Shark Spotters Muizenberg|Muizenberg beach|Fish Hoek beach",
-         "a swimming beach at Cape Town", first="photo")
 add_real("Reported sightings of Cape fur seals", "Cape fur seals swimming|Cape fur seal|fur seals swimming underwater",
          "Cape fur seals in the water or on rocks")
 add_real("Fishing boats that target smaller sharks", "longline fishing boat|commercial fishing boat at sea|fishing trawler",
          "a commercial fishing boat at sea")
 add_real("Orcas in other oceans have learned the same hunt.", "killer whales ocean|orca pod aerial|orcas",
          "orcas swimming in the open sea", place="after")
-widen("They stayed for about two and a half hours.", "Southeast Farallon Island|Farallon Islands")
-widen("Seal Island there was once famous", "great white shark breaching|great white shark jumping out of the water",
-      "great white shark breaching|great white shark breach", "a great white shark leaping out of the water")
-widen("Shark nets and baited hooks", "shark nets|shark net buoys beach", "Durban beachfront|Durban beach|Umhlanga beach",
-      "a swimming beach in KwaZulu-Natal")
+# Only these reviewed items may be used: a render can never bring in a picture or clip that was not looked at.
+APPROVED = [
+    "inaturalist-599687346",                              # sevengill shark underwater · Luca Davenport-Thomas · CC BY 4.0
+    "inaturalist-245792457",                              # northern elephant seal · Nicole · CC BY 4.0
+    "unsplash-iyVSCp0ZUj0",                               # wild orca pod at the surface · Mike Doherty · Unsplash
+    "inaturalist-592508768",                              # bronze whaler from a drone · Bryce Watts-Parker · CC BY 4.0
+    "pixabay-p7015038",                                   # fishing harbour in False Bay · jeanvdmeulen · Pixabay
+    "pixabay-v261267",                                    # Cape fur seals in the surf · MountainDweller · Pixabay
+    "pixabay-v6412",                                      # a fishing boat · Life-Of-Vids · Pixabay
+    "unsplash-qM9tSt_5orU",                               # two wild orcas · Vidar Nordli-Mathisen · Unsplash
+]
 
 
 # ------------------------------------------------------------------------------------------ checks + write
@@ -616,6 +628,7 @@ doc = {
     "sources": script.sources,
     "thumbnail": {"text": "TWO ORCAS EMPTIED THIS COAST"},
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
+    "settings": {"stock_approved": APPROVED},
     "scenes": scenes,
 }
 head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'
