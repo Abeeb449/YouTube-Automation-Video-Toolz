@@ -89,8 +89,16 @@ Any fact that is an estimate, is disputed, or rests on a single source.
   exact one first. They are tried in that order.
 - For a map, write `[B-roll] IMAGE: Map of <region> with <place>, <place> and <place> marked.` and name every
   place to mark. The toolkit draws the map itself.
-- Real footage of a named event (a filmed hunt, a news sighting) is usually owned by the person who filmed it. Keep
-  the cue so the editor knows the moment matters. The toolkit shows that moment in 3D when no free copy exists.
+- The toolkit searches free libraries only (iNaturalist, Unsplash, Pexels, Pixabay, Openverse, Wikimedia
+  Commons, NASA), and uses only pictures whose licence allows commercial use. These libraries hold general
+  pictures of animals and places. They do not hold news footage of one named event, which belongs to the person
+  who filmed it.
+- So write most cues for something a free library can answer, on a line that such a picture truthfully fits:
+  the animal the line is about ("great white shark swimming", "Cape fur seal colony", "orca pod"), or the place
+  ("Gansbaai harbour", "Seal Island False Bay", "Mossel Bay"). Give at least one keyword phrase of this plain
+  kind in every cue.
+- A cue for the real footage of a named event may stay where the moment matters. Its last keyword phrase must
+  then still be a plain one that fits the same sentence. When nothing is found, the toolkit shows the moment in 3D.
 
 ### Rules for the closing sections
 
