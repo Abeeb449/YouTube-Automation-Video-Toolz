@@ -4170,7 +4170,7 @@ scenes:
         to:
         - 0.86
         - 0.4
-- text: What do you think? Tell us in the comments. And if you want more stories like this, built on real research, subscribe.
+- text: What do you think? Tell us in the comments. And if you want more videos like this, subscribe.
   visual:
     remotion: OceanScene
     props:
