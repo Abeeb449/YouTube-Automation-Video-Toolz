@@ -42,7 +42,7 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    | `PEXELS_API_KEY` | optional second stock source, if you already have a key | https://www.pexels.com/api/ |
    | `ELEVENLABS_API_KEY` | premium voices | https://elevenlabs.io |
 
-   | Variable `YTAUTO_CONTACT` (Actions *variable*, not a secret) | a URL or email Wikimedia's robot policy asks download tools to send; without it Wikimedia Commons refuses video downloads | Settings → Secrets and variables → Actions → *Variables* |
+   | `YTAUTO_CONTACT` | a URL or email Wikimedia's robot policy asks download tools to send; without it Wikimedia Commons refuses video downloads. Add it as a **secret** when it is an email: a plain Actions *variable* is printed in the run logs, which anyone can read on a public repo. Your channel link works too and needs no hiding. | Settings → Secrets and variables → Actions |
 
    Stock photos and clips also come **without any key** from iNaturalist (wildlife photos of the exact species),
    Openverse, Wikimedia Commons and NASA. Only CC0, public-domain and CC BY items are used (add the Actions
