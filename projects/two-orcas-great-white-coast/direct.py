@@ -628,7 +628,8 @@ doc = {
     "sources": script.sources,
     "thumbnail": {"text": "TWO ORCAS EMPTIED THIS COAST"},
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
-    "settings": {"stock_approved": APPROVED},
+    # padding: the gap after each scene. With the voice trimmed tight this gives about 0.28 s between sentences.
+    "settings": {"stock_approved": APPROVED, "padding": 0.2},
     "scenes": scenes,
 }
 head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'

@@ -67,6 +67,7 @@ settings:
   - pixabay-v261267
   - pixabay-v6412
   - unsplash-qM9tSt_5orU
+  padding: 0.2
 scenes:
 - chapter: Intro
   mood: mystery

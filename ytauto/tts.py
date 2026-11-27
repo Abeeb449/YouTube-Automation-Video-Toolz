@@ -27,7 +27,7 @@ import wave
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .utils import YtautoError, ffprobe_duration, log, run, stable_hash, warn, which
+from .utils import REPO_ROOT, YtautoError, ffprobe_duration, log, run, stable_hash, warn, which
 
 SAMPLE_RATE = 48000
 
@@ -92,9 +92,32 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
     voice = {k: v for k, v in voice.items() if k != "sampling"}
     voice["fluent"] = False
     if voice.get("delivery") == "steady" and voice.get("engine") == "qwen":
-        # a steady read: less randomness in how each line is spoken, so lines sound alike in pace and energy
-        voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
+        # A steady read. Lines are recorded one at a time, and left alone the voice picks a different register for
+        # each (a pitch that jumps up and down from line to line). So every line is recorded against one fixed clip
+        # of the narrator (voices/<name>-steady.wav): same register, pace and energy from the first line to the last.
+        anchor = steady_anchor(voice)
+        if anchor and not voice.get("reference"):
+            voice.update(reference=anchor["reference"], ref_text=anchor["text"], pitch_hz=anchor["pitch_hz"])
+            voice["sampling"] = {"temperature": 0.3, "top_p": 0.8, "subtalker_temperature": 0.3}
+        else:
+            voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
+        voice.setdefault("max_pause", 0.25)      # no gap in the voice longer than this (seconds)
     return strip_directives(text), voice, st
+
+
+def steady_anchor(voice: dict) -> dict | None:
+    """The fixed clip a steady narration is recorded against: voices/<name>-steady.wav with its text and pitch in
+    voices/<name>-steady.json. The path is kept relative to the repository, so recordings made on one machine are
+    recognised on another."""
+    name = re.sub(r"[^a-z0-9]+", "-", str(voice.get("name") or "ryan").lower()).strip("-")
+    rel = f"voices/{name}-steady"
+    try:
+        meta = json.loads((REPO_ROOT / f"{rel}.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    if not (REPO_ROOT / f"{rel}.wav").exists():
+        return None
+    return {"reference": f"{rel}.wav", "text": meta["text"], "pitch_hz": float(meta["pitch_hz"])}
 
 
 def parse_directives(text: str) -> list[tuple]:
@@ -621,7 +644,8 @@ def _qwen_tts(text: str, voice: dict, out: Path) -> None:
     job = {"text": text, "out": str(out.with_suffix(".raw.wav")), "language": voice.get("language", "English"),
            "sampling": voice.get("sampling"), "seed": voice.get("seed")}
     if voice.get("reference"):
-        job.update(model="Base", reference=str(voice["reference"]), ref_text=voice.get("ref_text"))
+        ref = Path(str(voice["reference"]))
+        job.update(model="Base", reference=str(ref if ref.is_absolute() else REPO_ROOT / ref), ref_text=voice.get("ref_text"))
     elif name == "design" or voice.get("description"):
         desc = voice.get("description") or "A deep, warm, mature male narrator voice, like a nature documentary"
         job.update(model="VoiceDesign", instruct=f"{desc}. {instruct}".strip(". "))
@@ -724,6 +748,128 @@ def level_take(raw: Path) -> None:
         out.unlink(missing_ok=True)
 
 
+def _decode(path: Path, rate: int):
+    import subprocess
+
+    import numpy as np
+    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(rate), "-"],
+                         capture_output=True).stdout
+    return np.frombuffer(pcm, dtype=np.float32)
+
+
+def tighten(raw: Path, cap: float) -> Path:
+    """The same take with no gap longer than `cap` seconds: silence at its start and end is trimmed, and every
+    longer silence inside it is cut down to `cap` (the middle of the silence is taken out, never any speech).
+    Kept next to the raw take, so changing the cap never records anything again."""
+    import wave
+
+    import numpy as np
+    out = raw.with_name(f"{raw.stem}.g{int(round(cap * 1000))}.wav")
+    if out.exists() and out.stat().st_mtime >= raw.stat().st_mtime:
+        return out
+    sr = SAMPLE_RATE
+    x = _decode(raw, sr).copy()
+    hop = sr // 100                                    # 10 ms
+    n = len(x) // hop
+    if n < 20:
+        return raw
+    rms = np.sqrt((x[:n * hop].reshape(n, hop) ** 2).mean(axis=1) + 1e-12)
+    quiet = 20 * np.log10(rms) < -42.0
+    edge, keep = 4, max(2, int(round(cap * 100)))      # frames kept at the ends / of every inner silence
+    fade = int(sr * 0.006)
+    pieces, i = [], 0
+    runs = []                                          # (start, end) of silent runs, in frames
+    while i < n:
+        if quiet[i]:
+            j = i
+            while j < n and quiet[j]:
+                j += 1
+            runs.append((i, j))
+            i = j
+        else:
+            i += 1
+    cut = []                                           # frame ranges to remove
+    for a, b in runs:
+        if a == 0:
+            if b - a > edge:
+                cut.append((a, b - edge))
+        elif b == n:
+            if b - a > edge:
+                cut.append((a + edge, b))
+        elif b - a > keep:
+            h = keep // 2
+            cut.append((a + h, b - (keep - h)))
+    if not cut:
+        return raw
+    pos = 0
+    for a, b in cut:
+        seg = x[pos * hop:a * hop].copy()
+        if len(seg) > fade:
+            seg[-fade:] *= np.linspace(1.0, 0.0, fade)
+        pieces.append(seg)
+        pos = b
+    tail = x[pos * hop:].copy()
+    pieces.append(tail)
+    for k in range(1, len(pieces)):
+        if len(pieces[k]) > fade:
+            pieces[k][:fade] *= np.linspace(0.0, 1.0, fade)
+    y = np.clip(np.concatenate(pieces), -1.0, 1.0)
+    with wave.open(str(out), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes((y * 32767.0).astype("<i2").tobytes())
+    return out
+
+
+def voice_pitch(path: Path) -> float | None:
+    """The narrator's pitch in a recording: the middle (median) of its voiced pitch, in Hz. Lines recorded apart
+    can come out in different registers; this is how they are told apart."""
+    import numpy as np
+    sr = 16000
+    x = _decode(path, sr)
+    win, hop, lo, hi = 640, 160, sr // 260, sr // 60
+    vals = []
+    for i in range(0, len(x) - win, hop):
+        fr = x[i:i + win]
+        if np.sqrt((fr ** 2).mean()) < 0.01:
+            continue
+        fr = fr - fr.mean()
+        ac = np.correlate(fr, fr, "full")[win - 1:]
+        if ac[0] <= 0:
+            continue
+        k = lo + int(np.argmax(ac[lo:hi]))
+        if ac[k] / ac[0] > 0.55:
+            vals.append(sr / k)
+    return float(np.median(vals)) if len(vals) >= 15 else None
+
+
+PITCH_BAND = 1.0           # semitones: a take further than this from the narrator's pitch is in another register
+PITCH_KEEP = 0.35          # semitones: closer than this is the same voice to the ear; nothing is corrected
+
+
+def match_pitch(raw: Path, target: float) -> None:
+    """Bring a take that is a little higher or lower onto the narrator's pitch (at most 2.5 semitones, the shape of
+    the voice kept), so lines recorded apart sit in one register."""
+    import math
+    hz = voice_pitch(raw)
+    if not hz or not target:
+        return
+    off = 12 * math.log2(hz / target)
+    if abs(off) <= PITCH_KEEP or abs(off) > 2.5:
+        return
+    out = raw.with_name(raw.stem + ".pit.wav")
+    try:
+        run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-af",
+             f"rubberband=pitch={target / hz:.5f}:formant=preserved:pitchq=quality:transients=smooth",
+             "-c:a", "pcm_s16le", out])
+        out.replace(raw)
+    except YtautoError:
+        pass                      # this ffmpeg has no pitch tool: the take stays as recorded
+    finally:
+        out.unlink(missing_ok=True)
+
+
 MAX_PAUSE = 0.9            # a silence this long inside a take is a stall, not a breath (between sentences it is ~0.65 s)
 
 
@@ -757,15 +903,22 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
     if voice.get("engine") not in ("qwen", "chatterbox") or voice.get("guard") is False or len(text.split()) < 2:
         return
     exp = expected_seconds(text)
+    target = float(voice.get("pitch_hz") or 0)
+    usual = 1.0 if voice.get("reference") else 1.1       # this voice's usual pace against the expected length
 
-    def measure(p: Path) -> tuple[float, float]:
-        return ffprobe_duration(p) / exp, longest_pause(p)
+    def measure(p: Path) -> tuple[float, float, float]:
+        off = 0.0                                         # semitones above (+) or below (-) the narrator's pitch
+        if target:
+            hz = voice_pitch(p)
+            off = 12 * math.log2(hz / target) if hz else 0.0
+        return ffprobe_duration(p) / exp, longest_pause(p), off
 
-    def good(m: tuple[float, float]) -> bool:
-        return TAKE_BAND[0] <= m[0] <= TAKE_BAND[1] and m[1] <= MAX_PAUSE
+    def good(m: tuple[float, float, float]) -> bool:
+        return TAKE_BAND[0] <= m[0] <= TAKE_BAND[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND
 
-    def score(m: tuple[float, float]) -> float:     # 1.1x is this voice's usual pace; a stall counts heavily
-        return abs(math.log(max(m[0], 0.05) / 1.1)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
+    def score(m: tuple[float, float, float]) -> float:   # a stall counts heavily; so does a different register
+        return (abs(math.log(max(m[0], 0.05) / usual)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
+                + (0.5 * abs(m[2]) if abs(m[2]) > PITCH_BAND else 0.1 * abs(m[2])))
     best = measure(raw)
     if good(best):
         return
@@ -784,15 +937,20 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         if good(best):
             break
     if best != first:
-        if first[1] > MAX_PAUSE:
+        if abs(first[2]) > PITCH_BAND and TAKE_BAND[0] <= first[0] <= TAKE_BAND[1] and first[1] <= MAX_PAUSE:
+            log(f"   retook a line that came out {'higher' if first[2] > 0 else 'lower'} than the narrator's voice "
+                f"({first[2]:+.1f} → {best[2]:+.1f} semitones): {text[:60]}")
+        elif first[1] > MAX_PAUSE:
             log(f"   retook a line with a {first[1]:.1f} s silence in it (now {best[1]:.1f} s, {best[0]:.2f}x of its "
                 f"natural length): {text[:60]}")
         else:
             log(f"   retook a {'dragged' if first[0] > 1 else 'rushed'} line ({first[0]:.2f}x → {best[0]:.2f}x of its "
                 f"natural length): {text[:60]}")
     if not good(best):
-        warn(f"narration: this line is still {'broken by a ' + format(best[1], '.1f') + ' s silence' if best[1] > MAX_PAUSE else 'off its natural pace'} "
-             f"after {tries} more takes — listen to it: {text[:70]}")
+        what = ("broken by a " + format(best[1], ".1f") + " s silence" if best[1] > MAX_PAUSE
+                else "off its natural pace" if not TAKE_BAND[0] <= best[0] <= TAKE_BAND[1]
+                else format(best[2], "+.1f") + " semitones off the narrator's pitch (it is corrected next)")
+        warn(f"narration: this line is still {what} after {tries} more takes — listen to it: {text[:70]}")
 
 
 def synthesize(text: str, voice: dict, out: Path) -> str:
@@ -922,9 +1080,11 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
             if not _fresh(raw):
                 synthesize(sent, v, raw)
                 guard_take(sent, v, raw)
+                if v.get("pitch_hz"):
+                    match_pitch(raw, float(v["pitch_hz"]))
                 if v.get("engine") in ("qwen", "chatterbox") and v.get("level") is not False:
                     level_take(raw)
-            wav = polish(raw, pol)
+            wav = tighten(raw, float(v["max_pause"])) if v.get("max_pause") else polish(raw, pol)
         used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))
         d = ffprobe_duration(wav)
         if settings.get("align", "auto") != "off":

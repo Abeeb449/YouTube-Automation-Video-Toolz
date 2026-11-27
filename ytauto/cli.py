@@ -285,7 +285,11 @@ def cmd_narrate(a) -> int:
     audios = narrate(project, pack=True)
     total = sum(au.duration for au in audios)
     lst = project.cache_dir / "tts" / "narrate_list.txt"
-    lst.write_text("".join(f"file '{au.path.resolve()}'\n" for au in audios if au.duration > 0))
+    # the same gap after every scene as in the video, so what you hear is the pace you get
+    from .tts import _silence
+    gap = project.cache_dir / "tts" / "narrate_gap.wav"
+    _silence(gap, float(project.settings.get("padding", 0.3)))
+    lst.write_text("".join(f"file '{au.path.resolve()}'\nfile '{gap.resolve()}'\n" for au in audios if au.duration > 0))
     out = project.build_dir / "narration.mp3"
     out.parent.mkdir(parents=True, exist_ok=True)
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c:a", "libmp3lame", "-b:a", "128k", out])
