@@ -64,7 +64,7 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    faster on the clock (a 15 minute video fits in one run) but uses a little more Actions minutes in total,
    because every machine has to load the render image first. The same three steps on your own machines:
    `ytauto render <project> --prepare`, `--shard K/N` on each, then `--assemble`.
-4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 14 days. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.
+4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 4 days, so download the video within that time. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.
    *(Optional: tick **Also publish as a GitHub Release** for a direct link. On a public repo that download is public.)*
 
 Pushing a change to any `projects/<name>/script.yaml` on `main` also renders that project automatically.

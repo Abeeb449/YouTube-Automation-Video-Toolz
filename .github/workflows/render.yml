@@ -223,7 +223,7 @@ jobs:
           if-no-files-found: warn
           name: ${{ steps.meta.outputs.name }}-${{ inputs.collect_only && 'review' || 'video' }}
           path: ${{ matrix.project }}/build/
-          retention-days: 14
+          retention-days: 4
           compression-level: 0
 
       - name: Publish GitHub Release
@@ -369,7 +369,7 @@ jobs:
             !${{ inputs.project }}/.cache/clips/**
             ${{ inputs.project }}/script.yaml
             ${{ inputs.project }}/build
-          retention-days: 3
+          retention-days: 4
           compression-level: 0
 
   par-shard:
@@ -434,7 +434,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           path: ${{ inputs.project }}/.cache/shards
-          retention-days: 3
+          retention-days: 4
           compression-level: 0
 
   par-assemble:
@@ -529,7 +529,7 @@ jobs:
           if-no-files-found: warn
           name: ${{ steps.meta.outputs.name }}-video
           path: ${{ inputs.project }}/build/
-          retention-days: 14
+          retention-days: 4
           compression-level: 0
 
       - name: Publish GitHub Release
