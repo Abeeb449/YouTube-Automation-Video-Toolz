@@ -191,6 +191,63 @@ def audio_qc(mix: Path, voice: Path, report: Path, planned: list[tuple[float, fl
     return times
 
 
+NARRATION_DIR = "narration"     # <project>/narration/: narration recorded ahead of the render (kept with the project)
+
+
+def restore_narration(project: Project) -> int:
+    """Put narration that was recorded ahead (`ytauto narrate`) into the cache, so the render reuses it line for line
+    instead of starting the voice engine. Returns how many scenes were restored."""
+    src = project.root / NARRATION_DIR
+    if not src.is_dir():
+        return 0
+    dst = project.cache_dir / "tts"
+    dst.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for f in sorted(src.glob("scene_*.flac")):
+        wav, meta = dst / (f.stem + ".wav"), src / (f.stem + ".json")
+        if wav.exists() or not meta.exists():
+            continue
+        run(["ffmpeg", "-y", "-v", "error", "-i", f, "-c:a", "pcm_s16le", wav])
+        shutil.copyfile(meta, dst / meta.name)
+        n += 1
+    if n:
+        log(f"   narration recorded ahead: {n} scene(s) taken from {src.name}/")
+    return n
+
+
+def narrate(project: Project, pack: bool = False) -> list:
+    """The narration of every scene, exactly as a render makes it (cached per scene). pack=True also stores it in
+    <project>/narration/ so a render on another machine (GitHub) uses these recordings."""
+    st = project.settings
+    from .sound_director import direct_narration
+    direct_narration(project)   # how the narrator sounds, from the script's own content
+    if (st.get("voice") or {}).get("engine") in ("qwen", "chatterbox"):
+        log(f"   narrator: {st['voice'].get('instruct')}")
+    voice_cache = project.cache_dir / "tts"
+    restore_narration(project)
+
+    def do_audio(scene):
+        text, voice, sst = narration_inputs(scene.text, {**st["voice"], **(scene.voice or {})}, st)
+        return build_scene_audio(text, voice, voice_cache, sst, scene.duration)
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        audios = list(ex.map(do_audio, project.scenes))
+    shutdown_workers()  # release voice-model memory before rendering
+    if pack:
+        out = project.root / NARRATION_DIR
+        shutil.rmtree(out, ignore_errors=True)
+        out.mkdir(parents=True)
+        for au in audios:
+            meta = au.path.with_suffix(".json")
+            if not meta.exists() or (out / (au.path.stem + ".flac")).exists():
+                continue
+            run(["ffmpeg", "-y", "-v", "error", "-i", au.path, "-c:a", "flac", "-compression_level", "8", out / (au.path.stem + ".flac")])
+            shutil.copyfile(meta, out / meta.name)
+        log(f"   narration stored in {out} ({sum(f.stat().st_size for f in out.iterdir()) / 1e6:.0f} MB): commit it and the "
+            "render will use it")
+    return audios
+
+
 def render_project(project: Project, preview: bool = False, keep_cache: bool = True) -> Path:
     t0 = time.time()
     st = project.settings
@@ -211,19 +268,8 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     from .broll import collect_broll
     collect_broll(project)
     log("Step 2/6: generating voiceover")
-    from .sound_director import direct_narration
-    direct_narration(project)   # how the narrator sounds, from the script's own content
-    if (st.get("voice") or {}).get("engine") in ("qwen", "chatterbox"):
-        log(f"   narrator: {st['voice'].get('instruct')}")
     voice_cache = cache / "tts"
-
-    def do_audio(scene):
-        text, voice, sst = narration_inputs(scene.text, {**st["voice"], **(scene.voice or {})}, st)
-        return build_scene_audio(text, voice, voice_cache, sst, scene.duration)
-
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        audios = list(ex.map(do_audio, project.scenes))
-    shutdown_workers()  # release voice-model memory before rendering
+    audios = narrate(project)
 
     # The opening: `intro` seconds of music and picture before the first word. Silent scenes at the top (an intro
     # with its own visuals) count toward it; the rest is added in front of the first narrated scene, whose opening

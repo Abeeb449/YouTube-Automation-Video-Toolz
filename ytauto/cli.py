@@ -261,6 +261,25 @@ def cmd_make(a) -> int:
     return 0
 
 
+def cmd_narrate(a) -> int:
+    """Record the narration of a project exactly as a render would, and keep it with the project (narration/).
+    The Ryan voice engine needs about 12 GB of memory, more than a standard GitHub runner has: record here, commit
+    the folder, and the render reuses the recordings."""
+    from .config import load_project
+    from .pipeline import narrate
+    from .utils import log, run
+    project = load_project(a.project, {})
+    audios = narrate(project, pack=True)
+    total = sum(au.duration for au in audios)
+    lst = project.cache_dir / "tts" / "narrate_list.txt"
+    lst.write_text("".join(f"file '{au.path.resolve()}'\n" for au in audios if au.duration > 0))
+    out = project.build_dir / "narration.mp3"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c:a", "libmp3lame", "-b:a", "128k", out])
+    log(f"Narration: {total / 60:.1f} min in {len(audios)} scenes → {out} (to listen to)")
+    return 0
+
+
 def cmd_sprites(a) -> int:
     from .sprites import ensure_all
 
@@ -415,6 +434,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scenes", type=int, help="only the first N scenes (quick voice samples)")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_voiceover)
+
+    p = sp.add_parser("narrate", help="record the narration ahead of the render and keep it with the project (narration/)")
+    p.add_argument("project")
+    p.set_defaults(fn=cmd_narrate)
 
     p = sp.add_parser("sprites", help="render the 3D creature sprite library with Blender")
     p.add_argument("--force", nargs="*", default=[], help="re-render, e.g. leopardSeal or leopardSeal:side")
