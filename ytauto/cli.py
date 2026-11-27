@@ -148,7 +148,20 @@ def cmd_render(a) -> int:
     if a.clean:
         shutil.rmtree(project.cache_dir, ignore_errors=True)
         shutil.rmtree(project.build_dir, ignore_errors=True)
-    render_project(project, preview=a.preview)
+    mode, shard = None, None
+    if a.prepare:
+        mode = "prepare"
+    elif a.assemble:
+        mode = "assemble"
+    elif a.shard:
+        try:
+            k, n = (int(x) for x in a.shard.split("/"))
+            assert 1 <= k <= n
+        except Exception:  # noqa: BLE001
+            print("--shard takes K/N, for example 2/4 (machine 2 of 4)")
+            return 2
+        mode, shard = "shard", (k - 1, n)
+    render_project(project, preview=a.preview, mode=mode, shard=shard)
     return 0
 
 
@@ -404,6 +417,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--clean", action="store_true", help="drop caches and re-render everything")
     p.add_argument("--voice-engine", help="override the TTS engine (kokoro, edge, chatterbox, piper, elevenlabs, espeak)")
     p.add_argument("--music", choices=["incompetech", "openverse", "library", "generate", "none"], help="override the background music source")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--prepare", action="store_true", help="parallel rendering, step 1: collect b-roll, narration and 3D pictures for all machines")
+    g.add_argument("--shard", metavar="K/N", help="parallel rendering, step 2: render this machine's share of the scenes (machine K of N)")
+    g.add_argument("--assemble", action="store_true", help="parallel rendering, step 3: check every clip is there and in order, then build the video")
     p.set_defaults(fn=cmd_render)
 
     for name, fn, hlp in (("plan", cmd_plan, "turn a plain narration script (.txt) into script.yaml scenes"),

@@ -42,6 +42,23 @@ def sprite_ready(creature: str, view: str) -> bool:
     return bool(n) and d.is_dir() and len(list(d.glob("*.webp"))) >= n
 
 
+def keep_set(creature: str, view: str, cache: Path) -> None:
+    """Parallel rendering: a set this machine had to render travels in the project's cache, so the other machines
+    use the very same pictures instead of rendering them again."""
+    kept = cache / "sprites" / creature / view
+    if sprite_ready(creature, view) and not kept.is_dir():
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(SPRITE_DIR / creature / view, kept)
+
+
+def restore_set(creature: str, view: str, cache: Path) -> None:
+    kept = cache / "sprites" / creature / view
+    if kept.is_dir() and not sprite_ready(creature, view):
+        shutil.rmtree(SPRITE_DIR / creature / view, ignore_errors=True)
+        (SPRITE_DIR / creature).mkdir(parents=True, exist_ok=True)
+        shutil.copytree(kept, SPRITE_DIR / creature / view)
+
+
 def render_set(creature: str, view: str, frames: int, force: bool = False) -> Path:
     out = SPRITE_DIR / creature / view
     if sprite_ready(creature, view) and not force:

@@ -248,7 +248,133 @@ def narrate(project: Project, pack: bool = False) -> list:
     return audios
 
 
-def render_project(project: Project, preview: bool = False, keep_cache: bool = True) -> Path:
+# ---------------------------------------------------------------------------------------------------------------
+# Parallel rendering: the same video, rendered scene by scene on several machines and joined on one
+# ---------------------------------------------------------------------------------------------------------------
+def _prepared(project: Project) -> dict:
+    f = project.cache_dir / "parallel" / "plan.json"
+    try:
+        return json.loads(f.read_text())
+    except Exception:  # noqa: BLE001
+        raise YtautoError("The prepare step has not run for this project (ytauto render <project> --prepare), or its "
+                          "results did not reach this machine.") from None
+
+
+def _hand_over(project: Project, shard: tuple[int, int], todo: list, clips: list[Path], job_scene: list[int],
+               marks: list[str], digest: str) -> None:
+    """This machine's finished clips, with a list saying which place in the video each one takes."""
+    from . import stock
+    if stock.UNPREPARED:
+        raise YtautoError("This machine needed material the prepare step did not collect, so its clips are not "
+                          "handed over:\n - " + "\n - ".join(sorted(set(stock.UNPREPARED))[:20]))
+    k, n = shard
+    out = project.cache_dir / "shards" / str(k)
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    entries = []
+    for (seq, _spec, d, _fi, _fo), path in zip(todo, clips):
+        name = f"{seq:05d}_{path.name}"
+        try:
+            os.link(path, out / name)
+        except OSError:
+            shutil.copyfile(path, out / name)
+        side = path.with_suffix(".credits.json")
+        credits = json.loads(side.read_text()) if side.exists() else []
+        entries.append({"seq": seq, "scene": job_scene[seq] + 1, "file": name, "job": marks[seq],
+                        "frames": round(d * int(project.settings["fps"])), "credits": credits})
+    (out / "manifest.json").write_text(json.dumps({"shard": k, "of": n, "plan": digest, "clips": entries}, indent=1))
+
+
+def _frames_in(path: Path) -> int:
+    try:
+        return int(run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries",
+                        "stream=nb_read_packets", "-of", "csv=p=0", path]).strip().split(",")[0])
+    except Exception:  # noqa: BLE001
+        return -1
+
+
+def _collect_shards(project: Project, jobs: list, job_scene: list[int], marks: list[str], digest: str) -> list[Path]:
+    """Every clip of the video, in script order, from what the machines handed over. Any clip that is missing,
+    doubled, cut short or made from a different plan stops the build: no video with gaps, no stand-ins."""
+    from . import stock
+    fps = int(project.settings["fps"])
+    root = project.cache_dir / "shards"
+    report = project.build_dir / "parallel_report.txt"
+    manifests = []
+    for f in sorted(root.glob("*/manifest.json")):
+        try:
+            manifests.append((f.parent, json.loads(f.read_text())))
+        except Exception:  # noqa: BLE001
+            pass
+    problems: list[str] = []
+    n = max((m["of"] for _d, m in manifests), default=0)
+    got = sorted(m["shard"] for _d, m in manifests)
+    have: dict[int, list] = {}
+    for d, m in manifests:
+        if m.get("plan") != digest or m["of"] != n:
+            problems.append(f"machine {m['shard'] + 1} rendered from a different plan; its clips are not used")
+            continue
+        for e in m["clips"]:
+            have.setdefault(int(e["seq"]), []).append((d / e["file"], e, m["shard"]))
+    if not manifests:
+        problems.append("no machine handed over any clips")
+    for k in range(n):
+        if k not in got:
+            problems.append(f"machine {k + 1} of {n} handed over nothing")
+    clips: list[Path] = []
+    bad_scenes: set[int] = set()
+    first_of: dict[int, int] = {}
+    for seq, _spec, d, _fi, _fo in jobs:
+        scene = job_scene[seq] + 1
+        shot = seq - first_of.setdefault(scene, seq) + 1
+        where = f"scene {scene}, shot {shot}" + (f" (machine {job_scene[seq] % n + 1} of {n})" if n else "")
+        found = have.get(seq) or []
+        why = None
+        if not found:
+            why = "missing"
+        elif len(found) > 1:
+            why = "handed over by more than one machine"
+        else:
+            path, e, _k = found[0]
+            want = round(d * fps)
+            if e.get("job") != marks[seq]:
+                why = "made for a different place in the video"
+            elif not path.exists() or path.stat().st_size == 0:
+                why = "listed but the file did not arrive"
+            elif _frames_in(path) != want:
+                why = f"wrong length ({_frames_in(path)} frames instead of {want})"
+        if why:
+            problems.append(f"{where}: {why}")
+            bad_scenes.add(scene)
+            continue
+        clips.append(path)
+        stock.register(e.get("credits") or [])
+    if problems:
+        lines = [f"PARALLEL RENDER STOPPED — no video was built.",
+                 f"{len(jobs) - len(clips)} of {len(jobs)} clips are missing or wrong"
+                 + (f", in scene{"s" if len(bad_scenes) != 1 else ""} {', '.join(str(x) for x in sorted(bad_scenes))}" if bad_scenes else "") + ".", ""]
+        lines += [f" - {p_}" for p_ in problems]
+        lines += ["", "Run the failed machine again (Actions → this run → Re-run failed jobs), or render with "
+                      "parallel switched off."]
+        report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        raise YtautoError("\n".join(lines[:2] + lines[3:3 + 40]))
+    per = {k: sorted({e["scene"] for _d, m in manifests if m["shard"] == k for e in m["clips"]}) for k in got}
+    lines = [f"PARALLEL RENDER — all {len(clips)} clips of {len(set(job_scene))} scenes are present, each the right "
+             f"length, and joined in script order.", ""]
+    lines += [f"machine {k + 1} of {n}: {len(per[k])} scene{"s" if len(per[k]) != 1 else ""} ({', '.join(str(x) for x in per[k])})" for k in got]
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    log(f"   all {len(clips)} clips from {n} machines are present and in script order")
+    return clips
+
+
+def render_project(project: Project, preview: bool = False, keep_cache: bool = True,
+                   mode: str | None = None, shard: tuple[int, int] | None = None) -> Path | None:
+    """mode None renders the whole video on this machine. The other modes split the same render over several
+    machines without changing a frame of it (only which machine renders which scene):
+      "prepare"   collect the b-roll, the narration and the 3D pictures once, for all machines
+      "shard"     render this machine's share of the scenes (shard = (k, n): share k of n, counted from 0)
+      "assemble"  take the clips of all machines, check that every one is there and in script order, and build
+                  the video; stops with the list of missing scenes instead of building a video with gaps"""
     t0 = time.time()
     st = project.settings
     fps = int(st["fps"])
@@ -264,9 +390,15 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     stock.APPROVED = set(st["stock_approved"]) if st.get("stock_approved") else None
     # 1) B-roll first: every stock photo/clip the script asks for is searched, checked and downloaded before any
     #    voice or picture is made, so the edit starts with all its material on disk (build/broll_report.txt)
-    log("Step 1/6: collecting b-roll (search, check, download)")
     from .broll import collect_broll
-    collect_broll(project)
+    if mode in ("shard", "assemble"):
+        prepared = _prepared(project)          # stops here when the prepare step has not run
+        stock.use_prepared(cache)              # only what the prepare step collected; nothing is searched again
+    if mode == "shard":
+        log(f"Step 1/6: b-roll — using what the prepare step collected (machine {shard[0] + 1} of {shard[1]})")
+    else:
+        log("Step 1/6: collecting b-roll (search, check, download)")
+        collect_broll(project)
     log("Step 2/6: generating voiceover")
     voice_cache = cache / "tts"
     audios = narrate(project)
@@ -313,14 +445,20 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
     renderer = ClipRenderer(project)
     sprite_man = {}
     if st.get("render3d", True):
-        from .sprites import manifest, render_set, SETS, used_sprites
+        from .sprites import keep_set, manifest, render_set, restore_set, sprite_ready, SETS, used_sprites
         for creature, view in sorted(used_sprites(project)):
+            if mode in ("shard", "assemble"):
+                restore_set(creature, view, cache)       # the set the prepare step rendered, not a new one
+            fresh = mode == "prepare" and not sprite_ready(creature, view)
             try:
                 render_set(creature, view, SETS[creature][view])
             except YtautoError as exc:
                 warn(f"3D sprite {creature}/{view} unavailable ({exc}); using the drawn version")
+            if fresh:
+                keep_set(creature, view, cache)
         sprite_man = manifest()
     jobs = []
+    job_scene: list[int] = []     # which scene each clip belongs to
     seq = 0
     for plan in plans:
         scene = project.scenes[plan.scene_index]
@@ -340,8 +478,38 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
                 spec = _shift_numeric_cues(spec, float(scene.raw["_lead"]))
             spec = _resolve_spec_cues(spec, plan.audio.words, offset_frames / fps, fr / fps, f"scene {plan.scene_index + 1}")
             jobs.append((seq, spec, fr / fps, vi == 0, vi == len(scene.visuals) - 1))
+            job_scene.append(plan.scene_index)
             offset_frames += fr
             seq += 1
+
+    # Parallel rendering: every machine works out the same list of clips from the same plan, narration and
+    # collected material. The fingerprints prove it: a machine whose list differs stops instead of rendering.
+    todo = jobs
+    if mode:
+        marks_ = [stable_hash("job-v1", s_, round(d_ * fps), fi_, fo_, spec_) for s_, spec_, d_, fi_, fo_ in jobs]
+        digest = stable_hash("plan-v1", marks_, round(total * fps))
+    if mode == "prepare":
+        for s_, spec_, *_rest in jobs:      # ask for every clip's material exactly as the render will
+            try:
+                renderer.collect(spec_, s_)
+            except Exception:  # noqa: BLE001 — what is not found is reported by the collection above
+                pass
+        stock.save_missing(cache)
+        pdir = cache / "parallel"
+        pdir.mkdir(parents=True, exist_ok=True)
+        (pdir / "plan.json").write_text(json.dumps({"plan": digest, "clips": len(jobs), "scenes": len(plans),
+                                                    "seconds": round(total, 3)}, indent=1))
+        log(f"Prepared in {time.time() - t0:.0f}s: {len(jobs)} clips in {len(plans)} scenes, {fmt_ts(total)} of video, "
+            "ready to be rendered on several machines")
+        return None
+    if mode in ("shard", "assemble") and prepared.get("plan") != digest:
+        raise YtautoError("This machine worked out a different list of clips than the prepare step (the plan, the "
+                          "narration or the collected material is not the same here). Nothing was rendered.")
+    if mode == "shard":
+        k, n = shard
+        todo = [j for j in jobs if job_scene[j[0]] % n == k]
+        log(f"   machine {k + 1} of {n}: {len(todo)} of {len(jobs)} clips "
+            f"({len({job_scene[j[0]] for j in todo})} of {len(plans)} scenes)")
 
     done = [0]
 
@@ -352,12 +520,22 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         except YtautoError as exc:
             raise YtautoError(f"Visual #{s + 1} ({spec!r}): {exc}") from exc
         done[0] += 1
-        if done[0] % 10 == 0 or done[0] == len(jobs):
-            log(f"   clips {done[0]}/{len(jobs)}")
+        if done[0] % 10 == 0 or done[0] == len(todo):
+            log(f"   clips {done[0]}/{len(todo)}")
         return path
 
-    with ThreadPoolExecutor(max_workers=_workers(st)) as ex:
-        clips = list(ex.map(do_clip, jobs))
+    if mode == "assemble":
+        clips = _collect_shards(project, jobs, job_scene, marks_, digest)
+        if stock.UNPREPARED:
+            raise YtautoError("The video was not built: this machine needed material the prepare step did not "
+                              "collect:\n - " + "\n - ".join(sorted(set(stock.UNPREPARED))[:20]))
+    else:
+        with ThreadPoolExecutor(max_workers=_workers(st)) as ex:
+            clips = list(ex.map(do_clip, todo))
+    if mode == "shard":
+        _hand_over(project, shard, todo, clips, job_scene, marks_, digest)
+        log(f"Machine {shard[0] + 1} of {shard[1]} done in {time.time() - t0:.0f}s: {len(clips)} clips handed over")
+        return None
 
     # 3) Join video + narration ------------------------------------------------------------
     from .verify import shutdown as _verify_shutdown

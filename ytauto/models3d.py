@@ -361,8 +361,10 @@ def _memo(cache: Path) -> Path:
 def find_model(query: str, cache: Path) -> dict:
     """A rendered 3D model for these search words (alternatives with |): {key, meta, cid, credit}. Remembered, so
     the collection step finds it once and the render reuses it."""
-    key_q = stable_hash("model-v1", query, sorted(stock.allowed_licenses()), provider_order(), bool(os.environ.get("SKETCHFAB_TOKEN")),
-                        [(m["slug"], m["path"].stat().st_mtime_ns) for m in handmade_index()])
+    # the hand-built models count by their content (not by file dates, which differ on every machine and checkout),
+    # so a model found and checked once stays the answer on every machine and in every later run
+    key_q = stable_hash("model-v2", query, sorted(stock.allowed_licenses()), provider_order(), bool(os.environ.get("SKETCHFAB_TOKEN")),
+                        [(m["slug"], stable_hash(m["path"].read_text(encoding="utf-8"))) for m in handmade_index()])
     memo = {}
     try:
         memo = json.loads(_memo(cache).read_text())
@@ -376,6 +378,8 @@ def find_model(query: str, cache: Path) -> dict:
         return {**hit, "meta": sprite_meta(hit["key"])}
     if key_q in stock._missing:
         raise YtautoError(stock._missing[key_q])
+    if stock.FROZEN:
+        raise stock.unprepared(f"the 3D model for '{query}'")
     errors = []
     for alt in [a.strip() for a in query.split("|") if a.strip()]:
         for prov in provider_order():

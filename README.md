@@ -53,6 +53,17 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    Tick **collect_only** to get just the review sheet first (every 3D model, photo and clip found and checked, about
    15 minutes, no video). A video longer than about 11 minutes does not finish inside one 6-hour job: run the workflow
    a second time and it continues from what the first run saved.
+
+   **Parallel rendering (optional).** Leave **parallel** on `off` and the whole video is rendered on one machine,
+   as described above. Choose `2`, `3`, `4` or `6` and the same video is rendered on that many machines side by
+   side: one job prepares the b-roll, narration and 3D pictures once, each machine renders its share of the
+   scenes, and a last job checks that every clip is there, the right length and in script order before it builds
+   the video. Nothing in the video changes (same `script.yaml`, same narration from the project's `narration/`
+   folder, same approved b-roll, music, captions and description), only which machine renders which scene. If a
+   clip is missing, no video is built: the run stops and `build/parallel_report.txt` lists the scenes. It is
+   faster on the clock (a 15 minute video fits in one run) but uses a little more Actions minutes in total,
+   because every machine has to load the render image first. The same three steps on your own machines:
+   `ytauto render <project> --prepare`, `--shard K/N` on each, then `--assemble`.
 4. When it finishes, open the run and download the **Artifacts** zip at the bottom of the run page. It holds the MP4, thumbnail, captions and description. Artifacts are kept for 14 days. On a **private** repo only you (and collaborators) can download them. On a **public** repo any signed-in GitHub user who finds the run can.
    *(Optional: tick **Also publish as a GitHub Release** for a direct link. On a public repo that download is public.)*
 

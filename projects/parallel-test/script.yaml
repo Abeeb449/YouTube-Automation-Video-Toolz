@@ -1,0 +1,238 @@
+# TEST PROJECT for parallel rendering (not a video for the channel).
+# The first seven scenes of projects/sea-lions-fear-leopard-seals with a light test voice; the narration is
+# recorded in narration/ so every machine uses the same recording.
+preset: ocean
+title: Parallel render test
+description: 'A short test video: the first seven scenes of the leopard seal plan with a test voice. It is rendered once on one machine
+  and once split over three, to show that both ways give the same video. Not for publishing.'
+tags:
+- test
+settings:
+  intro: 4
+  voice:
+    engine: kokoro
+  music:
+    source: incompetech
+    mood: mystery
+youtube:
+  privacy: private
+scenes:
+- chapter: The hook
+  mood: mystery
+  text: '[tone hushed and intimate] A young fur seal stands at the edge of the rocks. Behind it, the colony: hundreds of warm, noisy
+    bodies packed together. Safe.'
+  visual:
+    remotion: OceanScene
+    props:
+      split:
+        y: 0.42
+        land: rocks
+        landWidth: 0.55
+        sky: storm
+      zoom:
+      - 1.08
+      - 1.0
+      actors:
+      - creature: seaLion
+        x: 0.42
+        y: 0.33
+        scale: 0.32
+        detail:
+          pup: true
+          rest: true
+        label:
+          text: Fur seal pup
+          at: young
+      - creature: seaLion
+        x: 0.12
+        y: 0.3
+        scale: 0.42
+        detail:
+          rest: true
+        at: colony
+      - creature: seaLion
+        x: 0.26
+        y: 0.28
+        scale: 0.38
+        detail:
+          rest: true
+        flip: true
+        at: colony
+- text: '[tone hushed, slow] In front of it, the Southern Ocean. [pause 0.4] Grey. [pause 0.3] Calm. [pause 0.3] And completely silent.'
+  visual:
+    remotion: PhotoStory
+    props:
+      layout: full
+      photos:
+      - photo: stock:southern ocean antarctica
+        verify: the icy Southern Ocean off Antarctica, cold grey sea
+        focus:
+        - 0.5
+        - 0.5
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        split:
+          y: 0.4
+          land: rocks
+          landWidth: 0.3
+          sky: storm
+        zoom:
+        - 1.0
+        - 1.15
+        focus:
+        - 0.6
+        - 0.5
+        actors:
+        - creature: seaLion
+          x: 0.24
+          y: 0.31
+          scale: 0.3
+          detail:
+            pup: true
+            rest: true
+- text: It has been watching the water for a long time. [tone tense, building suspense] Because somewhere under that surface is the
+    one animal that every sea lion and fur seal in this part of the world has learned to fear.
+  visual:
+    stock: antarctica sea ice
+    verify: icy polar sea with floating sea ice
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        split:
+          y: 0.36
+          land: rocks
+          landWidth: 0.32
+          sky: storm
+        actors:
+        - creature: seaLion
+          x: 0.22
+          y: 0.27
+          scale: 0.3
+          detail:
+            pup: true
+            rest: true
+        - creature: leopardSeal
+          x: 0.95
+          y: 0.74
+          to:
+          - 0.62
+          - 0.72
+          scale: 1.0
+          silhouette: '#071118'
+          opacity: 0.85
+          at: somewhere
+          enter: fade
+- text: '[tone low and menacing] It does not chase you across the open ocean. [pause 0.5] It waits right here, at the edge.'
+  visual:
+    remotion: OceanScene
+    props:
+      split:
+        y: 0.36
+        land: rocks
+        landWidth: 0.4
+        sky: storm
+      actors:
+      - creature: seaLion
+        x: 0.3
+        y: 0.27
+        scale: 0.3
+        detail:
+          pup: true
+          rest: true
+        target:
+          at: waits
+      - creature: leopardSeal
+        x: 0.55
+        y: 0.58
+        to:
+        - 0.5
+        - 0.56
+        scale: 1.0
+        silhouette: '#071118'
+        opacity: 0.9
+      callout: It waits at the edge
+      calloutAt: edge
+- mood: danger
+  text: '[tone serious, quietly shocked] In one Antarctic colony, this hunter has taken around seven out of every ten pups born there,
+    year after year.'
+  visual:
+    remotion: DotGrid
+    props:
+      backdrop: abyss
+      value: 7 in 10
+      label: Pups taken each year
+      note: Cape Shirreff, Antarctica · estimate
+      count: 10
+      cols: 5
+      highlight: 7
+      fillAt: seven
+      source: Krause et al. · NOAA Antarctic Marine Living Resources
+- text: '[tone intrigued, leaning in] And the strangest part? [pause 0.5] Scientists think most of that killing comes down to just a
+    handful of individuals.'
+  visual:
+    remotion: OceanScene
+    props:
+      depth: 0.85
+      actors:
+      - creature: leopardSeal
+        x: 0.3
+        y: 0.4
+        scale: 0.6
+        silhouette: '#3a4a55'
+        opacity: 0.9
+        at: strangest
+      - creature: leopardSeal
+        x: 0.7
+        y: 0.6
+        scale: 0.6
+        silhouette: '#3a4a55'
+        opacity: 0.9
+        flip: true
+        at: Scientists
+      - creature: leopardSeal
+        x: 0.45
+        y: 0.8
+        scale: 0.55
+        silhouette: '#3a4a55'
+        opacity: 0.9
+        at: handful
+      title: Just a handful?
+      titleAt: handful
+- text: '[tone slow, deliberate, dramatic] This is the leopard seal. [pause 0.6] And this is why sea lions fear it.'
+  duration: 7
+  visual:
+    remotion: PhotoStory
+    props:
+      layout: full
+      photos:
+      - photo: stock:leopard seal
+        verify: a photo of a wild leopard seal
+        focus:
+        - 0.55
+        - 0.45
+        mono: true
+        colorAt: leopard
+    fallback_visual:
+      remotion: OceanScene
+      props:
+        depth: 0.75
+        zoom:
+        - 1.0
+        - 1.12
+        actors:
+        - creature: leopardSeal
+          x: 0.3
+          y: 0.55
+          to:
+          - 0.52
+          - 0.53
+          scale: 1.4
+          detail:
+            jaw: 0.0
+        bigText: LEOPARD SEAL
+        bigAt: leopard
+  sfx:
+  - sound: hit
+    at: leopard
+    volume: 0.55

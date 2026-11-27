@@ -675,6 +675,40 @@ _paused: dict[str, float] = {}   # provider -> time until which it is skipped (r
 
 _requests: list[dict] = []        # every stock request of this run and how it ended (for the b-roll report)
 _missing: dict[str, str] = {}     # requests already searched in this run with no usable result (not searched twice)
+# Parallel rendering: the prepare step collects everything once; the machines that render the scenes and the one
+# that builds the video then use exactly that material and never search (FROZEN). A request the prepare step
+# never made is noted here, and the machine stops instead of quietly showing something else.
+FROZEN = False
+UNPREPARED: list[str] = []
+
+
+def _missing_file(cache: Path) -> Path:
+    return cache / "stock" / "missing.json"
+
+
+def save_missing(cache: Path) -> None:
+    """Remember which requests found nothing, for the other machines of a parallel render."""
+    f = _missing_file(cache)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with _lock:
+        f.write_text(json.dumps(_missing, indent=1))
+
+
+def use_prepared(cache: Path) -> None:
+    """Use only what the prepare step collected: what it found is found, what it missed stays missed."""
+    global FROZEN
+    try:
+        _missing.update(json.loads(_missing_file(cache).read_text()))
+    except Exception:  # noqa: BLE001
+        pass
+    FROZEN = True
+
+
+def unprepared(what: str) -> YtautoError:
+    msg = f"{what} was not collected in the prepare step"
+    with _lock:
+        UNPREPARED.append(msg)
+    return YtautoError(msg)
 
 
 def _resolved_file(cache: Path) -> Path:
@@ -723,6 +757,8 @@ def fetch_stock(query: str, kind: str, cache: Path, width: int, nth: int = 0, wa
         return path, hit.get("kind", kind)
     if gone:
         raise YtautoError(gone)
+    if FROZEN:
+        raise unprepared(f"the {kind} for '{query}'")
     try:
         path, got = _fetch_stock_alts(query, kind, cache, width, nth, wanted)
     except YtautoError as exc:
