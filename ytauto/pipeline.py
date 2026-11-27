@@ -352,7 +352,8 @@ def _collect_shards(project: Project, jobs: list, job_scene: list[int], marks: l
     if problems:
         lines = [f"PARALLEL RENDER STOPPED — no video was built.",
                  f"{len(jobs) - len(clips)} of {len(jobs)} clips are missing or wrong"
-                 + (f", in scene{"s" if len(bad_scenes) != 1 else ""} {', '.join(str(x) for x in sorted(bad_scenes))}" if bad_scenes else "") + ".", ""]
+                 + ((", in scene" + ("s " if len(bad_scenes) != 1 else " ") + ", ".join(str(x) for x in sorted(bad_scenes)))
+                    if bad_scenes else "") + ".", ""]
         lines += [f" - {p_}" for p_ in problems]
         lines += ["", "Run the failed machine again (Actions → this run → Re-run failed jobs), or render with "
                       "parallel switched off."]
@@ -361,7 +362,8 @@ def _collect_shards(project: Project, jobs: list, job_scene: list[int], marks: l
     per = {k: sorted({e["scene"] for _d, m in manifests if m["shard"] == k for e in m["clips"]}) for k in got}
     lines = [f"PARALLEL RENDER — all {len(clips)} clips of {len(set(job_scene))} scenes are present, each the right "
              f"length, and joined in script order.", ""]
-    lines += [f"machine {k + 1} of {n}: {len(per[k])} scene{"s" if len(per[k]) != 1 else ""} ({', '.join(str(x) for x in per[k])})" for k in got]
+    lines += [f"machine {k + 1} of {n}: {len(per[k])} " + ("scenes" if len(per[k]) != 1 else "scene")
+              + " (" + ", ".join(str(x) for x in per[k]) + ")" for k in got]
     report.write_text("\n".join(lines) + "\n", encoding="utf-8")
     log(f"   all {len(clips)} clips from {n} machines are present and in script order")
     return clips
