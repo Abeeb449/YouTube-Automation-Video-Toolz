@@ -724,21 +724,50 @@ def level_take(raw: Path) -> None:
         out.unlink(missing_ok=True)
 
 
+MAX_PAUSE = 0.9            # a silence this long inside a take is a stall, not a breath (between sentences it is ~0.65 s)
+
+
+def longest_pause(path: Path) -> float:
+    """The longest silence inside a recording, in seconds (the quiet at its very start and end does not count)."""
+    import subprocess
+    try:
+        dur = ffprobe_duration(path)
+        proc = subprocess.run(["ffmpeg", "-v", "info", "-i", str(path), "-af", "silencedetect=noise=-42dB:d=0.5",
+                               "-f", "null", "-"], capture_output=True, text=True)
+    except Exception:  # noqa: BLE001
+        return 0.0
+    longest, start = 0.0, None
+    for m in re.finditer(r"silence_(start|end): ([0-9.]+)", proc.stderr):
+        if m.group(1) == "start":
+            start = float(m.group(2))
+        elif start is not None:
+            end = float(m.group(2))
+            if start > 0.15 and end < dur - 0.15:
+                longest = max(longest, end - start)
+            start = None
+    return longest
+
+
 def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
-    """A neural voice now and then rushes a line, drags it, or adds a sound that is not in the script (a hum, an
-    'ah', extra words). Such a take is far from the length its words need: it is recorded again (new seed) and the
-    take closest to a natural pace is kept."""
+    """A neural voice now and then rushes a line, drags it, stalls in the middle of it, or adds a sound that is not
+    in the script (a hum, an 'ah', extra words). Such a take is far from the length its words need, or has a long
+    silence inside it: it is recorded again (new seed) and the take closest to a natural, unbroken pace is kept."""
     import math
     import shutil
     if voice.get("engine") not in ("qwen", "chatterbox") or voice.get("guard") is False or len(text.split()) < 2:
         return
     exp = expected_seconds(text)
 
-    def ratio(p: Path) -> float:
-        return ffprobe_duration(p) / exp
-    score = lambda r: abs(math.log(max(r, 0.05) / 1.1))      # noqa: E731 — 1.1x is this voice's usual pace
-    best = ratio(raw)
-    if TAKE_BAND[0] <= best <= TAKE_BAND[1]:
+    def measure(p: Path) -> tuple[float, float]:
+        return ffprobe_duration(p) / exp, longest_pause(p)
+
+    def good(m: tuple[float, float]) -> bool:
+        return TAKE_BAND[0] <= m[0] <= TAKE_BAND[1] and m[1] <= MAX_PAUSE
+
+    def score(m: tuple[float, float]) -> float:     # 1.1x is this voice's usual pace; a stall counts heavily
+        return abs(math.log(max(m[0], 0.05) / 1.1)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
+    best = measure(raw)
+    if good(best):
         return
     first = best
     for k in range(1, tries + 1):
@@ -747,15 +776,23 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
             synthesize(text, {**voice, "seed": 4000 + 37 * k + len(text)}, alt)
         except YtautoError:
             break
-        r = ratio(alt)
-        if score(r) < score(best):
+        m = measure(alt)
+        if score(m) < score(best):
             shutil.copyfile(alt, raw)
-            best = r
+            best = m
         alt.unlink(missing_ok=True)
-        if TAKE_BAND[0] <= best <= TAKE_BAND[1]:
+        if good(best):
             break
-    if abs(best - first) > 1e-6:
-        log(f"   retook a {'dragged' if first > 1 else 'rushed'} line ({first:.2f}x → {best:.2f}x of its natural length): {text[:60]}")
+    if best != first:
+        if first[1] > MAX_PAUSE:
+            log(f"   retook a line with a {first[1]:.1f} s silence in it (now {best[1]:.1f} s, {best[0]:.2f}x of its "
+                f"natural length): {text[:60]}")
+        else:
+            log(f"   retook a {'dragged' if first[0] > 1 else 'rushed'} line ({first[0]:.2f}x → {best[0]:.2f}x of its "
+                f"natural length): {text[:60]}")
+    if not good(best):
+        warn(f"narration: this line is still {'broken by a ' + format(best[1], '.1f') + ' s silence' if best[1] > MAX_PAUSE else 'off its natural pace'} "
+             f"after {tries} more takes — listen to it: {text[:70]}")
 
 
 def synthesize(text: str, voice: dict, out: Path) -> str:
