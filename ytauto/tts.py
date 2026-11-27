@@ -653,6 +653,76 @@ def _fresh(path: Path) -> bool:
     return path.exists() and not path.with_suffix(".fallback").exists()
 
 
+# ---------------------------------------------------------------------------------------------- take guard
+_ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
+_TENS = "x x twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _num_words(n: int) -> str:
+    if n < 20:
+        return _ONES[n]
+    if n < 100:
+        return _TENS[n // 10] + ("" if n % 10 == 0 else " " + _ONES[n % 10])
+    if n < 1000:
+        return _ONES[n // 100] + " hundred" + ("" if n % 100 == 0 else " and " + _num_words(n % 100))
+    if n < 1_000_000:
+        return _num_words(n // 1000) + " thousand" + ("" if n % 1000 == 0 else " " + _num_words(n % 1000))
+    return "x" * (len(str(n)) * 4)
+
+
+def expected_seconds(text: str) -> float:
+    """About how long a narrator takes to say this (figures counted as the words they are spoken as)."""
+    t = re.sub(r"\[[^\]]*\]", " ", text)
+    t = re.sub(r"(\d),(\d{3})", r"\1\2", t)
+    t = re.sub(r"(\d+)\.(\d+)", lambda m: _num_words(int(m.group(1))) + " point " + " ".join(_ONES[int(c)] for c in m.group(2)), t)
+
+    def year(m):
+        y = int(m.group(0))
+        if 2000 < y < 2010:
+            return "two thousand and " + _num_words(y - 2000)
+        return _num_words(y // 100) + " " + (_num_words(y % 100) if y % 100 else "hundred")
+    t = re.sub(r"\b(1[1-9]\d\d|20\d\d)\b", year, t)
+    t = re.sub(r"\d+", lambda m: _num_words(int(m.group(0))), t)
+    return 0.45 + len(re.sub(r"\s+", " ", t).strip()) / 15.0
+
+
+TAKE_BAND = (0.8, 1.5)     # a take this much shorter / longer than expected is rushed, dragged, or carries extra sound
+
+
+def guard_take(text: str, voice: dict, raw: Path, tries: int = 3) -> None:
+    """A neural voice now and then rushes a line, drags it, or adds a sound that is not in the script (a hum, an
+    'ah', extra words). Such a take is far from the length its words need: it is recorded again (new seed) and the
+    take closest to a natural pace is kept."""
+    import math
+    import shutil
+    if voice.get("engine") not in ("qwen", "chatterbox") or voice.get("guard") is False or len(text.split()) < 2:
+        return
+    exp = expected_seconds(text)
+
+    def ratio(p: Path) -> float:
+        return ffprobe_duration(p) / exp
+    score = lambda r: abs(math.log(max(r, 0.05) / 1.1))      # noqa: E731 — 1.1x is this voice's usual pace
+    best = ratio(raw)
+    if TAKE_BAND[0] <= best <= TAKE_BAND[1]:
+        return
+    first = best
+    for k in range(1, tries + 1):
+        alt = raw.with_name(f"{raw.stem}.take{k}.wav")
+        try:
+            synthesize(text, {**voice, "seed": 4000 + 37 * k + len(text)}, alt)
+        except YtautoError:
+            break
+        r = ratio(alt)
+        if score(r) < score(best):
+            shutil.copyfile(alt, raw)
+            best = r
+        alt.unlink(missing_ok=True)
+        if TAKE_BAND[0] <= best <= TAKE_BAND[1]:
+            break
+    if abs(best - first) > 1e-6:
+        log(f"   retook a {'dragged' if first > 1 else 'rushed'} line ({first:.2f}x → {best:.2f}x of its natural length): {text[:60]}")
+
+
 def synthesize(text: str, voice: dict, out: Path) -> str:
     """Synthesize `text` into `out` (wav). Returns the engine actually used."""
     engine = voice.get("engine", "edge")
@@ -779,6 +849,7 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
         else:
             if not _fresh(raw):
                 synthesize(sent, v, raw)
+                guard_take(sent, v, raw)
             wav = polish(raw, pol)
         used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))
         d = ffprobe_duration(wav)
