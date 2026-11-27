@@ -521,8 +521,11 @@ class _Worker:
         if not Path(self.python).exists():
             raise YtautoError(f"{self.name} is not installed (expected {self.python}); see README → Voices")
         log(f"Starting {self.name}{'' if 'check' in self.name else ' voice engine'} (first use loads the model, this can take a minute) …")
+        # what the worker prints when it fails is kept, so a crash can be explained (out of memory, a missing file …)
+        import tempfile
+        self.errlog = Path(tempfile.gettempdir()) / f"ytauto-{re.sub(r'[^a-z0-9]+', '-', self.name.lower())}-{os.getpid()}.err"
         self.proc = subprocess.Popen([self.python, "-u", self.script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                     stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                                     stderr=open(self.errlog, "w"), text=True, bufsize=1)
         if self._read() is None:
             raise YtautoError(f"{self.name} worker failed to start")
 
@@ -549,14 +552,19 @@ class _Worker:
                 res = self._read()
             except (BrokenPipeError, OSError):
                 res = None
+            why = ""
             if res is None:   # crashed: drop the process so the next call starts a fresh one
                 try:
+                    code = self.proc.poll()
                     self.proc.kill()
+                    tail = [ln.strip() for ln in Path(self.errlog).read_text(errors="replace").splitlines() if ln.strip()][-3:]
+                    killed = " (stopped by the system: out of memory?)" if code in (-9, 137) else ""
+                    why = f": exit {code}{killed}" + (f" · {' / '.join(tail)[:300]}" if tail else "")
                 except Exception:  # noqa: BLE001
                     pass
                 self.proc = None
         if res is None:
-            raise YtautoError(f"{self.name} worker crashed")
+            raise YtautoError(f"{self.name} worker crashed{why}")
         if not res.get("ok"):
             raise YtautoError(f"{self.name}: {res.get('error')}")
         return res

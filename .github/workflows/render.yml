@@ -141,6 +141,9 @@ jobs:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |
           mkdir -p "${{ matrix.project }}/.cache" .cache/huggingface
+          # what this run has to work with (a voice engine that crashes is usually short of memory)
+          echo "runner: $(nproc) CPUs"; free -h | sed -n 1,3p; df -h / | tail -1
+          docker run --rm ytauto:latest bash -c '/opt/tts-qwen/bin/pip list 2>/dev/null | grep -iE "^(torch|torchaudio|qwen-tts|transformers|accelerate|numpy) "' || true
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work -e HF_HOME=/work/.cache/huggingface \
             -e UNSPLASH_ACCESS_KEY -e YTAUTO_VOICE -e YTAUTO_CONTACT -e YTAUTO_STOCK_LICENSES -e PEXELS_API_KEY -e PIXABAY_API_KEY -e SKETCHFAB_TOKEN -e ELEVENLABS_API_KEY \
             ytauto:latest bash -c '
