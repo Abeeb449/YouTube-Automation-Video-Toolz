@@ -490,8 +490,7 @@ S(1, sea(gw(0.1, 0.8, 0.7, to=[0.4, 0.5]), gw(0.9, 0.86, 0.8, to=[0.64, 0.58], a
          kicker="3 NOVEMBER 2026", heading="Off Gansbaai", callout="Two great whites at a cage-diving boat", calloutAt="two"))
 S(1, sea(gw(0.36, 0.48, 0.8, to=[0.46, 0.46]), gw(0.7, 0.6, 0.9, to=[0.6, 0.58]), depth=0.2, surface=True, rays=True,
          hud={"label": "The company's first in", "value": "Over a year"}))
-S(2, sea(gw(0.2, 0.5, 0.6, to=[0.36, 0.48]), gw(0.74, 0.66, 0.5, to=[0.62, 0.64]), gw(0.56, 0.3, 0.42, to=[0.68, 0.3]), depth=0.25, rays=True,
-         callout="A few sharks are a hopeful sign", calloutAt="hopeful"))
+S(2, tpl("Statement", backdrop="ocean", kicker2="The people who saw them", line1="A few sharks", line2="are a hopeful sign"))
 S(1, sea(gw(0.6, 0.5, 0.6, to=[0.9, 0.46]), depth=0.3, callout="Too early to call it a return", calloutAt="early"))
 S(1, sea(port(0.24, 0.42, 1.5, view="three_quarter", to=[0.32, 0.42], label={"text": "Port", "at": "Port"}),
          star(0.66, 0.68, 1.5, view="three_quarter", to=[0.74, 0.68], label={"text": "Starboard", "at": "Starboard"}), depth=0.35,

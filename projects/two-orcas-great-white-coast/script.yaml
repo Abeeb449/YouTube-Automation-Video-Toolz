@@ -3725,34 +3725,12 @@ scenes:
         - 0.58
 - text: The people who saw them chose their words with care. A few sharks are a hopeful sign.
   visual:
-    remotion: OceanScene
+    remotion: Statement
     props:
-      depth: 0.25
-      rays: true
-      callout: A few sharks are a hopeful sign
-      calloutAt: hopeful
-      actors:
-      - creature: greatWhite
-        x: 0.2
-        y: 0.5
-        scale: 0.6
-        to:
-        - 0.36
-        - 0.48
-      - creature: greatWhite
-        x: 0.74
-        y: 0.66
-        scale: 0.5
-        to:
-        - 0.62
-        - 0.64
-      - creature: greatWhite
-        x: 0.56
-        y: 0.3
-        scale: 0.42
-        to:
-        - 0.68
-        - 0.3
+      backdrop: ocean
+      kicker2: The people who saw them
+      line1: A few sharks
+      line2: are a hopeful sign
 - text: It is too early to call it a return.
   visual:
     remotion: OceanScene
