@@ -220,7 +220,7 @@ def cmd_broll(a) -> int:
     from .broll import collect_broll
     from .config import load_project
     project = load_project(a.project)
-    data = collect_broll(project, refresh=a.refresh)
+    data = collect_broll(project, refresh=a.refresh, minutes=a.minutes)
     print((project.build_dir / "broll_report.txt").read_text() if data["requested"] else "No b-roll requested in this script.")
     return 0
 
@@ -435,6 +435,8 @@ def main(argv: list[str] | None = None) -> int:
                                     "+ broll_sheet.jpg to review before rendering")
     p.add_argument("project", help="project folder with script.yaml")
     p.add_argument("--refresh", action="store_true", help="search everything again instead of reusing earlier answers")
+    p.add_argument("--minutes", type=float, default=None,
+                   help="stop starting new searches after this many minutes (the rest is reported as not searched)")
     p.set_defaults(fn=cmd_broll)
 
     p = sp.add_parser("model", help="hand-built 3D models: list them, or render one from every side to check it")

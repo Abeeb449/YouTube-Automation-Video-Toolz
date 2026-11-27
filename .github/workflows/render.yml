@@ -155,7 +155,7 @@ jobs:
               cat "$P/check.txt"
               if [ "${{ inputs.collect_only }}" = "true" ]; then
                 # only the collection step: every 3D model, photo and clip is found, checked and listed for review
-                python -m ytauto broll "$P"
+                python -m ytauto broll "$P" --minutes 50
               else
                 # stop cleanly before the job limit so the finished parts are saved to the cache below; a video too
                 # long for one run (roughly over 11 minutes) is finished by running the workflow a second time
@@ -187,6 +187,7 @@ jobs:
 
       - name: Name outputs
         id: meta
+        if: always()
         shell: bash
         run: |
           name=$(basename "${{ matrix.project }}")
@@ -206,8 +207,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifact
+        if: always()      # a run that was stopped still hands over what it finished (the review sheet, the report)
         uses: actions/upload-artifact@v4
         with:
+          if-no-files-found: warn
           name: ${{ steps.meta.outputs.name }}-${{ inputs.collect_only && 'review' || 'video' }}
           path: ${{ matrix.project }}/build/
           retention-days: 14

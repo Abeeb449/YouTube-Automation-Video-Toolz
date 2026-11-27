@@ -49,9 +49,13 @@ def _first_request(spec) -> tuple[str, str, str | None]:
     return "b-roll", "", None
 
 
-def collect_broll(project: Project, refresh: bool = False) -> dict:
-    """Run the collection for a whole project. Returns the report data (also written to build/)."""
+def collect_broll(project: Project, refresh: bool = False, minutes: float | None = None) -> dict:
+    """Run the collection for a whole project. Returns the report data (also written to build/).
+    minutes: stop starting new searches after this long (what is left is reported as not searched). The report is
+    rewritten after every request, so a run that is stopped still leaves what it found."""
+    import time
     from . import stock, verify
+    stock.DEADLINE = time.time() + minutes * 60 if minutes else None
     from .visuals import ClipRenderer
     st = project.settings
     stock.species_photos = bool(st.get("species_photos", True))
@@ -90,13 +94,16 @@ def collect_broll(project: Project, refresh: bool = False) -> dict:
         items.append(item)
         log(f"   {'opening' if item['scene'] == 'Opening' else 'scene ' + str(item['scene'])}: "
             f"{'found' if item['found'] else 'NOT FOUND'}  [{kind}] {search[:70]}")
+        part = _write(project, items, len(asked))
+        if item["found"]:
+            try:
+                _sheet(part, project.build_dir / "broll_sheet.jpg")
+            except Exception:  # noqa: BLE001 — the sheet is written again at the end
+                pass
+    stock.DEADLINE = None
     verify.shutdown()     # free the picture-check model before the voice models load
-    # the sheet shows each file once, even when several scenes use it
-    data = {"title": project.title, "requested": len(items), "found": sum(1 for i in items if i["found"]), "items": items}
+    data = _write(project, items, len(asked))
     build = project.build_dir
-    build.mkdir(parents=True, exist_ok=True)
-    (build / "broll.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
-    (build / "broll_report.txt").write_text(_report(data), encoding="utf-8")
     try:
         _sheet(data, build / "broll_sheet.jpg")
     except Exception as exc:  # noqa: BLE001
@@ -105,9 +112,20 @@ def collect_broll(project: Project, refresh: bool = False) -> dict:
     return data
 
 
+def _write(project: Project, items: list[dict], total: int) -> dict:
+    data = {"title": project.title, "requested": len(items), "found": sum(1 for i in items if i["found"]), "items": items,
+            "still_to_search": total - len(items)}
+    build = project.build_dir
+    build.mkdir(parents=True, exist_ok=True)
+    (build / "broll.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    (build / "broll_report.txt").write_text(_report(data), encoding="utf-8")
+    return data
+
+
 def _report(data: dict) -> str:
     out = [f"B-roll for \"{data['title']}\": {data['requested']} requested, {data['found']} found and checked, "
-           f"{data['requested'] - data['found']} not found", ""]
+           f"{data['requested'] - data['found']} not found"
+           + (f" ({data['still_to_search']} more not searched yet: the run was stopped)" if data.get("still_to_search") else ""), ""]
     for it in data["items"]:
         label = "Opening" if it["scene"] == "Opening" else f"Scene {it['scene']}"
         out.append(f"{label} (shot {it['shot']}): {it['text']}")

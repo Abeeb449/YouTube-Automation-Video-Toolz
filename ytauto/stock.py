@@ -547,6 +547,7 @@ _thumbs: dict[str, str] = {}      # video id -> its still preview picture (check
 # How many candidates one search phrase may turn down before the toolkit moves on. A phrase no library can answer
 # (footage of one news event) otherwise costs dozens of downloads and checks, and an hour of a render.
 MAX_REJECTS = {"video": 10, "image": 12}
+DEADLINE: float | None = None     # set by the collection step: after this moment no new search is started
 
 
 def _pick(candidates: list[tuple[str, str]]) -> tuple[str, str]:
@@ -759,6 +760,9 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
     errors = []
     later: list[tuple[str, list]] = []   # species photos when the query also asks for a detail ("seal teeth")
 
+    import time as _time
+    if DEADLINE is not None and _time.time() > DEADLINE:
+        raise YtautoError(f"Stock search for '{query}' not run: the time set aside for collecting was used up")
     budget = {"left": MAX_REJECTS.get(kind, 12)}
 
     def turn_down(cid: str, url: str, why: str, path: Path | None = None) -> None:
@@ -781,7 +785,7 @@ def _fetch_stock_one(query: str, kind: str, cache: Path, width: int, nth: int = 
         rot = cands[nth % len(cands):] + cands[:nth % len(cands)]
         rot = [c for c in rot if c[0] not in _rejected]
         tries = 0
-        while rot and tries < 8 and budget["left"] > 0:
+        while rot and tries < 8 and budget["left"] > 0 and not (DEADLINE is not None and _time.time() > DEADLINE):
             try:
                 cid, url = _pick(rot)
             except YtautoError as exc:
