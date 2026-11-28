@@ -26,7 +26,7 @@ from . import tts
 from .utils import REPO_ROOT, YtautoError, log, stable_hash, warn
 
 ANCHOR_DIR = "voice"
-ANCHOR_TAKES = 6             # candidates recorded for the narrator's clip
+ANCHOR_TAKES = 8             # candidates recorded for the narrator's clip
 PASSAGE_WORDS = 48           # a passage read in one breath is at most about this long (roughly 20 seconds)
 
 
@@ -63,14 +63,13 @@ def _write(path: Path, y, sr: int) -> None:
 
 # ------------------------------------------------------------------------------------------ the narrator's clip
 def _anchor_text(texts: list[str]) -> str:
-    """The opening of the script: whole sentences, about 20 to 32 words (8 to 12 seconds)."""
+    """The opening sentence of the script (a second one only when the first is very short). One sentence of 7 to
+    10 seconds comes out far more even than a longer clip, and that evenness is what every line then follows."""
     sents = [s for t in texts for s in re.split(r"(?<=[.!?])\s+", tts.strip_directives(t).strip()) if s]
     out: list[str] = []
     for s in sents:
-        if out and len(" ".join(out + [s]).split()) > 32:
-            break
         out.append(s)
-        if len(" ".join(out).split()) >= 20:
+        if len(" ".join(out).split()) >= 12:
             break
     return " ".join(out)
 
@@ -122,17 +121,20 @@ def ensure_anchor(project) -> None:
     if not ok:
         warn("the narrator's clip could not be made (no clean take); the general clip in voices/ is used")
         return
-    med_hz = sorted(r["hz"] for r in ok)[len(ok) // 2]
+    med_hz = sorted(r["hz"] for r in ok)[(len(ok) - 1) // 2]
     med_pace = sorted(r["pace"] for r in ok)[len(ok) // 2]
+    for r in rows:
+        log(f"      take: {r['hz']:.0f} Hz, tone moving {r['swing']:.1f} semitones, pace {r['pace']:.2f}, "
+            f"words {r['says']:.2f}")
 
-    def score(r: dict) -> float:      # the middle of the road: usual register, usual pace, an even tone
-        return (abs(12 * math.log2(r["hz"] / med_hz)) + 4 * abs(math.log(r["pace"] / med_pace))
-                + 0.35 * abs(r["swing"] - 5.0) + (1 - r["says"]) * 10)
+    def score(r: dict) -> float:      # the most even tone, at the usual pace, and not in a high register
+        return (r["swing"] + 14 * abs(math.log(r["pace"] / med_pace)) + 0.6 * max(0.0, 12 * math.log2(r["hz"] / med_hz))
+                + (1 - r["says"]) * 10)
     best = min(ok, key=score)
     folder.mkdir(parents=True, exist_ok=True)
     tts.run(["ffmpeg", "-y", "-v", "error", "-i", best["file"], "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", wav])
     meta.write_text(json.dumps({
-        "text": text, "pitch_hz": round(best["hz"], 1), "pace": round(best["pace"], 3),
+        "text": text, "pitch_hz": round(best["hz"], 1), "pace": round(best["pace"], 3), "swing": round(best["swing"], 1),
         "mood": voice.get("mood"), "direction": instruct, "speaker": voice.get("name") or "ryan",
         "about": "The narrator's clip for this video. Every line of the narration is recorded against it, so the "
                  "voice keeps this pitch, pace and mood from start to finish. Delete this folder to make a new one."},
@@ -246,7 +248,7 @@ def record_passages(project, inputs: list[tuple], cache: Path) -> None:
         try:
             if not tts._fresh(whole):
                 tts.synthesize(text, v, whole)
-                tts.guard_take(text, v, whole)
+                tts.guard_take(text, v, whole, tries=2 if len(text.split()) > 28 else 3)
                 if v.get("pitch_hz"):
                     tts.match_pitch(whole, float(v["pitch_hz"]))
                 tts.level_take(whole)
@@ -254,9 +256,11 @@ def record_passages(project, inputs: list[tuple], cache: Path) -> None:
             warn(f"passage not recorded in one breath ({str(exc)[:100]}): its scenes are recorded one by one")
             continue
         heard = _heard(whole, text)
-        cuts = _cuts(whole, sents, heard) if heard and _says(heard, text) >= 0.85 else None
+        says = _says(heard, text) if heard else 0.0
+        cuts = _cuts(whole, sents, heard) if says >= 0.85 else None
         if cuts is None:
-            warn(f"passage could not be cut at its sentence ends; its scenes are recorded one by one: {text[:70]}")
+            warn(f"passage could not be cut at its sentence ends ({'words heard ' + format(says, '.2f') if says < 0.85 else 'no clear sentence end'}); "
+                 f"its scenes are recorded one by one: {text[:70]}")
             continue
         sr = tts.SAMPLE_RATE
         x = tts._decode(whole, sr).copy()

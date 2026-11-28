@@ -224,11 +224,11 @@ def scene_tones(texts: list[str], given: list[bool]) -> list[str | None]:
 # One mood for the whole video, read from the script. Each is a moderate, natural way of speaking: the mood colours
 # the voice, it never turns into acting. The narrator's reference clip is recorded with it and every line follows.
 STEADY_MOOD = {
-    "danger": ("serious", "measured and serious, the way a good reporter tells a grave true story"),
-    "tension": ("suspenseful", "serious and quietly suspenseful, holding the listener's attention"),
-    "mystery": ("curious", "thoughtful and curious, as if working out a puzzle with the listener"),
-    "wonder": ("warm", "warm and quietly fascinated by what the story reveals"),
-    "epic": ("confident", "confident and clear, with quiet authority"),
+    "danger": ("serious", "measured and serious"),
+    "tension": ("suspenseful", "serious and quietly suspenseful"),
+    "mystery": ("curious", "thoughtful and curious"),
+    "wonder": ("warm", "warm and quietly fascinated"),
+    "epic": ("confident", "confident and clear"),
     "calm": ("relaxed", "relaxed, warm and friendly"),
     None: ("clear", "clear, friendly and matter-of-fact"),
 }
@@ -248,10 +248,9 @@ def steady_mood(texts: list[str]) -> tuple[str, str]:
     if lead is None or felt < 0.08:          # almost all facts: a clear, plain read
         lead = None
     word, how = STEADY_MOOD[lead]
-    facts = " Plain and exact on names, dates and numbers." if felt < 0.4 else ""
-    return word, (f"A natural documentary narrator, {how}. Moderate pace, one even tone and one volume from the first "
-                  f"word to the last. Speak in a normal talking voice, flowing from one sentence into the next. "
-                  f"No drama, no sudden emphasis, never loud.{facts}")
+    return word, (f"Narrate as a calm, steady documentary narrator, {how}. A natural talking voice at a moderate "
+                  f"pace. Keep the same even pitch and the same volume from the first word to the last, with no "
+                  f"sudden emphasis.")
 
 
 STEADY = ("Narrate as a calm, steady documentary narrator. Keep the same even pace, the same pitch and the same "

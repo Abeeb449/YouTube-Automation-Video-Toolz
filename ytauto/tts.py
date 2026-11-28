@@ -100,6 +100,8 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
             voice.update(reference=anchor["reference"], ref_text=anchor["text"], pitch_hz=anchor["pitch_hz"])
             if anchor["pace"]:
                 voice["pace"] = anchor["pace"]           # how fast this narrator reads, against the expected length
+            if anchor["swing"]:
+                voice["swing"] = anchor["swing"]         # how far this narrator's tone moves
             voice["sampling"] = {"temperature": 0.3, "top_p": 0.8, "subtalker_temperature": 0.3}
         else:
             voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
@@ -122,7 +124,7 @@ def steady_anchor(voice: dict) -> dict | None:
     if not (REPO_ROOT / f"{rel}.wav").exists():
         return None
     return {"reference": f"{rel}.wav", "text": meta["text"], "pitch_hz": float(meta["pitch_hz"]),
-            "pace": float(meta.get("pace") or 0)}
+            "pace": float(meta.get("pace") or 0), "swing": float(meta.get("swing") or 0)}
 
 
 def parse_directives(text: str) -> list[tuple]:
@@ -872,7 +874,7 @@ def voice_tone(path: Path) -> tuple[float, float] | None:
 
 
 PITCH_BAND = 1.0           # semitones: a take further than this from the narrator's pitch is in another register
-SWING_MAX = 9.0            # semitones: a take whose pitch moves further than this is too lively for an even read
+SWING_MAX = 8.0            # semitones: a take whose pitch moves further than this is too lively for an even read
 PACE_BAND = (0.87, 1.15)   # against the narrator's own pace: slower or faster than this is not the same read
 PITCH_KEEP = 0.35          # semitones: closer than this is the same voice to the ear; nothing is corrected
 
@@ -935,6 +937,7 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
     target = float(voice.get("pitch_hz") or 0)
     usual = float(voice.get("pace") or (1.0 if voice.get("reference") else 1.1))   # this voice's usual pace
     band = (usual * PACE_BAND[0], usual * PACE_BAND[1]) if voice.get("pace") else TAKE_BAND
+    swing_max = max(SWING_MAX, float(voice.get("swing") or 0) + 3.0)   # a longer passage moves a little more
 
     def measure(p: Path) -> tuple[float, float, float, float]:
         off, swing = 0.0, 0.0             # semitones above/below the narrator's pitch; how far the pitch moves
@@ -945,12 +948,12 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         return ffprobe_duration(p) / exp, longest_pause(p), off, swing
 
     def good(m: tuple[float, float, float, float]) -> bool:
-        return band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND and m[3] <= SWING_MAX
+        return band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND and m[3] <= swing_max
 
     def score(m: tuple[float, float, float, float]) -> float:   # a stall counts heavily; so does another register
         return (abs(math.log(max(m[0], 0.05) / usual)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
                 + (0.5 * abs(m[2]) if abs(m[2]) > PITCH_BAND else 0.1 * abs(m[2]))
-                + (0.15 * (m[3] - SWING_MAX) + 0.3 if m[3] > SWING_MAX else 0.0))
+                + (0.15 * (m[3] - swing_max) + 0.3 if m[3] > swing_max else 0.0))
     best = measure(raw)
     if good(best):
         return
@@ -972,7 +975,7 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         if abs(first[2]) > PITCH_BAND and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
             log(f"   retook a line that came out {'higher' if first[2] > 0 else 'lower'} than the narrator's voice "
                 f"({first[2]:+.1f} → {best[2]:+.1f} semitones): {text[:60]}")
-        elif first[3] > SWING_MAX and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
+        elif first[3] > swing_max and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
             log(f"   retook a line whose tone swung too far ({first[3]:.1f} → {best[3]:.1f} semitones): {text[:60]}")
         elif first[1] > MAX_PAUSE:
             log(f"   retook a line with a {first[1]:.1f} s silence in it (now {best[1]:.1f} s, {best[0]:.2f}x of its "
