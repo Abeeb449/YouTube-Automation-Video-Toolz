@@ -633,7 +633,7 @@ doc = {
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
     # max_pause: no gap inside the voice longer than this. padding: the gap after each scene (about 0.2 s between
     # sentences with the voice trimmed tight). Both can be changed without recording anything again.
-    "settings": {"stock_approved": APPROVED, "padding": 0.08, "voice": {"max_pause": 0.15}},
+    "settings": {"stock_approved": APPROVED, "padding": 0.06, "voice": {"max_pause": 0.10}},
     "scenes": scenes,
 }
 head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'

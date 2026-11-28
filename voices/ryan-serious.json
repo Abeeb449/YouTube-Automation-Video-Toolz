@@ -1,9 +1,9 @@
 {
  "text": "Seal Island there was once famous for great whites leaping clear of the water after seals.",
- "pitch_hz": 111.0,
- "pace": 1.124,
- "swing": 3.9,
+ "pitch_hz": 108.0,
+ "pace": 0.974,
+ "swing": 4.4,
  "mood": "serious",
  "speaker": "ryan",
- "about": "Qwen3-TTS speaker 'ryan': calm, measured and serious, an even tone at a moderate pace. Chosen by measurement from many takes: lines recorded against it keep the flattest tone (about 4 semitones of movement) and the steadiest pitch. Used for scripts whose mood reads as serious."
+ "about": "Qwen3-TTS speaker 'ryan': calm, measured and serious, an even tone, speaking a little slower than his usual pace. Chosen by measurement from many takes and slowed 12% so that lines recorded against it are spoken about 9% slower by the voice itself (no stretching of the lines). Lines keep about 4 semitones of tone movement. Used for scripts whose mood reads as serious."
 }

@@ -67,9 +67,9 @@ settings:
   - pixabay-v261267
   - pixabay-v6412
   - unsplash-qM9tSt_5orU
-  padding: 0.08
+  padding: 0.06
   voice:
-    max_pause: 0.15
+    max_pause: 0.1
 scenes:
 - chapter: Intro
   mood: mystery

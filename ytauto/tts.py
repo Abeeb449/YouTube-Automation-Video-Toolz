@@ -870,7 +870,12 @@ def voice_tone(path: Path) -> tuple[float, float] | None:
             vals.append(sr / k)
     if len(vals) < 15:
         return None
-    return float(np.median(vals)), 12 * math.log2(float(np.percentile(vals, 90)) / float(np.percentile(vals, 10)))
+    med = float(np.median(vals))
+    # a creaky syllable reads an octave low and a breathy one an octave high: those are not the tone moving
+    near = [v for v in vals if med / 1.5 <= v <= med * 1.5]
+    if len(near) < 15:
+        near = vals
+    return med, 12 * math.log2(float(np.percentile(near, 90)) / float(np.percentile(near, 10)))
 
 
 PITCH_BAND = 1.0           # semitones: a take further than this from the narrator's pitch is in another register
@@ -1070,6 +1075,8 @@ def _take_key(v: dict, sent: str) -> str:
         parts += [v.get("sampling"), v.get("fluent", True), "sent-v2"]
     if v.get("engine") == "chatterbox":
         parts.append("cbox-v2")   # earlier Chatterbox clone takes were silently Kokoro fallbacks
+    if v.get("pitch_hz"):          # the narrator's clip itself: a changed clip means new takes
+        parts += [v.get("pitch_hz"), v.get("pace"), v.get("ref_text")]
     return stable_hash("sent-v1", *parts)
 
 
