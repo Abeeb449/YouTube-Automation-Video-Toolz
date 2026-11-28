@@ -823,6 +823,17 @@ def tighten(raw: Path, cap: float) -> Path:
     return out
 
 
+def retime(wav: Path, tempo: float) -> Path:
+    """The same recording a little slower or faster (tempo 0.9 = 10 % slower), with the pitch left as it is.
+    Kept next to the take, so changing the tempo never records anything again."""
+    tempo = max(0.75, min(1.25, tempo))
+    out = wav.with_name(f"{wav.stem}.t{int(round(tempo * 100))}.wav")
+    if not (out.exists() and out.stat().st_mtime >= wav.stat().st_mtime):
+        run(["ffmpeg", "-y", "-v", "error", "-i", wav, "-af", f"atempo={tempo:.3f}", "-ar", str(SAMPLE_RATE), "-ac", "1",
+             "-sample_fmt", "s16", out])
+    return out
+
+
 def voice_pitch(path: Path) -> float | None:
     """The narrator's pitch in a recording: the middle (median) of its voiced pitch, in Hz. Lines recorded apart
     can come out in different registers; this is how they are told apart."""
@@ -1086,6 +1097,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                 if v.get("engine") in ("qwen", "chatterbox") and v.get("level") is not False:
                     level_take(raw)
             wav = tighten(raw, float(v["max_pause"])) if v.get("max_pause") else polish(raw, pol)
+            if v.get("tempo") and abs(float(v["tempo"]) - 1.0) > 0.005 and pol.get("enabled") is False:
+                wav = retime(wav, float(v["tempo"]))      # a calmer (or brisker) read, pitch unchanged
         used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))
         d = ffprobe_duration(wav)
         if settings.get("align", "auto") != "off":

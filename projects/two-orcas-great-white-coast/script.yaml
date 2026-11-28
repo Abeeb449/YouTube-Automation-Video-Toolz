@@ -70,6 +70,7 @@ settings:
   padding: 0.12
   voice:
     max_pause: 0.12
+    tempo: 0.9
 scenes:
 - chapter: Intro
   mood: mystery
