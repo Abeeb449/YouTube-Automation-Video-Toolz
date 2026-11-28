@@ -1,12 +1,13 @@
-# TEST PROJECT for parallel rendering (not a video for the channel).
-# The first seven scenes of projects/sea-lions-fear-leopard-seals with a light test voice; the narration is
-# recorded in narration/ so every machine uses the same recording.
+# TEST PROJECT for the render workflow (not a video for the channel).
+# Five live 3D shots with a light test voice; the narration is recorded in narration/ so every machine uses the same recording.
 preset: ocean
-title: Parallel render test
-description: 'A short test video: the first seven scenes of the leopard seal plan with a test voice. It is rendered once on one machine
-  and once split over three, to show that both ways give the same video. Not for publishing.'
+title: Render test (live 3D)
+description: 'A short test of the live 3D shots: a shark under water, a beach, a map, a view from the air and a look inside a shark. Rendered
+  on one machine and split over several, to show both give the same video. Not for publishing.'
 tags:
 - test
+sources:
+- Test narration only; not a published claim
 settings:
   intro: 4
   voice:
@@ -17,222 +18,305 @@ settings:
 youtube:
   privacy: private
 scenes:
-- chapter: The hook
+- chapter: Test
   mood: mystery
-  text: '[tone hushed and intimate] A young fur seal stands at the edge of the rocks. Behind it, the colony: hundreds of warm, noisy
-    bodies packed together. Safe.'
+  text: A great white shark can grow to more than five metres long.
   visual:
-    remotion: OceanScene
+    remotion: Shot3D
     props:
-      split:
-        y: 0.42
-        land: rocks
-        landWidth: 0.55
-        sky: storm
-      zoom:
-      - 1.08
-      - 1.0
-      actors:
-      - creature: seaLion
-        x: 0.42
-        y: 0.33
-        scale: 0.32
-        detail:
-          pup: true
-          rest: true
-        label:
-          text: Fur seal pup
-          at: young
-      - creature: seaLion
-        x: 0.12
-        y: 0.3
-        scale: 0.42
-        detail:
-          rest: true
-        at: colony
-      - creature: seaLion
-        x: 0.26
-        y: 0.28
-        scale: 0.38
-        detail:
-          rest: true
-        flip: true
-        at: colony
-- text: '[tone hushed, slow] In front of it, the Southern Ocean. [pause 0.4] Grey. [pause 0.3] Calm. [pause 0.3] And completely silent.'
+      env:
+        kind: sea
+        depth: 0.3
+      cast:
+      - id: s
+        model: greatWhite
+        length: 4.9
+        path:
+        - u: 0
+          p:
+          - -12
+          - -5.5
+          - -3
+        - u: 0.5
+          p:
+          - -1
+          - -5
+          - 1.2
+        - u: 1
+          p:
+          - 10
+          - -4.6
+          - -2
+      camera:
+      - u: 0
+        pos:
+        - 3.5
+        - -5.2
+        - 12.5
+        look: s
+      - u: 1
+        pos:
+        - -1.5
+        - -4.4
+        - 8.5
+        look: s
+      gfx:
+      - type: tag
+        at: white
+        anchor:
+          actor: s
+          point: dorsal
+        text: Great white shark
+        dir: ne
+      - type: line
+        at: five
+        text: More than five metres long
+        hi: five metres
+- text: One was found on a beach at dawn, and measured from nose to tail.
   visual:
-    remotion: PhotoStory
+    remotion: Shot3D
     props:
-      layout: full
-      photos:
-      - photo: stock:southern ocean antarctica
-        verify: the icy Southern Ocean off Antarctica, cold grey sea
-        focus:
-        - 0.5
-        - 0.5
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        split:
-          y: 0.4
-          land: rocks
-          landWidth: 0.3
-          sky: storm
-        zoom:
-        - 1.0
-        - 1.15
-        focus:
-        - 0.6
-        - 0.5
-        actors:
-        - creature: seaLion
-          x: 0.24
-          y: 0.31
-          scale: 0.3
-          detail:
-            pup: true
-            rest: true
-- text: It has been watching the water for a long time. [tone tense, building suspense] Because somewhere under that surface is the
-    one animal that every sea lion and fur seal in this part of the world has learned to fear.
-  visual:
-    stock: antarctica sea ice
-    verify: icy polar sea with floating sea ice
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        split:
-          y: 0.36
-          land: rocks
-          landWidth: 0.32
-          sky: storm
-        actors:
-        - creature: seaLion
-          x: 0.22
-          y: 0.27
-          scale: 0.3
-          detail:
-            pup: true
-            rest: true
-        - creature: leopardSeal
-          x: 0.95
-          y: 0.74
-          to:
-          - 0.62
-          - 0.72
-          scale: 1.0
-          silhouette: '#071118'
-          opacity: 0.85
-          at: somewhere
-          enter: fade
-- text: '[tone low and menacing] It does not chase you across the open ocean. [pause 0.5] It waits right here, at the edge.'
-  visual:
-    remotion: OceanScene
-    props:
-      split:
-        y: 0.36
-        land: rocks
-        landWidth: 0.4
-        sky: storm
-      actors:
-      - creature: seaLion
-        x: 0.3
-        y: 0.27
-        scale: 0.3
-        detail:
-          pup: true
-          rest: true
-        target:
-          at: waits
-      - creature: leopardSeal
-        x: 0.55
-        y: 0.58
-        to:
-        - 0.5
-        - 0.56
-        scale: 1.0
-        silhouette: '#071118'
-        opacity: 0.9
-      callout: It waits at the edge
-      calloutAt: edge
-- mood: danger
-  text: '[tone serious, quietly shocked] In one Antarctic colony, this hunter has taken around seven out of every ten pups born there,
-    year after year.'
-  visual:
-    remotion: DotGrid
-    props:
-      backdrop: abyss
-      value: 7 in 10
-      label: Pups taken each year
-      note: Cape Shirreff, Antarctica · estimate
-      count: 10
-      cols: 5
-      highlight: 7
-      fillAt: seven
-      source: Krause et al. · NOAA Antarctic Marine Living Resources
-- text: '[tone intrigued, leaning in] And the strangest part? [pause 0.5] Scientists think most of that killing comes down to just a
-    handful of individuals.'
-  visual:
-    remotion: OceanScene
-    props:
-      depth: 0.85
-      actors:
-      - creature: leopardSeal
-        x: 0.3
-        y: 0.4
-        scale: 0.6
-        silhouette: '#3a4a55'
-        opacity: 0.9
-        at: strangest
-      - creature: leopardSeal
-        x: 0.7
-        y: 0.6
-        scale: 0.6
-        silhouette: '#3a4a55'
-        opacity: 0.9
-        flip: true
-        at: Scientists
-      - creature: leopardSeal
-        x: 0.45
-        y: 0.8
-        scale: 0.55
-        silhouette: '#3a4a55'
-        opacity: 0.9
-        at: handful
-      title: Just a handful?
-      titleAt: handful
-- text: '[tone slow, deliberate, dramatic] This is the leopard seal. [pause 0.6] And this is why sea lions fear it.'
-  duration: 7
-  visual:
-    remotion: PhotoStory
-    props:
-      layout: full
-      photos:
-      - photo: stock:leopard seal
-        verify: a photo of a wild leopard seal
-        focus:
-        - 0.55
+      env:
+        kind: beach
+        sky: dawn
+        sun:
+        - -0.55
+        - 0.42
+        - 0.72
+      cast:
+      - id: s
+        model: greatWhite
+        length: 4.9
+        pos:
+        - 0
+        - 0.41
+        - 2.6
+        heading: 8
+        roll: -17
+        pose: limp
+      camera:
+      - u: 0
+        pos:
+        - -5.6
         - 0.45
-        mono: true
-        colorAt: leopard
-    fallback_visual:
-      remotion: OceanScene
-      props:
-        depth: 0.75
-        zoom:
-        - 1.0
-        - 1.12
-        actors:
-        - creature: leopardSeal
-          x: 0.3
-          y: 0.55
-          to:
-          - 0.52
-          - 0.53
-          scale: 1.4
-          detail:
-            jaw: 0.0
-        bigText: LEOPARD SEAL
-        bigAt: leopard
-  sfx:
-  - sound: hit
-    at: leopard
-    volume: 0.55
+        - 4.6
+        look:
+        - -1.6
+        - 0.42
+        - 2.6
+        fov: 34
+      - u: 1
+        pos:
+        - -0.8
+        - 2.0
+        - 10.6
+        look:
+        - 0.1
+        - 0.25
+        - 2.6
+        fov: 34
+      gfx:
+      - type: stamp
+        at: beach
+        text: At dawn
+        sub: A test beach
+      - type: measure
+        at: measured
+        from:
+          world:
+          - -2.43
+          - 0.03
+          - 3.69
+        to:
+          world:
+          - 2.43
+          - 0.03
+          - 3.01
+        value: 4.9
+        unit: ' m'
+        'off': 0
+- text: The coast runs east from Cape Town to Mossel Bay.
+  visual:
+    remotion: Shot3D
+    props:
+      env:
+        kind: map
+        map:
+          bbox:
+          - - 17.2
+            - -35.7
+          - - 23.4
+            - -33.0
+          pins:
+          - lon: 18.42
+            lat: -33.92
+            at: Cape
+          - lon: 22.13
+            lat: -34.18
+            at: Mossel
+          routes:
+          - points:
+            - - 18.5
+              - -34.4
+            - - 19.9
+              - -35.1
+            - - 21.3
+              - -34.75
+            - - 22.13
+              - -34.3
+            at: east
+            d: 2.0
+      cast: []
+      camera:
+      - u: 0
+        over:
+        - 19.6
+        - -34.5
+        dist: 150
+        tilt: 62
+        bearing: 0
+        fov: 34
+      - u: 1
+        over:
+        - 20.6
+        - -34.4
+        dist: 115
+        tilt: 50
+        bearing: 6
+        fov: 34
+      gfx:
+      - type: tag
+        at: Cape
+        anchor:
+          geo:
+          - 18.42
+          - -33.92
+          h: 7
+        text: Cape Town
+        dir: nw
+      - type: tag
+        at: Mossel
+        anchor:
+          geo:
+          - 22.13
+          - -34.18
+          h: 7
+        text: Mossel Bay
+        dir: ne
+- text: Two orcas were filmed from the air, and inside the shark sits a large liver.
+  visuals:
+  - remotion: Shot3D
+    props:
+      env:
+        kind: aerial
+        water: teal
+        floor: 17
+      cast:
+      - id: p
+        model: orcaPort
+        length: 8.4
+        path:
+        - u: 0
+          p:
+          - -30
+          - -3
+          - 3
+        - u: 1
+          p:
+          - 20
+          - -3
+          - -1
+      - id: q
+        model: orcaStarboard
+        length: 8.1
+        path:
+        - u: 0
+          p:
+          - -35
+          - -3.6
+          - -6
+        - u: 1
+          p:
+          - 15
+          - -3.6
+          - -9
+      camera:
+      - u: 0
+        pos:
+        - -6
+        - 34
+        - 0.5
+        look:
+        - -6
+        - 0
+        - 0
+        fov: 40
+      - u: 1
+        pos:
+        - 4
+        - 30
+        - 0.5
+        look:
+        - 4
+        - 0
+        - 0
+        fov: 40
+      gfx:
+      - type: hud
+        at: 0.0
+        label: Drone
+        alt: 60
+        clock: 0
+  - remotion: Shot3D
+    props:
+      env:
+        kind: studio
+      cast:
+      - id: s
+        model: greatWhite
+        length: 4.6
+        pos:
+        - 0
+        - 0
+        - 0
+        heading: 20
+        roll: -8
+        spin: -5
+        pose: swim
+        amp: 0.5
+        xray: true
+        parts:
+          liver:
+            at: 0.0
+            glow: 1.0
+      camera:
+      - u: 0
+        pos:
+        - 1.6
+        - 0.6
+        - 7.6
+        look:
+        - 0.2
+        - 0
+        - 0
+        fov: 36
+      - u: 1
+        pos:
+        - 0.4
+        - 0.3
+        - 5.4
+        look:
+        - 0.3
+        - -0.05
+        - 0
+        fov: 36
+      gfx:
+      - type: tag
+        at: liver
+        anchor:
+          actor: s
+          point: liver
+        text: The liver
+        dir: ne
+        len: 220
+    cut: inside
