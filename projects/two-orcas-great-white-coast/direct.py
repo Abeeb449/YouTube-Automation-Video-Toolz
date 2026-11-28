@@ -324,7 +324,7 @@ S(1, sea(orca(0.22, 0.5, 1.5, to=[0.36, 0.5]), A("greatWhiteLiver", 0.76, 0.52, 
          depth=0.5, kicker="OCTOBER 1997", heading="Southeast Farallon Island", callout="It ate only the liver", calloutAt="liver", source=RECON))
 S(1, sea(star(0.0, 0.5, 1.5, to=[0.4, 0.5], silhouette="#050b10", opacity=0.9), gw(0.8, 0.52, 0.9, to=[0.9, 0.5], silhouette="#0a1a24", opacity=0.9),
          depth=0.7, heading="South Africa", callout="Never caught on film", calloutAt="filmed"))
-S(1, tpl("DateStamp", date="2022", place="Mossel Bay, South Africa", at=0.2), duration=3.2)
+S(1, tpl("DateStamp", date="2022", place="Mossel Bay, South Africa", at=0.2))
 
 # ====================================================================================== 7. CAUGHT ON CAMERA
 S(1, tpl("MapScene", bbox=SOUTH_COAST, countryLabels=[{"name": "South Africa", "lon": 21.0, "lat": -33.35}],
@@ -492,7 +492,7 @@ S(1, [tpl("Globe", **{"from": [-111.5, 26.5]}, to=[141.6, -38.35], zoomFrom=1.2,
             scaleBar={"x1": 0.22, "x2": 0.78, "y": 0.9, "label": "4.7 metres", "at": 0.5})])
 S(2, beach(gw(0.5, 0.72, 1.9, view="beached"), sky="day", zoom=[1.05, 1.2], heading="Its liver was gone",
            callout="Orca DNA in the biggest bite wound", calloutAt="DNA"))
-S(1, tpl("DateStamp", date="2026", place="South Africa", at=0.2), duration=4.0)
+S(1, tpl("DateStamp", date="2026", place="South Africa", at=0.2))
 
 # ====================================================================================== 11. THE RETURN
 YOUNG = sea(gw(-0.1, 0.56, 0.75, to=[0.5, 0.5]), A("fishSchool", 0.8, 0.3, 0.5, to=[0.7, 0.26]), depth=0.2, surface=True, rays=True,
@@ -628,15 +628,11 @@ doc = {
     "sources": script.sources,
     "thumbnail": {"text": "TWO ORCAS EMPTIED THIS COAST"},
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
-    # padding: the gap after each scene. With the voice trimmed tight this gives about 0.28 s between sentences.
-    # the narrator: calm and low, dread first (voices/ryan-dread), awe in the last chapter (voices/ryan-awe)
-    "settings": {"stock_approved": APPROVED, "padding": 0.2, "voice": {"anchor": "ryan-dread"}},
+    # max_pause: no gap inside the voice longer than this. padding: the gap after each scene (about 0.2 s between
+    # sentences with the voice trimmed tight). Both can be changed without recording anything again.
+    "settings": {"stock_approved": APPROVED, "padding": 0.12, "voice": {"max_pause": 0.12}},
     "scenes": scenes,
 }
-# "Ends on awe": the last chapter (the sharks seen again, the open question) is read in the awe voice
-_last = max(i for i, s in enumerate(scenes) if s.get("chapter"))
-for s in scenes[_last:]:
-    s["voice"] = {"anchor": "ryan-awe"}
 head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'
         '# Written by direct.py from script.txt (the narration is the script, sentence for sentence). Change the shots in\n'
         '# direct.py and run it again; this file is what gets rendered.\n')

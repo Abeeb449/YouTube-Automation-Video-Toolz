@@ -67,9 +67,9 @@ settings:
   - pixabay-v261267
   - pixabay-v6412
   - unsplash-qM9tSt_5orU
-  padding: 0.2
+  padding: 0.12
   voice:
-    anchor: ryan-dread
+    max_pause: 0.12
 scenes:
 - chapter: Intro
   mood: mystery
@@ -2004,7 +2004,6 @@ scenes:
       date: '2022'
       place: Mossel Bay, South Africa
       at: 0.2
-  duration: 3.2
 - chapter: Caught on Camera
   mood: danger
   text: On the sixteenth of May 2022, drone pilot Christiaan Stopforth was flying over Mossel Bay, further east along the coast.
@@ -3885,7 +3884,6 @@ scenes:
       date: '2026'
       place: South Africa
       at: 0.2
-  duration: 4.0
 - chapter: The Return
   mood: calm
   text: On the twenty-third of September 2026, a tour boat filmed a young great white just north of Seal Island in False Bay.
@@ -3915,8 +3913,6 @@ scenes:
         to:
         - 0.7
         - 0.26
-  voice:
-    anchor: ryan-awe
 - text: The crew said it was the first they had seen there in about eight years.
   visual:
     remotion: OceanScene
@@ -3936,8 +3932,6 @@ scenes:
         to:
         - 0.5
         - 0.5
-  voice:
-    anchor: ryan-awe
 - text: Six weeks later, on the third of November, two great whites swam up to a cage-diving boat off Gansbaai.
   visual:
     remotion: OceanScene
@@ -3965,8 +3959,6 @@ scenes:
         - 0.64
         - 0.58
         at: two
-  voice:
-    anchor: ryan-awe
 - text: They were the company's first in more than a year.
   visual:
     remotion: OceanScene
@@ -3992,8 +3984,6 @@ scenes:
         to:
         - 0.6
         - 0.58
-  voice:
-    anchor: ryan-awe
 - text: The people who saw them chose their words with care. A few sharks are a hopeful sign.
   visual:
     remotion: Statement
@@ -4002,8 +3992,6 @@ scenes:
       kicker2: The people who saw them
       line1: A few sharks
       line2: are a hopeful sign
-  voice:
-    anchor: ryan-awe
 - text: It is too early to call it a return.
   visual:
     remotion: OceanScene
@@ -4019,8 +4007,6 @@ scenes:
         to:
         - 0.9
         - 0.46
-  voice:
-    anchor: ryan-awe
 - text: Port and Starboard are still on this coast, too.
   visual:
     remotion: OceanScene
@@ -4050,8 +4036,6 @@ scenes:
         label:
           text: Starboard
           at: Starboard
-  voice:
-    anchor: ryan-awe
 - text: Both were reported around the Cape in early 2026, sometimes swimming apart.
   visual:
     remotion: OceanScene
@@ -4079,8 +4063,6 @@ scenes:
         to:
         - 0.92
         - 0.82
-  voice:
-    anchor: ryan-awe
 - text: So, did two orcas empty a great white shark coast?
   visual:
     remotion: OceanScene
@@ -4111,8 +4093,6 @@ scenes:
         - 0.9
         - 0.86
         opacity: 0.8
-  voice:
-    anchor: ryan-awe
 - text: At Gansbaai and Mossel Bay, they did, more than once, and cameras recorded it.
   visual:
     remotion: MapScene
@@ -4133,8 +4113,6 @@ scenes:
         at: Mossel
       title: They did
       subtitle: More than once, on camera
-  voice:
-    anchor: ryan-awe
 - text: Across the wider coast, they had help. Nets and fishing lines were taking great whites long before the orcas arrived.
   visual:
     remotion: OceanScene
@@ -4161,8 +4139,6 @@ scenes:
         to:
         - 0.66
         - 0.6
-  voice:
-    anchor: ryan-awe
 - text: One question is still open. Scientists do not know yet whether a great white is born knowing to flee from orcas. It may be something
     each shark has to learn.
   visual:
@@ -4195,8 +4171,6 @@ scenes:
         to:
         - 0.86
         - 0.4
-  voice:
-    anchor: ryan-awe
 - text: What do you think? Tell us in the comments. And if you want more videos like this, subscribe.
   visual:
     remotion: OceanScene
@@ -4229,5 +4203,3 @@ scenes:
         to:
         - 0.66
         - 0.8
-  voice:
-    anchor: ryan-awe
