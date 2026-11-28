@@ -452,6 +452,22 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
         base, extra = divmod(total_frames - lead_frames, n)
         frames = [base + (1 if i < extra else 0) for i in range(n)]
         frames[0] += lead_frames   # the opening shot carries the intro
+        # shots that say where they start (`cut: "word"` or seconds): the scene is cut on the narrator's words
+        cuts = [v.get("cut") if isinstance(v, dict) else None for v in scene.visuals]
+        if n > 1 and all(c is not None for c in cuts[1:]):
+            marks, ok = [0], True
+            for c in cuts[1:]:
+                tc = find_word_time(c, audio.words) if isinstance(c, str) else float(c) + (lead if k == lead_scene else 0.0)
+                if tc is None:
+                    warn(f"scene {scene.index + 1}: the cut word {c!r} is not in the narration; its shots share the time equally")
+                    ok = False
+                    break
+                marks.append(round(max(0.0, tc - 0.08) * fps))        # a cut sits a breath before its word
+            marks.append(total_frames)
+            if ok and all(b - a >= round(0.6 * fps) for a, b in zip(marks, marks[1:])):
+                frames = [b - a for a, b in zip(marks, marks[1:])]
+            elif ok:
+                warn(f"scene {scene.index + 1}: a shot would be shorter than 0.6 s with these cut words; its shots share the time equally")
         dur = total_frames / fps  # snap to whole frames so audio and video never drift
         plans.append(ScenePlan(scene.index, t, dur, audio, frames))
         t += dur

@@ -1,5 +1,6 @@
 import React from 'react';
 import {Thumbnail} from './Thumbnail';
+import {Shot3D} from './stage/Shot3D';
 import {ThumbnailNoir} from './ThumbnailNoir';
 import {CalculateMetadataFunction, Composition, Folder} from 'remotion';
 import {BaseProps} from './theme';
@@ -116,6 +117,8 @@ export const Root: React.FC = () => (
     <Composition id="SplitCompare" component={SplitCompare as React.FC<any>} {...common} defaultProps={SAFE.SplitCompare ?? {}} />
     <Composition id="Statement" component={Statement as React.FC<any>} {...common} defaultProps={SAFE.Statement ?? {}} />
     <Composition id="Radius" component={Radius as React.FC<any>} {...common} defaultProps={SAFE.Radius ?? {}} />
+    {/* ---- Live 3D stage: real 3D places, animals that swim, a camera that moves ---- */}
+    <Composition id="Shot3D" component={Shot3D as React.FC<any>} {...common} defaultProps={{}} />
     {/* ---- Ocean / animal documentary kit ---- */}
     <Composition id="OceanScene" component={OceanScene as React.FC<any>} {...common} defaultProps={SAFE.OceanScene} />
     <Composition id="Meter" component={Meter as React.FC<any>} {...common} defaultProps={SAFE.Meter} />

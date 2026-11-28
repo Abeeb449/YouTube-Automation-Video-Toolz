@@ -260,12 +260,21 @@ STEADY = ("Narrate as a calm, steady documentary narrator. Keep the same even pa
 def direct_narration(project) -> None:
     """Set the narrator's direction before the voice is recorded. `voice.delivery`:
       steady      (default) one even direction for the whole video, no per-scene changes of tone;
+      told        the way a person tells a true story: each paragraph in one go, natural rise and fall, the same
+                  register, pace and loudness throughout;
       expressive  the overall style from the content (unless the project sets voice.instruct itself) and a
                   per-scene tone (unless a scene has its own [tone …] or voice tone)."""
     st = project.settings
     snd = st.get("sound") or {}
     voice = st.get("voice") or {}
     if snd.get("director", True) is False or voice.get("follow_content") is False:
+        return
+    if str(voice.get("delivery", "steady")).lower() == "told":
+        # a told read needs no direction: the voice simply tells the paragraph (see tts.narration_inputs)
+        voice["delivery"] = "told"
+        if str(voice.get("instruct") or "").strip().lower() == "auto":
+            voice.pop("instruct", None)
+        st["voice"] = voice
         return
     if str(voice.get("delivery", "steady")).lower() != "expressive":
         if not voice.get("instruct") or str(voice.get("instruct")).strip().lower() == "auto":

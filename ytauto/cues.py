@@ -1,6 +1,6 @@
 """Resolve word cues to seconds so graphics land on the narrator's words.
 
-Any prop named `at` or ending in `At` (e.g. `calloutAt`, `statsAt`) can be:
+Any prop named `at` or `out`, or ending in `At` (e.g. `calloutAt`, `statsAt`), can be:
   - a number            seconds from the start of the clip
   - "word"              when the narrator says that word (first match in the scene)
   - "two words"         a phrase
@@ -58,7 +58,7 @@ def resolve_cues(obj: Any, words: list, clip_offset: float, clip_dur: float, whe
     if isinstance(obj, dict):
         out = {}
         for k, v in obj.items():
-            if (k == "at" or k.endswith("At")) and k not in NOT_CUES and isinstance(v, str):
+            if (k in ("at", "out") or k.endswith("At")) and k not in NOT_CUES and isinstance(v, str):
                 t = find_word_time(v, words)
                 if t is None:
                     warn(f"{where}: cue word {v!r} not found in the narration — showing it at the start")

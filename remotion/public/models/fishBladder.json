@@ -1,0 +1,27 @@
+{
+ "creature": "fishBladder",
+ "tail": -1.95,
+ "nose": 2.0,
+ "swim": "yaw",
+ "triangles": 53968,
+ "points": {
+  "nose": [
+   2.0,
+   0,
+   0
+  ],
+  "bladder": [
+   0.2,
+   0.21,
+   0
+  ],
+  "eye": [
+   1.62,
+   0.1,
+   -0.165
+  ]
+ },
+ "parts": [
+  "bladder"
+ ]
+}

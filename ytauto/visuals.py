@@ -163,6 +163,9 @@ class ClipRenderer:
                 fingerprint = file_fingerprint(Path(spec[k]))
         if "remotion" in spec:
             fingerprint = (fingerprint, remotion_fingerprint(), sprite_stamp(spec))
+            if spec.get("remotion") == "Shot3D":
+                from . import stage3d
+                fingerprint = (*fingerprint, stage3d.stamp(spec))
         elif "blender" in spec:
             fingerprint = (fingerprint, file_fingerprint(REPO_ROOT / "blender" / "render.py"))
         key = stable_hash("clip-v4", spec, fingerprint, round(duration, 3), self.W, self.H, self.fps,
@@ -362,6 +365,9 @@ class ClipRenderer:
                 raise
             warn(f"{comp}: {exc}. Using the fallback visual instead.")
             return self._remotion(fb, duration, out, fade_in, fade_out)
+        if comp == "Shot3D":
+            from . import stage3d
+            props = stage3d.with_models(props)
         theme = {**(self.p.settings.get("theme") or {}), **(props.get("theme") or {})}
         # Vertical video (Shorts): the motion-graphics kit is laid out for a wide frame, so it is drawn on a square stage
         # the width of the frame and set in the middle over a blurred, darkened copy of itself (the usual Shorts look)
@@ -379,7 +385,20 @@ class ClipRenderer:
         if os.environ.get("YTAUTO_REMOTION_CONCURRENCY"):
             cmd.append(f"--concurrency={os.environ['YTAUTO_REMOTION_CONCURRENCY']}")
         log(f"Remotion: rendering {comp} ({duration:.1f}s)")
-        run(cmd, cwd=rdir)
+        if comp == "Shot3D":
+            # live 3D is drawn by the browser's own 3D engine; on machines without a graphics card it runs in software.
+            # The faster software mode is tried first, the one every browser build has second.
+            modes = [os.environ["YTAUTO_GL"]] if os.environ.get("YTAUTO_GL") else ["angle-egl", "swangle"]
+            for i, gl in enumerate(modes):
+                try:
+                    run([*cmd, f"--gl={gl}", "--timeout=180000"], cwd=rdir)
+                    break
+                except YtautoError:
+                    if i == len(modes) - 1:
+                        raise
+                    warn(f"3D drawing mode {gl} did not work on this machine; trying {modes[i + 1]}")
+        else:
+            run(cmd, cwd=rdir)
         # Remotion templates fade themselves; don't double-fade.
         pre = (f"[0:v]split[fg][bgsrc];[bgsrc]scale={self.W}:{self.H}:force_original_aspect_ratio=increase,"
                f"crop={self.W}:{self.H},gblur=sigma=40,eq=brightness=-0.18[bg];[bg][fg]overlay=0:(H-h)/2-H*0.06,"

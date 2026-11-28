@@ -107,7 +107,26 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
             voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
         voice.setdefault("max_pause", 0.25)      # no gap in the voice longer than this (seconds)
         voice["trim"] = "speech-v2"              # breaths and noise outside the words are taken out
+    elif voice.get("delivery") == "told" and voice.get("engine") == "qwen":
+        # A told read: how a person tells a true story. A whole paragraph is recorded in one go, so the tone rises and
+        # falls inside each sentence and settles at each full stop, the way the voice naturally does, while the
+        # register, the pace and the loudness stay the same from the first paragraph to the last. Measured on two
+        # well-made documentaries: the tone moves 6 to 9 semitones inside a sentence, words come at about 210 a
+        # minute while speaking, sentences are 0.7 s apart and a pause inside a sentence is seldom over 0.3 s.
+        # A take is recorded again when it lands in another register, goes flat, stalls or says other words.
+        name = str(voice.get("name") or "ryan").lower()
+        voice.setdefault("home_hz", TOLD_HOME.get(name, 0))
+        voice.setdefault("pitch_band", 2.2)
+        voice.setdefault("swing_band", [5.0, 12.5])
+        voice.setdefault("check_words", True)
+        voice.setdefault("max_pause", 0.30)          # inside a sentence
+        voice.setdefault("sentence_pause", 0.70)     # between sentences
+        voice["trim"] = "told-v1"
+        st["sentence_gap"] = float(voice["sentence_pause"])   # between two takes of one paragraph
     return strip_directives(text), voice, st
+
+
+TOLD_HOME = {"ryan": 128.0, "aiden": 136.0}      # where each speaker's voice sits when it simply tells (median Hz)
 
 
 def steady_anchor(voice: dict) -> dict | None:
@@ -807,14 +826,15 @@ def speech_seconds(path: Path) -> float:
     return float(idx[-1] - idx[0] + 1) / 100.0
 
 
-def tighten(raw: Path, cap: float) -> Path:
+def tighten(raw: Path, cap: float, long_cap: float | None = None) -> Path:
     """The same take with no gap longer than `cap` seconds: silence at its start and end is trimmed, and every
     longer silence inside it is cut down to `cap` (the middle of the silence is taken out, never any speech).
     Kept next to the raw take, so changing the cap never records anything again."""
     import wave
 
     import numpy as np
-    out = raw.with_name(f"{raw.stem}.s{int(round(cap * 1000))}.wav")
+    # long_cap: a silence of 0.42 s or more is the end of a sentence; it is cut down to long_cap instead of cap
+    out = raw.with_name(f"{raw.stem}.s{int(round(cap * 1000))}" + (f"l{int(round(long_cap * 1000))}" if long_cap else "") + ".wav")
     if out.exists() and out.stat().st_mtime >= raw.stat().st_mtime:
         return out
     sr = SAMPLE_RATE
@@ -848,9 +868,11 @@ def tighten(raw: Path, cap: float) -> Path:
         elif b == n:
             if b - a > edge:
                 cut.append((a + edge, b))
-        elif b - a > keep:
-            h = keep // 2
-            cut.append((a + h, b - (keep - h)))
+        else:
+            k = max(keep, int(round(long_cap * 100))) if long_cap and b - a >= 42 else keep
+            if b - a > k:
+                h = k // 2
+                cut.append((a + h, b - (k - h)))
     if not cut:
         return raw
     pos = 0
@@ -984,12 +1006,24 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
     if voice.get("engine") not in ("qwen", "chatterbox") or voice.get("guard") is False or len(text.split()) < 2:
         return
     exp = expected_seconds(text)
-    target = float(voice.get("pitch_hz") or 0)
+    target = float(voice.get("pitch_hz") or voice.get("home_hz") or 0)
+    told = voice.get("delivery") == "told"
     usual = float(voice.get("pace") or (1.0 if voice.get("reference") else 1.1))   # this voice's usual pace
     band = (usual * PACE_BAND[0], usual * PACE_BAND[1]) if voice.get("pace") else TAKE_BAND
-    swing_max = max(SWING_MAX, float(voice.get("swing") or 0) + 3.0)   # a longer passage moves a little more
+    PITCH_BAND = float(voice.get("pitch_band") or globals()["PITCH_BAND"])
+    MAX_PAUSE = 1.5 if told else globals()["MAX_PAUSE"]          # a told paragraph breathes at its full stops
+    swing_min, swing_max = 0.0, max(SWING_MAX, float(voice.get("swing") or 0) + 3.0)   # a longer passage moves a little more
+    if voice.get("swing_band"):
+        swing_min, swing_max = (float(x) for x in voice["swing_band"])
 
-    def measure(p: Path) -> tuple[float, float, float, float]:
+    def said(p: Path) -> float:           # how much of the text is really in the take (1 = every word)
+        if not voice.get("check_words"):
+            return 1.0
+        from . import passages
+        heard = passages._heard(p, text)
+        return passages._says(heard, text) if heard else 1.0
+
+    def measure(p: Path) -> tuple[float, float, float, float, float]:
         off, swing = 0.0, 0.0             # semitones above/below the narrator's pitch; how far the pitch moves
         if target:
             tone = voice_tone(p)
@@ -998,15 +1032,18 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
             else:
                 off = 99.0                # no voice in it at all (the engine now and then returns silence)
         took = speech_seconds(p) if target else ffprobe_duration(p)
-        return took / exp, longest_pause(p), off, swing
+        return took / exp, longest_pause(p), off, swing, said(p)
 
-    def good(m: tuple[float, float, float, float]) -> bool:
-        return band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND and m[3] <= swing_max
+    def good(m: tuple[float, float, float, float, float]) -> bool:
+        return (band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND
+                and swing_min <= m[3] <= swing_max and m[4] >= 0.92)
 
-    def score(m: tuple[float, float, float, float]) -> float:   # a stall counts heavily; so does another register
+    def score(m: tuple[float, float, float, float, float]) -> float:   # a stall counts heavily; so does another register
         return (abs(math.log(max(m[0], 0.05) / usual)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
                 + (0.5 * abs(m[2]) if abs(m[2]) > PITCH_BAND else 0.1 * abs(m[2]))
-                + (0.15 * (m[3] - swing_max) + 0.3 if m[3] > swing_max else 0.0))
+                + (0.15 * (m[3] - swing_max) + 0.3 if m[3] > swing_max else 0.0)
+                + (0.2 * (swing_min - m[3]) + 0.3 if m[3] < swing_min else 0.0)
+                + (4.0 * (0.92 - m[4]) + 0.5 if m[4] < 0.92 else 0.0))
     best = measure(raw)
     if good(best):
         return
@@ -1025,7 +1062,9 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         if good(best):
             break
     if best != first:
-        if abs(first[2]) > PITCH_BAND and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
+        if first[4] < 0.92:
+            log(f"   retook a passage that did not say its words ({first[4]:.2f} → {best[4]:.2f} of them): {text[:60]}")
+        elif abs(first[2]) > PITCH_BAND and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
             log(f"   retook a line that came out {'higher' if first[2] > 0 else 'lower'} than the narrator's voice "
                 f"({first[2]:+.1f} → {best[2]:+.1f} semitones): {text[:60]}")
         elif first[3] > swing_max and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
@@ -1037,7 +1076,8 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
             log(f"   retook a {'dragged' if first[0] > 1 else 'rushed'} line ({first[0]:.2f}x → {best[0]:.2f}x of its "
                 f"natural length): {text[:60]}")
     if not good(best):
-        what = ("broken by a " + format(best[1], ".1f") + " s silence" if best[1] > MAX_PAUSE
+        what = ("missing or changing some words" if best[4] < 0.92
+                else "broken by a " + format(best[1], ".1f") + " s silence" if best[1] > MAX_PAUSE
                 else "off its natural pace" if not band[0] <= best[0] <= band[1]
                 else format(best[2], "+.1f") + " semitones off the narrator's pitch (it is corrected next)"
                 if abs(best[2]) > PITCH_BAND else f"swinging {best[3]:.1f} semitones in tone")
@@ -1123,6 +1163,8 @@ def _take_key(v: dict, sent: str) -> str:
         parts += [v.get("sampling"), v.get("fluent", True), "sent-v2"]
     if v.get("engine") == "chatterbox":
         parts.append("cbox-v2")   # earlier Chatterbox clone takes were silently Kokoro fallbacks
+    if v.get("delivery") == "told":
+        parts.append("told-v1")
     if v.get("pitch_hz"):          # the narrator's clip itself: a changed clip means new takes
         parts += [v.get("pitch_hz"), v.get("pace"), v.get("ref_text")]
     return stable_hash("sent-v1", *parts)
@@ -1208,7 +1250,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                 for mark in new.parent.glob(new.stem + "*.fallback"):
                     mark.replace(raw.with_suffix(".fallback"))
                 new.replace(raw)
-            wav = tighten(raw, float(v["max_pause"])) if v.get("max_pause") else polish(raw, pol)
+            wav = (tighten(raw, float(v["max_pause"]), float(v["sentence_pause"]) if v.get("sentence_pause") else None)
+                   if v.get("max_pause") else polish(raw, pol))
             if v.get("tempo") and abs(float(v["tempo"]) - 1.0) > 0.005 and pol.get("enabled") is False:
                 wav = retime(wav, float(v["tempo"]))      # a calmer (or brisker) read, pitch unchanged
         used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))

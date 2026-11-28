@@ -21,6 +21,8 @@ from .utils import log, warn
 
 
 def _asks_stock(spec) -> bool:
+    if isinstance(spec, dict) and spec.get("remotion") == "Shot3D":
+        return False              # a live 3D shot names its own animals (cast → model); nothing is searched for
     return bool(re.search(r'"stock"\s*:|"model"\s*:|"(?:stock|pexels|pixabay|pexels-photo|photo):', json.dumps(spec, default=str))
                 or (isinstance(spec, str) and spec.split(":")[0] in ("stock", "pexels", "pixabay")))
 
