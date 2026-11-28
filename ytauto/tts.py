@@ -116,7 +116,8 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
         # A take is recorded again when it lands in another register, goes flat, stalls or says other words.
         name = str(voice.get("name") or "ryan").lower()
         voice.setdefault("home_hz", TOLD_HOME.get(name, 0))
-        voice.setdefault("pitch_band", 2.2)
+        voice.setdefault("pitch_band", 3.0)          # further from home than this is another register: recorded again;
+        #                                              inside it, the passage is settled onto the home pitch afterwards
         voice.setdefault("swing_band", [5.0, 12.5])
         voice.setdefault("check_words", True)
         voice.setdefault("max_pause", 0.30)          # inside a sentence
