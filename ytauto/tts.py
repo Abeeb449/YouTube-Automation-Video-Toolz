@@ -342,9 +342,25 @@ def heard_words(wav: Path, mode: str = "auto") -> list[dict] | None:
             raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-ar", "16000", "-f", "f32le", "-"],
                                  capture_output=True, check=True).stdout
             audio = np.frombuffer(raw, dtype=np.float32)
-            segs, _ = _whisper_model.transcribe(audio, language="en", word_timestamps=True, beam_size=5, vad_filter=False,
-                                                condition_on_previous_text=False)
-            got = [{"start": round(w.start, 3), "end": round(w.end, 3), "text": w.word.strip()} for seg in segs for w in (seg.words or [])]
+            def listen(part, shift: float) -> list[dict]:
+                segs, _ = _whisper_model.transcribe(part, language="en", word_timestamps=True, beam_size=5, vad_filter=False,
+                                                    condition_on_previous_text=False)
+                return [{"start": round(w.start + shift, 3), "end": round(w.end + shift, 3), "text": w.word.strip()}
+                        for seg in segs for w in (seg.words or [])]
+
+            got = listen(audio, 0.0)
+            # now and then the recogniser stops before the end (it drops the last sentence of a passage): what is
+            # left is listened to on its own and added on
+            total = len(audio) / 16000.0
+            for _ in range(3):
+                last = got[-1]["end"] if got else 0.0
+                rest = audio[int(last * 16000):]
+                if total - last < 1.0 or float(np.sqrt((rest ** 2).mean())) < 0.01:
+                    break
+                more = listen(rest, last)
+                if not more:
+                    break
+                got += more
         except Exception as exc:  # noqa: BLE001 — alignment is a nice-to-have; never fail the render
             warn(f"word alignment failed ({str(exc).splitlines()[0][:120]}); estimating word timings")
             _whisper_failed = True
@@ -388,7 +404,7 @@ def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
         for k in range(size):
             if a[i + k]:
                 times[i + k] = (got[j + k]["start"], got[j + k]["end"])
-    if sum(t is not None for t in times) < 0.5 * len(toks):      # barely recognisable: keep what was heard as it is
+    if sum(t is not None for t in times) < 0.3 * len(toks):      # barely recognisable: keep what was heard as it is
         wf.write_text(json.dumps(got))
         return
     dur = ffprobe_duration(wav)
