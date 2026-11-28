@@ -286,13 +286,15 @@ S(1, sea(gw(0.4, 0.36, 0.8, to=[0.5, 0.34]), gw(0.6, 0.6, 1.0, to=[0.7, 0.6]), g
          depth=0.35, callout="The great whites made a move of their own", calloutAt="move"))
 
 # ====================================================================================== 6. THE EMPTY SEA
-S(1, sea(gw(0.45, 0.36, 0.8, to=[1.35, 0.3]), gw(0.6, 0.6, 1.0, to=[1.45, 0.62]), gw(0.4, 0.8, 0.7, to=[1.3, 0.86]),
-         depth=0.35, bigText="THEY LEFT", bigAt="left", duration=3.5),
+# "They left." is two words (under a second): it shares its scene with the next sentence, so the sharks swimming
+# off get about three seconds on screen without a silence in the voice
+S(2, [sea(gw(0.45, 0.36, 0.8, to=[1.35, 0.3]), gw(0.6, 0.6, 1.0, to=[1.45, 0.62]), gw(0.4, 0.8, 0.7, to=[1.3, 0.86]),
+          depth=0.35, bigText="THEY LEFT", bigAt="left", duration=3.5),
+      tpl("ClipCard", publication="African Journal of Marine Science", title="Fear at the top", date="2022",
+          lines=["Five and a half years of boat sightings", "Signals from tagged great white sharks", "Gansbaai, South Africa"],
+          highlight=[{"text": "Five and a half years", "at": "five"}, {"text": "tagged great white sharks", "at": "tagged"}],
+          source="Towner et al. 2022")],
   chapter="The Empty Sea", mood="tension")
-S(1, tpl("ClipCard", publication="African Journal of Marine Science", title="Fear at the top", date="2022",
-         lines=["Five and a half years of boat sightings", "Signals from tagged great white sharks", "Gansbaai, South Africa"],
-         highlight=[{"text": "Five and a half years", "at": "five"}, {"text": "tagged great white sharks", "at": "tagged"}],
-         source="Towner et al. 2022"))
 S(1, aerial(port(-0.1, 0.4, 1.2, view="top", to=[0.22, 0.42]), star(-0.2, 0.62, 1.2, view="top", to=[0.12, 0.6]),
             gw(0.5, 0.3, 0.75, view="top", to=[1.2, 0.1]), gw(0.6, 0.55, 0.8, view="top", to=[1.3, 0.5]), gw(0.5, 0.78, 0.7, view="top", to=[1.2, 0.95]),
             gw(0.72, 0.4, 0.6, view="top", to=[1.3, 0.28]), heading="14 tagged great whites", kicker="TRACKED LEAVING GANSBAAI",

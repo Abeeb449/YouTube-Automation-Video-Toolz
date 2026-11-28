@@ -1615,10 +1615,10 @@ scenes:
         - 0.8
 - chapter: The Empty Sea
   mood: tension
-  text: They left.
+  text: They left. Towner's team went through five and a half years of boat sightings and signals from tagged sharks.
   para: 20
-  visual:
-    remotion: OceanScene
+  visuals:
+  - remotion: OceanScene
     props:
       depth: 0.35
       bigText: THEY LEFT
@@ -1646,10 +1646,7 @@ scenes:
         to:
         - 1.3
         - 0.86
-- text: Towner's team went through five and a half years of boat sightings and signals from tagged sharks.
-  para: 20
-  visual:
-    remotion: ClipCard
+  - remotion: ClipCard
     props:
       publication: African Journal of Marine Science
       title: Fear at the top
