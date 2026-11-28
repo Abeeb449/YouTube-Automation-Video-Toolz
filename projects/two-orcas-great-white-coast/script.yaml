@@ -4244,7 +4244,7 @@ scenes:
       - id: g0
         model: greatWhiteLo
         length: 4.0
-        out: 3.2
+        out: 3.6
         path:
         - u: 0
           p:
@@ -4254,12 +4254,12 @@ scenes:
         - u: 1
           p:
           - -2
-          - -7.0
-          - -46
+          - -8.0
+          - -70
       - id: g1
         model: greatWhiteLo
         length: 4.2
-        out: 3.45
+        out: 3.9
         path:
         - u: 0
           p:
@@ -4268,13 +4268,13 @@ scenes:
           - 0
         - u: 1
           p:
-          - 4
-          - -7.5
-          - -50
+          - 5
+          - -8.5
+          - -75
       - id: g2
         model: greatWhiteLo
         length: 4.4
-        out: 3.7
+        out: 4.2
         path:
         - u: 0
           p:
@@ -4283,13 +4283,13 @@ scenes:
           - 2
         - u: 1
           p:
-          - 10
-          - -8.0
-          - -54
+          - 12
+          - -9.0
+          - -80
       - id: g3
         model: greatWhiteLo
         length: 4.0
-        out: 3.95
+        out: 4.5
         path:
         - u: 0
           p:
@@ -4298,13 +4298,13 @@ scenes:
           - 0
         - u: 1
           p:
-          - 16
-          - -8.5
-          - -46
+          - 19
+          - -9.5
+          - -70
       - id: g4
         model: greatWhiteLo
         length: 4.2
-        out: 4.2
+        out: 4.8
         path:
         - u: 0
           p:
@@ -4313,9 +4313,9 @@ scenes:
           - 2
         - u: 1
           p:
-          - 22
-          - -9.0
-          - -50
+          - 26
+          - -10.0
+          - -75
       camera:
       - u: 0
         pos:
@@ -4329,13 +4329,13 @@ scenes:
         fov: 44
       - u: 1
         pos:
-        - 1
-        - -5.3
-        - 10
+        - 2
+        - -5.2
+        - 9
         look:
-        - 6
-        - -6.4
-        - -14
+        - 8
+        - -6.6
+        - -16
         fov: 44
       gfx:
       - type: chapter
@@ -4347,46 +4347,17 @@ scenes:
         size: 190
         lines:
         - They left.
-        out: team
-  - remotion: Shot3D
-    props:
-      env:
-        kind: sea
-        depth: 0.4
-      cast: []
-      camera:
-      - u: 0
-        pos:
-        - 0
-        - -6
-        - 12
-        look:
-        - 4
-        - -6.4
-        - 0
-        fov: 42
-      - u: 1
-        pos:
-        - 5
-        - -5.6
-        - 9
-        look:
-        - 12
-        - -6
-        - -4
-        fov: 42
-      gfx:
+        out: went
       - type: count
         at: five
         to: 5.5
         decimals: 1
         d: 1.2
         x: 0.5
-        y: 0.4
+        y: 0.42
         size: 230
         kicker: the study
         label: years of boat sightings and tag signals
-    cut: team
   - remotion: Shot3D
     props:
       env:
@@ -5454,9 +5425,9 @@ scenes:
         alt: 60
         clock: 1500
       - type: timer
-        at: lasted
+        at: lasted-0.3
         to: 3600
-        d: 2.2
+        d: 1.5
         label: the chase
         x: 0.92
         y: 0.2
@@ -8237,7 +8208,7 @@ scenes:
         fov: 42
       gfx:
       - type: tag
-        at: 0.5
+        at: 0.4
         anchor:
           prop: net
           point: mid
@@ -8245,7 +8216,7 @@ scenes:
         sub: KwaZulu-Natal
         dir: nw
       - type: rows
-        at: Between
+        at: 0.3
         title: 1978 to 2018
         side: right
         y: 0.2
@@ -8270,7 +8241,7 @@ scenes:
         - 0
         heading: 20
         length: 70
-    cut: Shark nets
+    cut: Between
   - remotion: Shot3D
     props:
       env:

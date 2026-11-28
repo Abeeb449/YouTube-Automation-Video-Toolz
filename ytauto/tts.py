@@ -121,12 +121,12 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
         voice.setdefault("check_words", True)
         voice.setdefault("max_pause", 0.30)          # inside a sentence
         voice.setdefault("sentence_pause", 0.70)     # between sentences
-        voice["trim"] = "told-v1"
+        voice["trim"] = "told-v2"
         st["sentence_gap"] = float(voice["sentence_pause"])   # between two takes of one paragraph
     return strip_directives(text), voice, st
 
 
-TOLD_HOME = {"ryan": 128.0, "aiden": 136.0}      # where each speaker's voice sits when it simply tells (median Hz)
+TOLD_HOME = {"ryan": 124.0, "aiden": 136.0}      # where each speaker's voice sits when it simply tells (median Hz)
 
 
 def steady_anchor(voice: dict) -> dict | None:
@@ -281,24 +281,29 @@ _whisper_lock = threading.Lock()
 _whisper_failed = False
 
 
-def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
-    """Exact word timings for engines that don't report them (Kokoro, Piper, Chatterbox, ElevenLabs):
-    run faster-whisper (MIT) over our own audio and save <wav>.words.json. Skipped when the file exists,
-    faster-whisper isn't installed, or the model can't be loaded (timings are then estimated)."""
+def heard_words(wav: Path, mode: str = "auto") -> list[dict] | None:
+    """What the recogniser hears in a recording, word by word with times (faster-whisper, MIT). It listens with no
+    hint of the text: given the script as a hint it skips or repeats parts of a long passage. Kept beside the
+    recording (<wav>.heard.json). None when the recogniser is not available."""
     global _whisper_model, _whisper_failed
-    wf = wav.with_suffix(".words.json")
-    if wf.exists() or _whisper_failed:
-        return
+    hf = wav.with_suffix(".heard.json")
+    if hf.exists() and hf.stat().st_mtime >= wav.stat().st_mtime:
+        try:
+            return json.loads(hf.read_text())
+        except Exception:  # noqa: BLE001
+            pass
+    if _whisper_failed:
+        return None
     try:
         from faster_whisper import WhisperModel
     except ImportError:
         if mode == "on":
             warn("align: on, but faster-whisper isn't installed (pip install faster-whisper)")
         _whisper_failed = True
-        return
+        return None
     with _whisper_lock:
         if _whisper_failed:
-            return
+            return None
         if _whisper_model is None:
             try:
                 name = os.environ.get("YTAUTO_WHISPER_MODEL", "base.en")
@@ -307,7 +312,7 @@ def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
             except Exception as exc:  # noqa: BLE001 — no network for the model etc.
                 warn(f"word alignment unavailable ({str(exc).splitlines()[0][:120]}); estimating word timings")
                 _whisper_failed = True
-                return
+                return None
         try:
             import subprocess
 
@@ -316,20 +321,70 @@ def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
             raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-ar", "16000", "-f", "f32le", "-"],
                                  capture_output=True, check=True).stdout
             audio = np.frombuffer(raw, dtype=np.float32)
-            segs, _ = _whisper_model.transcribe(audio, language="en", word_timestamps=True, initial_prompt=sentence,
-                                                beam_size=1, vad_filter=False)
-            got = [w for seg in segs for w in (seg.words or [])]
+            segs, _ = _whisper_model.transcribe(audio, language="en", word_timestamps=True, beam_size=5, vad_filter=False,
+                                                condition_on_previous_text=False)
+            got = [{"start": round(w.start, 3), "end": round(w.end, 3), "text": w.word.strip()} for seg in segs for w in (seg.words or [])]
         except Exception as exc:  # noqa: BLE001 — alignment is a nice-to-have; never fail the render
             warn(f"word alignment failed ({str(exc).splitlines()[0][:120]}); estimating word timings")
             _whisper_failed = True
-            return
-    toks = sentence.split()
-    if not got:
+            return None
+    hf.write_text(json.dumps(got))
+    return got
+
+
+def said_share(sentence: str, heard: list[dict]) -> float:
+    """How much of the text is in what was heard, and nothing else (1.0 = the same words; numbers, dates and
+    spellings count as the same however they are written)."""
+    import difflib
+
+    from .cues import _norm
+    a = [x for x in (_norm(t) for t in sentence.split()) if x]
+    b = [x for x in (_norm(w["text"]) for w in heard) if x]
+    # a number can be one word in the script and two when heard ("1,110" / "1 110"): compared as one run of letters
+    return difflib.SequenceMatcher(None, "".join(a), "".join(b), autojunk=False).ratio() if a and b else 0.0
+
+
+def align_words(sentence: str, wav: Path, mode: str = "auto") -> None:
+    """Exact word timings for engines that don't report them (Qwen, Kokoro, Piper, Chatterbox, ElevenLabs): the
+    recogniser listens to our own audio, and each word of the script takes the time of the word it matches in what
+    was heard; a word with no match (a number written differently, a name spelt another way) takes its place
+    between its neighbours. So every word of the script has a time, and a cue on any of them lands. Saved as
+    <wav>.words.json; skipped when that file exists or the recogniser isn't available (timings are then estimated)."""
+    import difflib
+
+    from .cues import _norm
+    wf = wav.with_suffix(".words.json")
+    if wf.exists():
         return
-    if len(got) == len(toks):
-        data = [{"start": round(w.start, 3), "end": round(w.end, 3), "text": tok} for w, tok in zip(got, toks)]
-    else:  # different tokenisation: keep whisper's words (cue matching ignores punctuation)
-        data = [{"start": round(w.start, 3), "end": round(w.end, 3), "text": w.word.strip()} for w in got]
+    got = heard_words(wav, mode)
+    toks = sentence.split()
+    if not got or not toks:
+        return
+    a = [_norm(t) for t in toks]
+    b = [_norm(w["text"]) for w in got]
+    times: list[tuple[float, float] | None] = [None] * len(toks)
+    for i, j, size in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+        for k in range(size):
+            if a[i + k]:
+                times[i + k] = (got[j + k]["start"], got[j + k]["end"])
+    if sum(t is not None for t in times) < 0.5 * len(toks):      # barely recognisable: keep what was heard as it is
+        wf.write_text(json.dumps(got))
+        return
+    dur = ffprobe_duration(wav)
+    known = [(-1, 0.0)] + [(i, t[0]) for i, t in enumerate(times) if t] + [(len(toks), max(dur, got[-1]["end"]))]
+    data = []
+    for i, tok in enumerate(toks):
+        if times[i]:
+            st, en = times[i]
+        else:                                                    # between the nearest matched words, in step
+            lo = max(k for k in known if k[0] < i)
+            hi = min(k for k in known if k[0] > i)
+            lo_end = times[lo[0]][1] if lo[0] >= 0 else 0.0
+            span = max(0.0, hi[1] - lo_end)
+            n = hi[0] - lo[0] - 1
+            st = lo_end + span * (i - lo[0] - 1) / max(1, n)
+            en = lo_end + span * (i - lo[0]) / max(1, n)
+        data.append({"start": round(st, 3), "end": round(en, 3), "text": tok})
     wf.write_text(json.dumps(data))
 
 
@@ -973,7 +1028,31 @@ def match_pitch(raw: Path, target: float) -> None:
         out.unlink(missing_ok=True)
 
 
+SAID_MIN = 0.90            # a take in which less than this share of the text is heard has dropped or changed words
 MAX_PAUSE = 0.9            # a silence this long inside a take is a stall, not a breath (between sentences it is ~0.65 s)
+
+
+def settle_pitch(wav: Path, target: float, keep: float = 0.6) -> Path:
+    """A told passage brought into the narrator's home register when it sits a little above or below it (the shape
+    of the voice kept), so one passage never sounds like a different speaker from the next. What the voice does
+    inside the passage, its rise and fall, is untouched. A derived file beside the take; the take itself is kept."""
+    import math
+    out = wav.with_name(f"{wav.stem}.p{int(round(target))}.wav")
+    if out.exists() and out.stat().st_mtime >= wav.stat().st_mtime:
+        return out
+    hz = voice_pitch(wav)
+    if not hz or not target:
+        return wav
+    off = 12 * math.log2(hz / target)
+    if abs(off) <= keep or abs(off) > 3.2:
+        return wav
+    try:
+        run(["ffmpeg", "-y", "-v", "error", "-i", wav, "-af",
+             f"rubberband=pitch={target / hz:.5f}:formant=preserved:pitchq=quality:transients=smooth",
+             "-c:a", "pcm_s16le", out])
+    except YtautoError:
+        return wav                # this ffmpeg has no pitch tool: the take stays as recorded
+    return out
 
 
 def longest_pause(path: Path) -> float:
@@ -1019,9 +1098,8 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
     def said(p: Path) -> float:           # how much of the text is really in the take (1 = every word)
         if not voice.get("check_words"):
             return 1.0
-        from . import passages
-        heard = passages._heard(p, text)
-        return passages._says(heard, text) if heard else 1.0
+        heard = heard_words(p)
+        return said_share(text, heard) if heard else 1.0
 
     def measure(p: Path) -> tuple[float, float, float, float, float]:
         off, swing = 0.0, 0.0             # semitones above/below the narrator's pitch; how far the pitch moves
@@ -1036,14 +1114,14 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
 
     def good(m: tuple[float, float, float, float, float]) -> bool:
         return (band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND
-                and swing_min <= m[3] <= swing_max and m[4] >= 0.92)
+                and swing_min <= m[3] <= swing_max and m[4] >= SAID_MIN)
 
     def score(m: tuple[float, float, float, float, float]) -> float:   # a stall counts heavily; so does another register
         return (abs(math.log(max(m[0], 0.05) / usual)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
                 + (0.5 * abs(m[2]) if abs(m[2]) > PITCH_BAND else 0.1 * abs(m[2]))
                 + (0.15 * (m[3] - swing_max) + 0.3 if m[3] > swing_max else 0.0)
                 + (0.2 * (swing_min - m[3]) + 0.3 if m[3] < swing_min else 0.0)
-                + (4.0 * (0.92 - m[4]) + 0.5 if m[4] < 0.92 else 0.0))
+                + (4.0 * (SAID_MIN - m[4]) + 0.5 if m[4] < SAID_MIN else 0.0))
     best = measure(raw)
     if good(best):
         return
@@ -1062,7 +1140,7 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         if good(best):
             break
     if best != first:
-        if first[4] < 0.92:
+        if first[4] < SAID_MIN:
             log(f"   retook a passage that did not say its words ({first[4]:.2f} → {best[4]:.2f} of them): {text[:60]}")
         elif abs(first[2]) > PITCH_BAND and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
             log(f"   retook a line that came out {'higher' if first[2] > 0 else 'lower'} than the narrator's voice "
@@ -1076,7 +1154,7 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
             log(f"   retook a {'dragged' if first[0] > 1 else 'rushed'} line ({first[0]:.2f}x → {best[0]:.2f}x of its "
                 f"natural length): {text[:60]}")
     if not good(best):
-        what = ("missing or changing some words" if best[4] < 0.92
+        what = ("missing or changing some words" if best[4] < SAID_MIN
                 else "broken by a " + format(best[1], ".1f") + " s silence" if best[1] > MAX_PAUSE
                 else "off its natural pace" if not band[0] <= best[0] <= band[1]
                 else format(best[2], "+.1f") + " semitones off the narrator's pitch (it is corrected next)"
@@ -1252,6 +1330,8 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
                 new.replace(raw)
             wav = (tighten(raw, float(v["max_pause"]), float(v["sentence_pause"]) if v.get("sentence_pause") else None)
                    if v.get("max_pause") else polish(raw, pol))
+            if v.get("delivery") == "told" and v.get("home_hz") and v.get("settle") is not False:
+                wav = settle_pitch(wav, float(v["home_hz"]))
             if v.get("tempo") and abs(float(v["tempo"]) - 1.0) > 0.005 and pol.get("enabled") is False:
                 wav = retime(wav, float(v["tempo"]))      # a calmer (or brisker) read, pitch unchanged
         used_fallback = used_fallback or any(raw.parent.glob(f"{raw.stem}*.fallback"))

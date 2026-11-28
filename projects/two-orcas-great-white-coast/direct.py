@@ -565,14 +565,13 @@ P(2, [
 
 # ====================================================================================== 6. THE EMPTY SEA
 P(3, [
+    # they swim off into the blue, and the water stays empty while the study is counted out
     shot(SEA,
-         [gw(f"g{i}", 4.0 + 0.2 * (i % 3), [(0, [-6 + 4 * i, -5 - 0.6 * (i % 3), 2 - 2 * (i % 2)]), (1, [-2 + 6 * i, -7 - 0.5 * i, -46 - 4 * (i % 3)])], lo=True, out=3.2 + 0.25 * i) for i in range(5)],
-         cam((0, [0, -5.5, 12], [4, -6, -10], {"fov": 44}), (1, [1, -5.3, 10], [6, -6.4, -14], {"fov": 44})),
+         [gw(f"g{i}", 4.0 + 0.2 * (i % 3), [(0, [-6 + 4 * i, -5 - 0.6 * (i % 3), 2 - 2 * (i % 2)]), (1, [-2 + 7 * i, -8 - 0.5 * i, -70 - 5 * (i % 3)])], lo=True, out=3.6 + 0.3 * i) for i in range(5)],
+         cam((0, [0, -5.5, 12], [4, -6, -10], {"fov": 44}), (1, [2, -5.2, 9], [8, -6.6, -16], {"fov": 44})),
          [chapter(5, "The empty sea"),
-          {"type": "title", "at": 0.25, "size": 190, "lines": ["They left."], "out": "team"}]),
-    shot({"kind": "sea", "depth": 0.4}, [],
-         cam((0, [0, -6, 12], [4, -6.4, 0], {"fov": 42}), (1, [5, -5.6, 9], [12, -6, -4], {"fov": 42})),
-         [{"type": "count", "at": "five", "to": 5.5, "decimals": 1, "d": 1.2, "x": 0.5, "y": 0.4, "size": 230, "kicker": "the study", "label": "years of boat sightings and tag signals"}], cut="team"),
+          {"type": "title", "at": 0.25, "size": 190, "lines": ["They left."], "out": "went"},
+          {"type": "count", "at": "five", "to": 5.5, "decimals": 1, "d": 1.2, "x": 0.5, "y": 0.42, "size": 230, "kicker": "the study", "label": "years of boat sightings and tag signals"}]),
     # the tagged sharks leaving
     shot(MAP([[18.3, -35.5], [20.9, -34.0]], pins=[pin(GANSBAAI, 0.2)],
              flows=[{"from": list(DYER), "to": [20.7, -35.0], "via": [[19.9, -34.95]], "at": "tracked", "d": 5.5, "n": 14, "spread": 16},
@@ -676,7 +675,7 @@ P(4, [
           orca("o3", [(0, [-34, -4.2, 8]), (0.5, [-19, -4.2, 11]), (1, [-3, -4.2, 6])], 7.4, male=True)],
          cam((0, [-12, 38, 0.5], [-12, 0, 0], {"fov": 40}), (1, [4, 36, 0.5], [4, 0, 0], {"fov": 40})),
          [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 60, "clock": 1500},
-          {"type": "timer", "at": "lasted", "to": 3600, "d": 2.2, "label": "the chase", "x": 0.92, "y": 0.2, "size": 120}]),
+          {"type": "timer", "at": "lasted-0.3", "to": 3600, "d": 1.5, "label": "the chase", "x": 0.92, "y": 0.2, "size": 120}]),
     # the circling trick
     shot(AIR,
          [gw("s", 3.6, [(0, [3.2, -3.0, 0]), (0.125, [2.3, -3.0, 2.3]), (0.25, [0, -3.0, 3.2]), (0.375, [-2.3, -3.0, 2.3]), (0.5, [-3.2, -3.0, 0]), (0.625, [-2.3, -3.0, -2.3]),
@@ -886,10 +885,10 @@ P(5, [
     shot({"kind": "sea", "depth": 0.25, "water": "teal", "floor": 9},
          [gw("s", 3.4, [(0, [-13, -4, 18]), (0.7, [-1, -3.6, 5]), (1, [2.5, -3.5, 2.6])])],
          cam((0, [-13, -4.6, 8.5], [2, -3, 0], {"fov": 42}), (1, [-9, -4, 7], [2, -3, 0], {"fov": 42})),
-         [tag(0.5, {"prop": "net", "point": "mid"}, "Shark net", "KwaZulu-Natal", "nw"),
-          {"type": "rows", "at": "Between", "title": "1978 to 2018", "side": "right", "y": 0.2, "w": 620,
+         [tag(0.4, {"prop": "net", "point": "mid"}, "Shark net", "KwaZulu-Natal", "nw"),
+          {"type": "rows", "at": 0.3, "title": "1978 to 2018", "side": "right", "y": 0.2, "w": 620,
            "rows": [{"k": "Great whites caught", "v": "1,317", "at": "caught"}, {"k": "Died", "v": "1,108", "hot": True, "at": "died-0.5"}, {"k": "Each year", "v": "about 28", "at": "28"}]}],
-         props=[{"kind": "net", "id": "net", "pos": [0, 0, 0], "heading": 20, "length": 70}], cut="Shark nets"),
+         props=[{"kind": "net", "id": "net", "pos": [0, 0, 0], "heading": 20, "length": 70}], cut="Between"),
     shot({"kind": "sea", "depth": 0.6},
          [port(across(-8, -8, -3, -22, 16, 0.4), shadow=0.45), star(across(-10.4, -3, 3, -27, 11, 0.4), shadow=0.45)],
          cam((0, [3, -9.5, 15], [-5, -9, -3], {"fov": 40}), (1, [6, -9, 17], [3, -9, 0], {"fov": 40})),
