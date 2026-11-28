@@ -9,6 +9,29 @@ This is the general workflow for every video on the channel. Nothing here is spe
 leopard-seal project (`projects/sea-lions-fear-leopard-seals`) is only a worked example. Use the
 `ocean-documentary` skill instead when you want the drawn deep-sea look (flat vector creatures, depth meters, sonar).
 
+## The channel's look: live 3D, built for each script
+
+The channel owner's standard, set after the orca video (`projects/two-orcas-great-white-coast`), which is the worked
+example of it:
+
+- **Every shot is a live 3D shot (`Shot3D`, README → "Live 3D shots").** A real place, animals that swim through it, a
+  camera that never stands still, graphics pinned to the picture that land on the narrator's words. No flat cut-outs
+  sliding over a background, no still frames.
+- **Build each video from its own script.** Read the passage, decide what the viewer should be looking at while it is
+  said, and build that shot. Do not reuse another video's sequence of shots, and do not rebuild a reference video's
+  structure: references show the level of craft to reach, they are not a template.
+- **Only the animals of this story.** A shot loads just the models it names (`cast`). Never stand in one animal for
+  another; if the script mentions an animal there is no model of, show the place, a map or the numbers instead, or
+  build the model (`blender/sealife.py` → `python -m ytauto models3d`).
+- **One passage, one or more shots, cut on words.** `P(n, [shot, shot, …])` in the project's `direct.py`; later shots
+  start on their `cut` word. Check the result with test frames of every shot before a full render.
+- **Graphics in the channel's colours** (`agent/BRAND.md`): white, yellow running into orange, on the picture itself.
+- **Narration:** `settings.voice.delivery: told` (README → Voices): a passage in one take, natural rise and fall, the
+  same register and loudness throughout.
+- When something is replaced (a model, a voice, a direction), delete what it replaces in the same change.
+
+The planner path below still exists for a quick first cut from a bare script.
+
 ## Fastest path: script only
 
 1. Save the narration as `projects/<slug>/script.txt`. First line `# Title`, blank lines between paragraphs,

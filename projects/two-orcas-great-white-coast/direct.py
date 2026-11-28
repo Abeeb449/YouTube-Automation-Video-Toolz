@@ -1036,6 +1036,12 @@ P(6, [
 
 assert _pos == len(SENT), f"{len(SENT) - _pos} sentences of the script have no shot"
 
+# a chapter opens out of dark water (a breath between the parts of the story)
+for _sc in scenes[1:]:
+    if _sc.get("chapter"):
+        _first = _sc["visuals"][0] if "visuals" in _sc else _sc["visual"]
+        _first["props"]["enter"] = "dip"
+
 # ------------------------------------------------------------------------------------------ checks
 def _norm(w):
     return re.sub(r"[^\w]", "", w.lower())
@@ -1108,7 +1114,7 @@ doc = {
     "description": ("In May 2017 a great white shark almost five metres long washed up on a South African beach with its liver "
                     "missing. This is the story of Port and Starboard, the two orcas that learned to hunt great whites, the bay "
                     "they emptied, and the argument among scientists over how much of the blame is theirs.\n\n"
-                    "The animals and events in this video are shown as 3D reconstructions, except where real photos or footage are credited below."),
+                    "Everything in this video is a 3D reconstruction built from the published accounts listed below; no footage of the real events is shown."),
     "tags": ["orca", "great white shark", "Port and Starboard", "Gansbaai", "False Bay", "Mossel Bay", "South Africa",
              "killer whale", "shark liver", "ocean documentary", "wildlife documentary", "animals"],
     "sources": script.sources,
