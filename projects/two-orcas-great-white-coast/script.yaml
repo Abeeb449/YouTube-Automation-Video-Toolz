@@ -9376,16 +9376,16 @@ scenes:
           - -14
           - -2.8
           - 9
-        - u: 0.6
+        - u: 0.55
           p:
-          - -1.5
+          - -2.5
           - -1.9
-          - 5.5
+          - 5.6
         - u: 1
           p:
-          - 9
-          - -2.4
-          - 8
+          - 3.6
+          - -2.2
+          - 6.4
       - id: b
         model: greatWhite
         length: 3.3
@@ -9395,16 +9395,16 @@ scenes:
           - 15
           - -4
           - 11
-        - u: 0.6
+        - u: 0.55
           p:
-          - 4
+          - 5
           - -3
-          - 7
+          - 7.2
         - u: 1
           p:
-          - -8
-          - -3.4
-          - 9.5
+          - -1.5
+          - -3.3
+          - 8.4
       camera:
       - u: 0
         pos:
@@ -9431,9 +9431,9 @@ scenes:
         at: third
         text: 3 November 2026
         sub: Off Gansbaai
-        out: first-0.4
+        out: first-0.5
       - type: line
-        at: year
+        at: first-0.2
         text: The first in more than a year
         hi: more than a year
       props:

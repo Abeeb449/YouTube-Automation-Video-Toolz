@@ -981,10 +981,10 @@ P(4, [
          [line("first", "The first seen there in about eight years", "eight years")],
          props=[{"kind": "boat", "id": "boat", "pos": [-2, 0, -3], "heading": 14}], cut="The crew"),
     shot({"kind": "sea", "depth": 0.2, "water": "teal"},
-         [gw("a", 3.8, [(0, [-14, -2.8, 9]), (0.6, [-1.5, -1.9, 5.5]), (1, [9, -2.4, 8])]), gw("b", 3.3, [(0, [15, -4, 11]), (0.6, [4, -3, 7]), (1, [-8, -3.4, 9.5])])],
+         [gw("a", 3.8, [(0, [-14, -2.8, 9]), (0.55, [-2.5, -1.9, 5.6]), (1, [3.6, -2.2, 6.4])]), gw("b", 3.3, [(0, [15, -4, 11]), (0.55, [5, -3, 7.2]), (1, [-1.5, -3.3, 8.4])])],
          cam((0, [5.5, -4.4, 13.5], [-1.3, -0.9, 2.6], {"fov": 40}), (1, [2.6, -3.5, 10.5], [-1.3, -0.9, 2.6], {"fov": 40})),
-         [stamp("third", "3 November 2026", "Off Gansbaai", out="first-0.4"),
-          line("year", "The first in more than a year", "more than a year")],
+         [stamp("third", "3 November 2026", "Off Gansbaai", out="first-0.5"),
+          line("first-0.2", "The first in more than a year", "more than a year")],
          props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "cage": True}], cut="Six weeks"),
 ], mood="hope")
 

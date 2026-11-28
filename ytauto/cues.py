@@ -30,7 +30,7 @@ def _number_words() -> dict[str, str]:
     for n in range(100):
         word = _ONES[n] if n < 20 else _TENS[n // 10] + (_ONES[n % 10] if n % 10 else "")
         out[word] = str(n)
-        if n:                                           # ordinals: third, sixteenth, twentythird …
+        if n:                                           # ordinals: third, sixteenth, twentythird … → "3o", "16o", "23o"
             last = _ONES[n] if n < 20 else (_ONES[n % 10] if n % 10 else _TENS[n // 10])
             head = "" if n < 20 or not n % 10 else _TENS[n // 10]
             o = next((k for k, v in _ORD.items() if (v == n % 10 and n > 20 and n % 10) or v == n), None)
@@ -38,8 +38,8 @@ def _number_words() -> dict[str, str]:
                 o = next((k for k, v in _ORD.items() if v == n % 10), None) or _ONES[n % 10] + "th"
             elif o is None:
                 o = (last[:-1] + "ieth") if last.endswith("y") else last + "th"
-            out[head + o] = str(n)
-    out.update({"hundred": "100", "thousand": "1000", "hundredth": "100"})
+            out[head + o] = f"{n}o"
+    out.update({"hundred": "100", "thousand": "1000", "hundredth": "100o"})
     return out
 
 
@@ -47,12 +47,13 @@ _NUM = _number_words()
 
 
 def _norm(w: str) -> str:
-    """A word as it is compared: lower case, no punctuation; numbers and dates the same whether written out or in
-    digits ("third", "3rd" and "3"; "twenty-third" and "23rd"), British and American spellings the same."""
+    """A word as it is compared: lower case, no punctuation; a number the same whether written out or in digits
+    ("three" and "3"; "third" and "3rd"; "twenty-third" and "23rd") while "third" stays a different word from
+    "three"; British and American spellings the same."""
     t = re.sub(r"[^\w]", "", w.lower())
     m = re.fullmatch(r"(\d+)(st|nd|rd|th)", t)
     if m:
-        return m.group(1)
+        return m.group(1) + "o"
     return _NUM.get(t) or _SPELL.get(t, t)
 
 
@@ -72,8 +73,9 @@ def find_word_time(cue: str, words: list) -> float | None:
             hits += 1
             if hits == nth:
                 return words[i].start + off
-    # a number that was heard differently from how it is written ("five and a half" heard as "5.5"): the first number said
-    if len(phrase) == 1 and phrase[0].isdigit():
+    # a number that was heard differently from how it is written ("five and a half" heard as "5.5", "the third of
+    # May" heard as "May 3"): the first number said
+    if len(phrase) == 1 and re.fullmatch(r"\d+o?", phrase[0]):
         digits = [i for i, t in enumerate(toks) if t[:1].isdigit()]
         if len(digits) >= nth:
             return words[digits[nth - 1]].start + off
@@ -94,7 +96,11 @@ def resolve_cues(obj: Any, words: list, clip_offset: float, clip_dur: float, whe
         out = {}
         for k, v in obj.items():
             if (k in ("at", "out") or k.endswith("At")) and k not in NOT_CUES and isinstance(v, str):
-                t = find_word_time(v, words)
+                # the word as it is said during this shot; only if it is not said then, wherever the scene says it
+                own = [w for w in words if clip_offset - 0.15 <= w.start < clip_offset + clip_dur]
+                t = find_word_time(v, own) if len(own) < len(words) else None
+                if t is None:
+                    t = find_word_time(v, words)
                 if t is None:
                     warn(f"{where}: cue word {v!r} not found in the narration — showing it at the start")
                     out[k] = 0.3
