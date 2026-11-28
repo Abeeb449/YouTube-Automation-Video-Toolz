@@ -462,7 +462,7 @@ P(3, [
          [port(pos=[0, 0, -3.4], heading=0, pose="swim", amp=0.5), star(pos=[0, 0, 3.4], heading=0, pose="swim", amp=0.5)],
          cam((0, [-15, 4.6, -2.5], [2, 0.7, 0], {"fov": 36}), (1, [-13.5, 3.2, 2.5], [2, 0.7, 0], {"fov": 36})),
          [tag("left", at("port", "dorsal"), "Leans left", None, "nw"),
-          tag("right", at("star", "dorsal"), "Leans right", None, "ne")], cut="One fin"),
+          tag("other", at("star", "dorsal"), "Leans right", None, "ne")], cut="One fin"),
     shot(STUDIO,
          [port(pos=[0, 0, -4.6], heading=90, pose="swim", amp=0.5), star(pos=[0, 0, 4.6], heading=90, pose="swim", amp=0.5)],
          cam((0, [-3, 17, 0.4], [1, 0, 0], {"fov": 40}), (1, [-1, 14, 0.4], [1, 0, 0], {"fov": 40})),

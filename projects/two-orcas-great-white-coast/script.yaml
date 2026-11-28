@@ -3092,7 +3092,7 @@ scenes:
         text: Leans left
         dir: nw
       - type: tag
-        at: right
+        at: other
         anchor:
           actor: star
           point: dorsal
