@@ -49,7 +49,8 @@ COPY remotion/package.json /opt/ytauto/remotion/package.json
 RUN cd /opt/ytauto/remotion && npm install --no-audit --no-fund && npx remotion browser ensure \
     && mkdir -p node_modules/.cache && chmod -R a+rwX node_modules/.cache && chmod a+rwx . \
     && chmod -R a+rX /opt/ytauto/remotion
-COPY remotion/ /opt/ytauto/remotion/
+# (The templates themselves are copied at the very end, with the rest of the repository: a changed template then
+#  rebuilds only that last step, not the voice engines below.)
 
 # Kokoro voice model (Apache 2.0): the default free narrator. ~350 MB, downloaded once into the image.
 ENV YTAUTO_KOKORO_DIR=/opt/kokoro
