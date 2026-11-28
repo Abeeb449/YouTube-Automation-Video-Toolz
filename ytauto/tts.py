@@ -265,17 +265,35 @@ def best_take(sent: str, voice: dict, raw: Path, pol: dict) -> Path:
         return prosody.retime(best, sent, pol)
 
 
-def merge_passages(items: list[tuple], max_chars: int = 320) -> list[tuple]:
+def merge_passages(items: list[tuple], max_chars: int = 320, short: int = 100) -> list[tuple]:
     """Join consecutive sentences that share the same voice direction into one passage.
     Neural engines sound more natural across sentence boundaries, and each call has a fixed cost,
-    so fewer, longer calls are both better-sounding and much faster. Pauses still split passages."""
+    so fewer, longer calls are both better-sounding and much faster. Pauses still split passages.
+    A paragraph too long for one passage is never cut into a long passage and one short sentence left over (a lone
+    short sentence is read faster than the rest): its sentences are shared out evenly instead."""
     out: list[tuple] = []
+    runs: list[list[tuple]] = []           # the sentences each passage was joined from
     for it in items:
         if (it[0] == "say" and out and out[-1][0] == "say" and out[-1][2] == it[2]
                 and len(out[-1][1]) + 1 + len(it[1]) <= max_chars):
             out[-1] = ("say", f"{out[-1][1]} {it[1]}", out[-1][2])
+            runs[-1].append(it)
         else:
             out.append(it)
+            runs.append([it])
+    for k in range(len(out) - 1, 0, -1):
+        a, b = out[k - 1], out[k]
+        if a[0] == "say" and b[0] == "say" and a[2] == b[2] and len(b[1]) < short and len(runs[k - 1]) > 1:
+            sents = runs[k - 1] + runs[k]
+            total = sum(len(x[1]) for x in sents)
+            best, cut = None, 1
+            for c in range(1, len(sents)):                       # the cut that makes the two halves most alike
+                left = sum(len(x[1]) for x in sents[:c]) + c - 1
+                if left <= max_chars and (best is None or abs(left - total / 2) < best):
+                    best, cut = abs(left - total / 2), c
+            out[k - 1] = ("say", " ".join(x[1] for x in sents[:cut]), a[2])
+            out[k] = ("say", " ".join(x[1] for x in sents[cut:]), a[2])
+            runs[k - 1], runs[k] = sents[:cut], sents[cut:]
     return out
 
 
@@ -1047,7 +1065,7 @@ def settle_pitch(wav: Path, target: float, keep: float = 0.6) -> Path:
     if not hz or not target:
         return wav
     off = 12 * math.log2(hz / target)
-    if abs(off) <= keep or abs(off) > 3.2:
+    if abs(off) <= keep or abs(off) > 4.2:
         return wav
     try:
         run(["ffmpeg", "-y", "-v", "error", "-i", wav, "-af",
