@@ -342,6 +342,39 @@ This kit makes "danger & wonder" deep-sea animal documentaries in the style of `
 - **No text on top of animals:** when fact boxes are showing, animals are moved clear of them automatically.
 - **`Meter`** (e.g. 0 → 236 dB), **`Sonar`** (green echolocation view), and all the documentary infographic templates with `backdrop: abyss` or `backdrop: ocean`.
 
+### Live 3D shots (`Shot3D`)
+
+`Shot3D` draws a shot as real 3D, frame by frame: a place, animals that swim through it, a camera that moves, and
+graphics pinned to the picture that arrive on the narrator's words. Nothing in it is a still picture. The orca video
+(`projects/two-orcas-great-white-coast/direct.py`) is made of these shots only; read it as the worked example.
+
+```yaml
+visual:
+  remotion: Shot3D
+  props:
+    env:    {kind: sea, depth: 0.3}                       # sea · surface · beach · aerial · studio · map · globe
+    cast:   [{id: shark, model: greatWhite, length: 4.9,  # real length in metres
+              path: [{u: 0, p: [-14, -6, 0]}, {u: 1, p: [10, -5, 3]}]}]
+    camera: [{u: 0, pos: [3, -5, 12], look: shark}, {u: 1, pos: [-1, -4.5, 8], look: shark}]
+    gfx:    [{type: tag, at: "enemies", anchor: {actor: shark, point: dorsal}, text: "Great white"}]
+```
+
+- **Places:** `sea` (open water; `depth`, `water: blue|teal|green`, `floor`, `kelp`), `surface`, `beach` (`sky: dawn|overcast|dusk|day`),
+  `aerial` (a drone's view down into the water), `studio` (a dark space for looking at or inside one animal),
+  `map` (a stretch of real coastline as a table-top model with pins, routes, zones and streams of dots) and `globe`.
+- **Animals** are 3D files in `remotion/public/models/`, exported from the hand-built Blender models with their painted
+  skin (`python -m ytauto models3d`). They bend their own bodies to swim, lean into turns, and can be made glass to show
+  an organ (`xray`, `parts`). A shot loads only the animals it names, so nothing from another video can appear in it.
+- **Things:** `props: [{kind: boat | island | net | longline | denticles | teeth | spray, id: …}]`.
+- **Graphics** (`gfx`): `tag`, `stamp`, `line`, `measure`, `title`, `chapter`, `ring`, `count`, `note`, `rows`, `bars`, `dots`,
+  `timeline`, `gauge`, `timer`, `versus`, `hud`. An anchor is an animal's named point, a thing, a place on the map
+  (`geo: [lon, lat]`) or a spot on the screen.
+- **Moments:** `at` (seconds, or a word of the narration) or `u` (a share of the shot). A scene with several shots can cut
+  on a word: give the later shots `cut: "word"`.
+- Distances are metres, `y` is up, the sea surface is `y = 0`. The channel's colours live in `remotion/src/stage/gfx.tsx`.
+- No graphics card is needed: the browser draws in software (about 2 to 4 frames a second on four processors), so long
+  videos are best rendered with `parallel` in the GitHub workflow.
+
 **Blender templates** live in `blender/render.py` and are built from Python code, so no binary files are needed. Props: `text`, `subtext`, `color`, `accent`, `bg`, `font`, `resolution_percentage` (default 50 for speed; use 100 for full quality). Your own `.blend` file renders its animation for the scene's duration.
 
 ## 5. Voices
@@ -352,6 +385,16 @@ the invented reference voices in `voices/` remain available if you set `engine: 
 
 Narration style: `narration: natural` (default) reads the script as written; `narration: polished` re-records
 sentences with broken words and moves pauses to punctuation.
+
+Delivery (`settings.voice.delivery`, Qwen voice):
+
+- `told` — the way a person tells a true story. A whole passage is recorded in one go, so the tone rises and falls
+  inside each sentence and settles at each full stop, while the register, pace and loudness stay the same from the
+  first passage to the last. A take is recorded again when it lands in another register, goes flat, stalls or says
+  other words. Pauses are trimmed to about 0.3 s inside a sentence and 0.7 s between sentences. Measured against two
+  well-made documentaries this sits inside their range for pace, pauses, pitch and tone movement.
+- `steady` (default) — one even direction for the whole video; every line recorded against the same short clip.
+- `expressive` — a tone per scene, from the scene's own words.
 
 | Engine | Licence | Quality / speed on a 4-core CPU | Example |
 |---|---|---|---|

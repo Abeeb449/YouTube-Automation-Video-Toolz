@@ -320,6 +320,14 @@ def cmd_thumbnail(a) -> int:
     return 0 if out else 1
 
 
+def cmd_models3d(a) -> int:
+    """Export the animals of the live 3D shots (Shot3D) as 3D files, with their painted skin."""
+    from .stage3d import MODEL_DIR, MODELS, export_all
+    export_all(force=a.force)
+    print(f"{len(MODELS)} models in {MODEL_DIR}")
+    return 0
+
+
 def cmd_sprites(a) -> int:
     from .sprites import ensure_all
 
@@ -489,6 +497,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project")
     p.set_defaults(fn=cmd_narrate)
 
+    p = sp.add_parser("models3d", help="export the animals of the live 3D shots (Shot3D) as 3D files with Blender")
+    p.add_argument("--force", nargs="*", default=[], help="export again, e.g. orca (or: all)")
+    p.set_defaults(fn=cmd_models3d)
     p = sp.add_parser("sprites", help="render the 3D creature sprite library with Blender")
     p.add_argument("--force", nargs="*", default=[], help="re-render, e.g. leopardSeal or leopardSeal:side")
     p.set_defaults(fn=cmd_sprites)

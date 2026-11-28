@@ -1,10 +1,16 @@
 """Director's notes for "The Two Orcas That Emptied a Great White Shark Coast" → script.yaml.
 
-The narration is taken sentence by sentence from script.txt (never retyped), so the video says exactly what the
-script says. Each S(n, visual) below gives the next n sentences their shot.
+Every picture in this video is a live 3D shot built for the sentence it sits under (the `Shot3D` template): a real
+place (a beach, the open sea, a kelp reef, the sea from the air, a dark studio for looking inside an animal), animals
+that swim through it, a camera that moves, and graphics pinned to the picture that arrive on the narrator's words.
+Only the animals of this story are in it: great whites, the two orcas, sevengill and bronze whaler sharks.
+
+The narration is taken from script.txt word for word. P(n, shots) gives the next n sentences, read as one passage,
+their shots; a later shot in the list starts on its `cut` word.
 
     python projects/two-orcas-great-white-coast/direct.py        # rewrites script.yaml beside it
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -17,600 +23,1037 @@ from ytauto.scriptfmt import parse_script  # noqa: E402
 
 script = parse_script((HERE / "script.txt").read_text(encoding="utf-8"))
 SENT = [s for p in script.paras for s in re.split(r'(?<=[.!?])\s+(?=[A-Z"])', p.text)]
-PARA = [k for k, p in enumerate(script.paras) for _s in re.split(r'(?<=[.!?])\s+(?=[A-Z"])', p.text)]   # each sentence's paragraph
-CUES = {b.search: b for p in script.paras for b in p.broll}
 scenes: list[dict] = []
 _pos = 0
 
 
-def cue(first_words: str):
-    """The script's own b-roll cue whose search words start with these words."""
-    return next(b for k, b in CUES.items() if k.lower().startswith(first_words.lower()))
-
-
-def S(n: int, visual, **extra) -> None:
-    """Give the next n sentences of the script this shot (a visual, or a list of visuals that share the time)."""
+def P(n: int, shots, chapter: str | None = None, mood: str | None = None, **extra) -> None:
+    """The next n sentences of the script, read as one passage, with their shots."""
     global _pos
     text = " ".join(SENT[_pos:_pos + n])
-    para = PARA[_pos]
     _pos += n
-    sc = {**{k: v for k, v in extra.items() if k == "chapter"}, **{k: v for k, v in extra.items() if k == "mood"}, "text": text}
-    sc["para"] = para          # scenes of one script paragraph are narrated in one breath
-    sc["visuals" if isinstance(visual, list) else "visual"] = visual
-    sc.update({k: v for k, v in extra.items() if k not in ("chapter", "mood")})
+    sc: dict = {}
+    if chapter:
+        sc["chapter"] = chapter
+    if mood:
+        sc["mood"] = mood
+    sc["text"] = text
+    shots = shots if isinstance(shots, list) else [shots]
+    sc["visuals" if len(shots) > 1 else "visual"] = shots if len(shots) > 1 else shots[0]
+    sc.update(extra)
     scenes.append(sc)
 
 
 # ------------------------------------------------------------------------------------------ shot helpers
-def A(creature, x, y, scale, **kw):
-    return {"creature": creature, "x": x, "y": y, "scale": scale, **kw}
+def shot(env, cast, camera, gfx=None, cut=None, props=None, **kw):
+    v = {"remotion": "Shot3D", "props": {"env": env, "cast": cast, "camera": camera, "gfx": gfx or [], **({"props": props} if props else {}), **kw}}
+    if cut is not None:
+        v["cut"] = cut
+    return v
 
 
-def gw(x, y, scale=0.9, **kw):
-    return A("greatWhite", x, y, scale, **kw)
+def animal(model, ident, length, path=None, **kw):
+    a = {"id": ident, "model": model, "length": length, **kw}
+    if path:
+        a["path"] = [{"u": u, "p": p} for u, p in path]
+    return a
 
 
-def port(x, y, scale=1.45, **kw):
-    return A("orcaPort", x, y, scale, **kw)
+def gw(ident, length=4.4, path=None, lo=False, **kw):
+    return animal("greatWhiteLo" if lo else "greatWhite", ident, length, path, **kw)
 
 
-def star(x, y, scale=1.45, **kw):
-    return A("orcaStarboard", x, y, scale, **kw)
+def sg(ident, length=2.3, path=None, lo=False, **kw):
+    return animal("sevengillLo" if lo else "sevengill", ident, length, path, **kw)
 
 
-def orca(x, y, scale=1.3, **kw):
-    return A("orca", x, y, scale, **kw)
+def bw(ident, length=2.7, path=None, lo=False, **kw):
+    return animal("bronzeWhalerLo" if lo else "bronzeWhaler", ident, length, path, **kw)
 
 
-def sg(x, y, scale=0.5, **kw):
-    return A("sevengill", x, y, scale, **kw)
+def port(path=None, **kw):
+    return animal("orcaPort", "port", 8.4, path, **kw)
 
 
-def bw(x, y, scale=0.6, **kw):
-    return A("bronzeWhaler", x, y, scale, **kw)
+def star(path=None, **kw):
+    return animal("orcaStarboard", "star", 8.1, path, **kw)
 
 
-def seal(x, y, scale=0.4, **kw):
-    return A("seaLion", x, y, scale, **kw)
+def orca(ident, path=None, length=6.6, male=False, **kw):
+    return animal("orcaMale" if male else "orca", ident, length, path, **kw)
 
 
-def sea(*actors, **props):
-    return {"remotion": "OceanScene", "props": {**props, "actors": list(actors)}}
+def carcass(ident, x, z, length, heading, side=1, kind=gw, **kw):
+    """A shark washed ashore, lying on its belly and leaning a little to one side (the sea is toward -z)."""
+    return kind(ident, length, pos=[x, (0.083 if kind is gw else 0.06) * length, z], heading=heading, roll=-17 * side, pose="limp", **{"wound": "chest", **kw})
 
 
-def beach(*actors, sky="overcast", **props):
-    return sea(*actors, beach={"sky": sky}, **props)
+def cam(*keys):
+    """Camera keys: (u, position, look-at[, extra])."""
+    out = []
+    for k in keys:
+        d = {"u": k[0], "pos": k[1], "look": k[2]}
+        if len(k) > 3:
+            d.update(k[3])
+        out.append(d)
+    return out
 
 
-def aerial(*actors, tone="bay", **props):
-    return sea(*actors, aerial={"tone": tone}, **props)
+def follow(actor, a, b, fov=38, point=None, mid=None):
+    """A camera that travels with an animal: where it sits beside it at the start and at the end."""
+    keys = [{"u": 0, "pos": a, "rel": actor, "look": actor, "fov": fov}]
+    if mid:
+        keys.append({"u": 0.5, "pos": mid, "rel": actor, "look": actor, "fov": fov})
+    keys.append({"u": 1, "pos": b, "rel": actor, "look": actor, "fov": fov})
+    if point:
+        for k in keys:
+            k["point"] = point
+    return keys
 
 
-def tpl(name, **props):
-    return {"remotion": name, "props": props}
+def mcam(*keys):
+    """Map and globe camera keys: (u, [lon, lat], distance, tilt, bearing[, extra])."""
+    out = []
+    for k in keys:
+        d = {"u": k[0], "over": list(k[1]), "dist": k[2], "tilt": k[3], "bearing": k[4], "fov": 34}
+        if len(k) > 5:
+            d.update(k[5])
+        out.append(d)
+    return out
 
 
-# The script's eight b-roll cues ask for footage of the actual events (the 4.9 m shark on Franskraal beach, Port and
-# Starboard, the Farallon island, the 2022 drone hunt, a breach at Seal Island, the 2023 sevengill carcasses, the KZN
-# nets, the September 2026 sighting). The collection runs of 27 November 2026 searched every library with the
-# script's own keywords: nothing free for commercial use shows them (what came back was a captive orca, Cape Town
-# harbour, a snorkeller …, all turned down). Those moments are therefore shown as 3D reconstructions. To use real
-# footage of one, put the licensed file in assets/ and point the shot at it.
-SEARCH_SCRIPT_CUES = False
+def MAP(bbox, **kw):
+    return {"kind": "map", "map": {"bbox": bbox, **kw}}
 
 
-def photo(first_words, fallback, **props):
-    b = cue(first_words)
-    if not SEARCH_SCRIPT_CUES:
-        return fallback
-    return {"remotion": "PhotoStory", "props": {"layout": "full", "photos": [{"photo": "stock:" + b.search, "parallax": True, "verify": b.detail}], **props},
-            "fallback_visual": fallback}
+def GLOBE(**kw):
+    return {"kind": "globe", "map": kw}
 
 
-def clip(first_words, fallback):
-    b = cue(first_words)
-    if not SEARCH_SCRIPT_CUES:
-        return fallback
-    return {"stock": b.search, "verify": b.detail, "fallback_visual": fallback}
+def pin(place, when=None, **kw):
+    return {"lon": place[0], "lat": place[1], **({"at": when} if when is not None else {}), **kw}
 
 
-RECON = "3D reconstruction"
-SOUTH_COAST = [[17.3, -35.7], [23.4, -33.0]]
-CAPE_TOWN = {"name": "Cape Town", "lon": 18.42, "lat": -33.92}
-GANSBAAI = {"name": "Gansbaai", "lon": 19.35, "lat": -34.58}
-MOSSEL = {"name": "Mossel Bay", "lon": 22.13, "lat": -34.18}
-ALGOA = {"name": "Algoa Bay", "lon": 25.70, "lat": -33.85}
+def geo(place, h=7):
+    return {"geo": list(place), "h": h}
 
+
+def at(actor, point=None):
+    return {"actor": actor, **({"point": point} if point else {})}
+
+
+def tag(when, anchor, text, sub=None, dir="ne", **kw):
+    return {"type": "tag", "at": when, "anchor": anchor, "text": text, **({"sub": sub} if sub else {}), "dir": dir, **kw}
+
+
+def line(when, text, hi=None, **kw):
+    return {"type": "line", "at": when, "text": text, **({"hi": hi} if hi else {}), **kw}
+
+
+def stamp(when, text, sub=None, **kw):
+    return {"type": "stamp", "at": when, "text": text, **({"sub": sub} if sub else {}), **kw}
+
+
+def chapter(n, text):
+    return {"type": "chapter", "at": 0.25, "n": f"{n:02d}", "text": text}
+
+
+def note(when, anchor, text, **kw):
+    return {"type": "note", "at": when, "anchor": anchor, "text": text, **kw}
+
+
+def across(y, z0=0.0, z1=0.0, x0=-14.0, x1=12.0, rise=0.5, bow=1.5):
+    """A swim past the camera from left to right (or right to left with x0 > x1), in a gentle curve."""
+    return [(0, [x0, y, z0]), (0.5, [(x0 + x1) / 2, y + rise / 2, (z0 + z1) / 2 + bow]), (1, [x1, y + rise, z1])]
+
+
+def tape(when, x, z, length, heading, label=None, off=0.75, **kw):
+    """A measuring line on the sand along a carcass at (x, z), on the camera's side of it (the camera stands at +z)."""
+    import math
+    c, sn = math.cos(math.radians(heading)), math.sin(math.radians(heading))
+    a = [round(x - length / 2 * c, 2), 0.03, round(z + length / 2 * sn + off, 2)]
+    b = [round(x + length / 2 * c, 2), 0.03, round(z - length / 2 * sn + off, 2)]
+    if a[0] > b[0]:
+        a, b = b, a
+    return {"type": "measure", "at": when, "from": {"world": a}, "to": {"world": b}, "value": length, "unit": " m", "off": 0,
+            **({"label": label} if label else {}), **kw}
+
+
+def milling(make, n, y, x_span=22.0, z_near=6.0, z_far=-9.0, travel=9.0, length=2.2, prefix="s"):
+    """n animals cruising slowly to and fro through the picture, spread through its depth."""
+    out = []
+    for i in range(n):
+        d = 1 if i % 2 else -1
+        x0 = -x_span / 2 + x_span * ((i * 0.37) % 1.0)
+        z = z_near + (z_far - z_near) * ((i * 0.61 + 0.2) % 1.0)
+        yy = y + 0.9 * ((i * 0.43) % 1.0)
+        out.append(make(f"{prefix}{i}", round(length * (0.88 + 0.24 * ((i * 0.29) % 1.0)), 2),
+                        [(0, [round(x0 - d * travel / 2, 2), round(yy, 2), round(z, 2)]), (0.5, [round(x0, 2), round(yy + 0.15, 2), round(z + 0.8 * d, 2)]),
+                         (1, [round(x0 + d * travel / 2, 2), round(yy, 2), round(z + 0.3, 2)])], lo=True))
+    return out
+
+
+SEA = {"kind": "sea", "depth": 0.3}
+DEEP = {"kind": "sea", "depth": 0.6}
+COAST = {"kind": "sea", "depth": 0.25, "water": "teal", "floor": 14}
+REEF = {"kind": "sea", "depth": 0.3, "water": "green", "floor": 11, "kelp": True}
+STUDIO = {"kind": "studio"}
+AIR = {"kind": "aerial", "water": "teal", "floor": 17}
+DAWN = {"kind": "beach", "sky": "dawn", "sun": [-0.55, 0.42, 0.72]}
+GREY = {"kind": "beach", "sky": "overcast", "sun": [0.4, 0.7, 0.6]}
+DUSK = {"kind": "beach", "sky": "dusk", "sun": [-0.78, 0.24, 0.3]}       # low sun from the side: warm light, long shadows
+
+# places [longitude, latitude]
+CAPE_TOWN, GANSBAAI, DYER = (18.42, -33.92), (19.35, -34.58), (19.42, -34.68)
+FALSE_BAY, SEAL_ISLAND, REEF_SITE = (18.65, -34.22), (18.58, -34.14), (18.47, -34.24)
+MOSSEL, ALGOA, LUDERITZ, DURBAN = (22.13, -34.18), (25.70, -33.85), (15.16, -26.65), (31.03, -29.86)
+FARALLON, SAN_FRANCISCO, GULF_CAL, PORTLAND = (-123.0, 37.70), (-122.42, 37.77), (-110.6, 26.2), (141.6, -38.35)
+CAPE = [[17.2, -35.7], [23.4, -33.0]]
+SOUTH_AFRICA = [[13.5, -37.5], [34.0, -25.5]]
 
 # ====================================================================================== 1. HOOK
-S(1, beach(gw(0.5, 0.74, 1.7, view="beached"), sky="overcast", zoom=[1.0, 1.08],
-           kicker="MAY 2017", heading="South Africa", scaleBar={"x1": 0.2, "x2": 0.8, "y": 0.9, "label": "Almost 5 metres", "at": "five"}),
-  chapter="Intro", mood="mystery")
-S(1, sea(gw(0.3, 0.5, 2.0, to=[0.5, 0.5], view="three_quarter"), A("fishSchool", 0.82, 0.3, 0.5, to=[1.1, 0.2]),
-         depth=0.3, callout="Almost no enemies in the sea", calloutAt="enemies"))
-S(1, tpl("Anatomy", sprite={"creature": "greatWhiteLiver", "view": "side"}, backdrop="abyss",
-         callouts=[{"x": 0.63, "y": 0.66, "label": "One clean tear", "sub": "across the chest", "at": "tear", "side": "right"},
-                   {"x": 0.44, "y": 0.58, "label": "The liver", "sub": "gone", "at": "liver", "side": "left"}]))
-S(1, beach(gw(0.2, 0.7, 0.75, view="beached", at=0.2), gw(0.5, 0.78, 0.85, view="beached", at="three"),
-           gw(0.8, 0.7, 0.75, view="beached", flip=True, at="ashore"), sky="dusk", zoom=[1.06, 1.0],
-           callout="Three more, the same wound", calloutAt="same"))
-S(1, sea(port(0.0, 0.42, 1.5, to=[0.34, 0.42], silhouette="#050b10", opacity=0.92, enter="left"),
-         star(-0.1, 0.66, 1.5, to=[0.22, 0.64], silhouette="#050b10", opacity=0.92, enter="left", at="two"),
-         depth=0.7, callout="Two orcas, known by name", calloutAt="name"))
-S(1, sea(gw(0.55, 0.3, 0.7, to=[1.3, 0.22]), gw(0.7, 0.55, 0.85, to=[1.4, 0.5]), gw(0.5, 0.78, 0.6, to=[1.3, 0.84]),
-         port(-0.2, 0.45, 1.4, to=[0.2, 0.45], at="whales"), star(-0.3, 0.68, 1.4, to=[0.1, 0.66], at="whales"),
-         depth=0.4, callout="The great white shark capital of the world", calloutAt="capital"))
-S(1, sea(port(0.3, 0.42, 1.5, view="three_quarter", to=[0.36, 0.42]), star(0.68, 0.64, 1.5, view="three_quarter", to=[0.74, 0.64]),
-         depth=0.45, zoom=[1.0, 1.1], title="The Two Orcas That Emptied a Great White Shark Coast", titleAt=0.4))
+P(4, [
+    # the big female on the sand: the camera comes in low over the wet beach and rises to take her in
+    shot({"kind": "beach", "sky": "dawn", "sun": [-0.55, 0.42, 0.72]},
+         [carcass("her", 0, 2.6, 4.9, 8)],
+         # along the body from the tail, close to the sand, then back and up to take all of her in
+         cam((0, [-5.6, 0.45, 4.6], [-1.6, 0.42, 2.6], {"fov": 34}), (0.42, [0.9, 0.62, 5.7], [1.0, 0.4, 2.6], {"fov": 34}),
+             (1, [-0.8, 2.0, 10.6], [0.1, 0.25, 2.6], {"fov": 34})),
+         [stamp("May", "May 2017", "Franskraal beach · South Africa"),
+          tape("almost", 0, 2.6, 4.9, 8, "nose to tail")]),
+    # alive: nothing in the sea troubles an animal this size
+    shot(SEA, [gw("shark", 4.9, [(0, [-13, -5.2, -6]), (0.5, [-1.5, -4.7, 1.2]), (1, [10, -4.2, -2.5])])],
+         cam((0, [3.5, -5.2, 12.5], "shark"), (1, [-1.5, -4.3, 8.2], "shark")),
+         [line("enemies", "Almost no enemies in the sea", "no enemies")], cut="A shark that"),
+    # the wound, then the inside: the liver is there, and then it is not
+    shot(STUDIO,
+         [gw("her", 4.9, pos=[0, 0, 0], heading=25, roll=-38, pitch=4, spin=-4, pose="swim", amp=0.45, wound="chest",
+             xray={"at": "chest+0.1", "d": 0.5}, parts={"liver": {"at": "chest+0.1", "out": "gone"}})],
+         cam((0, [1.7, -1.7, 7.8], [0.3, -0.2, 0], {"fov": 36}), (1, [0.4, -1.2, 5.3], [0.4, -0.2, 0], {"fov": 36})),
+         [tag("tear", at("her", "chest"), "One clean tear", "across her chest", "sw", out="chest+0.1"),
+          tag("gone", at("her", "liver"), "The liver", "missing", "ne", len=230)], cut="Yet"),
+    # three more along the same shore
+    shot({"kind": "beach", "sky": "dusk", "sun": [0.62, 0.2, -0.76]},
+         [carcass("b", -9, 2.3, 3.7, 165, -1), carcass("c", 4.5, 1.9, 4.2, 14), carcass("d", 19, 2.8, 3.4, 196, -1)],
+         cam((0, [-17, 1.1, 8.5], [-9, 0.4, 2.3], {"fov": 36}), (1, [-11, 6.0, 16], [5, 0.2, 2.2], {"fov": 36})),
+         [{"type": "note", "at": "three", "anchor": at("b", "back"), "text": "4 May", "dy": -90},
+          {"type": "note", "at": "three+0.35", "anchor": at("c", "back"), "text": "Late May", "dy": -80},
+          {"type": "note", "at": "three+0.7", "anchor": at("d", "back"), "text": "June", "dy": -70},
+          line("same", "Three more · the same wound", "same wound")], cut="weeks"),
+], chapter="Intro", mood="mystery")
+
+P(3, [
+    # out of the gloom: two orcas, each with a folded fin
+    shot(DEEP,
+         [port([(0, [-20, -9, -17]), (0.55, [-3, -8, -3.5]), (1, [15, -7.4, 6])], shadow={"from": 1, "to": 0, "u": 0.1, "d": 2.2}),
+          star([(0, [-24, -11.2, -11]), (0.55, [-6.5, -10.6, 2]), (1, [11, -10, 11.5])], shadow={"from": 1, "to": 0, "u": 0.16, "d": 2.2})],
+         cam((0, [4, -9.6, 14], [-6, -9, -2], {"fov": 40}), (1, [7.5, -9, 17.5], [2, -8.8, 3], {"fov": 40})),
+         [tag("name-0.5", at("port", "dorsal"), "Port", "fin folded to his left", "nw"),
+          tag("name", at("star", "dorsal"), "Starboard", "fin folded to his right", "se")]),
+    # the bay from the air: the sharks are there, the orcas arrive, the sharks are gone
+    shot({"kind": "aerial", "water": "teal", "floor": 17},
+         [port([(0, [-40, -3, 5]), (0.4, [-13, -3, 2]), (1, [14, -3, -2])]),
+          star([(0, [-44, -3.6, -4]), (0.4, [-17, -3.6, -5]), (1, [9, -3.6, -8])]),
+          gw("g1", 4.6, [(0, [5, -3.6, 6]), (0.28, [0, -3.6, 2]), (0.46, [5, -3.6, -2]), (1, [46, -3.6, 20])]),
+          gw("g2", 4.2, [(0, [12, -4.2, -6]), (0.28, [7, -4.2, -9]), (0.46, [12, -4.2, -12]), (1, [48, -4.2, -30])]),
+          gw("g3", 4.9, [(0, [-5, -4, -9]), (0.28, [0, -4, -6]), (0.44, [6, -4, -8]), (1, [44, -4, -6])]),
+          gw("g4", 3.8, [(0, [-9, -4.6, 9]), (0.3, [-4, -4.6, 11]), (0.46, [2, -4.6, 14]), (1, [34, -4.6, 36])]),
+          gw("g5", 4.4, [(0, [16, -3.8, 3]), (0.28, [13, -3.8, 7]), (0.46, [18, -3.8, 10]), (1, [50, -3.8, 24])]),
+          gw("g6", 4.0, [(0, [2, -5, -15]), (0.28, [7, -5, -17]), (0.46, [13, -5, -19]), (1, [40, -5, -38])]),
+          gw("g7", 4.3, [(0, [-12, -4.4, -2]), (0.28, [-8, -4.4, 2]), (0.42, [-3, -4.4, 5]), (1, [38, -4.4, 8])])],
+         cam((0, [2, 36, 0.5], [2, 0, 0], {"fov": 40}), (1, [6, 31, 0.5], [6, 0, 0], {"fov": 40})),
+         [stamp("bay", "Gansbaai", "“The great white shark capital of the world”", size=70)], cut="Over"),
+    # the title, with the two of them passing overhead
+    shot(SEA,
+         [port([(0, [-22, -3.4, -9]), (1, [20, -2.8, -1])]), star([(0, [-27, -4.6, -3]), (1, [15, -4.2, 4])])],
+         cam((0, [0, -9.5, 13], [-4, -3.5, -3], {"fov": 42}), (1, [2, -9, 12], [6, -3.2, 0], {"fov": 42})),
+         [{"type": "dim", "at": "did-0.3", "to": 0.34},
+          {"type": "title", "at": "did-0.2", "kicker": "Beast Atlas", "size": 128,
+           "lines": ["The two orcas", "that emptied a", {"text": "great white shark coast", "accent": True}]}], cut="This is"),
+], mood="tension")
 
 # ====================================================================================== 2. THE SHARK CAPITAL
-S(1, tpl("MapScene", bbox=SOUTH_COAST, countryLabels=[{"name": "South Africa", "lon": 21.0, "lat": -33.35}],
-         cities=[{**CAPE_TOWN, "at": "Cape"}, {**GANSBAAI, "at": "Gansbaai"}, {**MOSSEL, "at": 0.6},
-                 {"name": "False Bay", "lon": 18.68, "lat": -34.22, "at": 0.4}],
-         pulses=[{"lon": 19.35, "lat": -34.58, "at": "Gansbaai"}], title="South Africa's south coast", zoom=1.1),
-  chapter="The Shark Capital", mood="calm")
-S(1, sea(seal(0.1, 0.3, 0.42, detail={"rest": True}), seal(0.24, 0.28, 0.38, detail={"rest": True}, flip=True),
-         seal(0.37, 0.3, 0.4, detail={"rest": True}), seal(0.48, 0.3, 0.3, detail={"rest": True, "pup": True}),
-         seal(0.7, 0.62, 0.45, to=[0.86, 0.56]), seal(0.62, 0.8, 0.4, to=[0.5, 0.74]),
-         split={"y": 0.42, "land": "rocks", "landWidth": 0.6, "sky": "polar", "floes": False}, zoom=[1.08, 1.0],
-         kicker="A FEW KILOMETRES OFFSHORE", heading="Dyer Island", callout="A large colony of Cape fur seals", calloutAt="colony"))
-S(1, sea(seal(0.14, 0.3, 0.4, detail={"rest": True}), seal(0.3, 0.28, 0.36, detail={"rest": True}, flip=True),
-         seal(0.52, 0.56, 0.42, to=[0.44, 0.5], target={"at": "great"}),
-         gw(1.1, 0.76, 1.1, to=[0.72, 0.74], silhouette="#071118", opacity=0.9, at="great"),
-         split={"y": 0.4, "land": "rocks", "landWidth": 0.45, "sky": "polar", "floes": False},
-         callout="Where there are seals, great whites follow", calloutAt="follow"))
-S(1, sea(gw(0.25, 0.34, 0.8, to=[0.55, 0.32]), gw(0.8, 0.58, 1.0, to=[0.5, 0.6], view="three_quarter"), gw(0.3, 0.82, 0.6, to=[0.6, 0.84]),
-         depth=0.3, callout="Sharks on almost every day of the year", calloutAt="every"))
-S(1, tpl("Statement", backdrop="ocean", kicker2="1991", line1="South Africa protects the great white", line2="The first country to do so"))
-S(1, sea(gw(0.75, 0.5, 1.5, to=[0.5, 0.5], view="three_quarter"), depth=0.25, zoom=[1.0, 1.12],
-         callout="Cage diving grew fast", calloutAt="cage"))
-S(1, tpl("Counter", backdrop="ocean", to=80000, prefix="", suffix="+", label="Visitors a year", countAt="draw", heading="Shark tourism",
-         kicker="THE SOUTHERN COAST"))
-S(2, tpl("DotGrid", backdrop="ocean", count=120, highlight=120, cols=20, value="The logbooks", label="Every trip, every shark seen",
-         note="Boat sighting logs, Gansbaai", fillAt="log", color="#3fb6c9"))
-S(3, tpl("Counter", backdrop="ocean", **{"from": 2005}, to=2017, plain=True, label="Gaps of a week or more without a great white",
-         countAt=0.6, countDur=6, timeline={"start": 2005, "end": 2017, "tickEvery": 2,
-                                           "events": [{"year": 2007, "label": "1 week", "at": "week#2"}, {"year": 2016, "label": "3 weeks", "at": "three"}]}))
-S(1, sea(A("fishSchool", 0.3, 0.4, 0.6, to=[0.45, 0.36]), seal(0.75, 0.6, 0.42, to=[0.6, 0.64]),
-         depth=0.3, zoom=[1.0, 1.1], kicker="EARLY 2017", heading="Gansbaai", callout="Empty days in the logbooks", calloutAt="empty"))
+P(3, [
+    # the coast from the air: the fishing town, then the city it lies southeast of
+    shot(MAP(CAPE, pins=[pin(GANSBAAI, "town"), pin(CAPE_TOWN, "southeast")]), [],
+         mcam((0, (19.0, -34.3), 150, 64, -6), (1, (19.3, -34.55), 78, 46, 10)),
+         [chapter(1, "The shark capital"),
+          tag("town+0.2", geo(GANSBAAI), "Gansbaai", "fishing town", "se"),
+          tag("southeast+0.3", geo(CAPE_TOWN), "Cape Town", None, "nw")]),
+    # out to the island, low over the swell
+    shot({"kind": "surface", "sky": "day", "swell": 0.35}, [],
+         cam((0, [0, 2.2, 150], [0, 3, 0], {"fov": 30}), (1, [18, 3.4, 96], [0, 3, 0], {"fov": 30})),
+         [tag("offshore", {"prop": "isle", "point": "top"}, "Dyer Island", "a few kilometres offshore", "ne", len=150),
+          line("colony", "A large colony of Cape fur seals", "seals")],
+         props=[{"kind": "island", "id": "isle", "pos": [0, 0, 0], "radius": 70, "height": 5, "stretch": 2.4}], cut="A few"),
+    # and under the water around it
+    shot(COAST,
+         [gw("a", 4.6, across(-5.5, -4, 1, -16, 12)), gw("b", 3.9, across(-8, 6, 2, 15, -13, 0.3, -2)), gw("c", 4.2, across(-3.6, -14, -8, -22, 8, 0.2))],
+         follow("a", [5, 0.3, 11], [-2.5, 0.9, 7.5]),
+         [line("follow-0.4", "Where there are seals, great whites follow", "great whites")], cut="Where"),
+])
+
+P(4, [
+    # the cage in the water and a shark coming to look
+    shot({"kind": "sea", "depth": 0.2, "water": "teal"},
+         [gw("g", 4.5, [(0, [-15, -2.8, 9]), (0.55, [-1.5, -1.9, 5.6]), (1, [11, -2.4, 8.5])]),
+          gw("h", 3.8, across(-6.5, 13, 9, 14, -12, 0.4, 2))],
+         cam((0, [5.5, -4.4, 13.5], [-1.3, -0.9, 2.6], {"fov": 40}), (1, [2.6, -3.5, 10.5], [-1.3, -0.9, 2.6], {"fov": 40})),
+         [line("every", "Here on almost every day of the year", "every day")],
+         props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "cage": True}]),
+    # the law
+    shot(MAP(SOUTH_AFRICA), [],
+         mcam((0, (24.0, -31.5), 175, 70, 0), (1, (23.0, -32.5), 140, 58, 6)),
+         [{"type": "count", "at": "1991-0.2", "from": 1960, "to": 1991, "d": 0.9, "plain": True, "x": 0.28, "y": 0.4, "size": 210, "kicker": "South Africa", "label": "Great whites protected by law"},
+          line("first", "The first country to do so", "first")], cut="South Africa"),
+    # the boats
+    shot({"kind": "surface", "sky": "day", "swell": 0.3},
+         [gw("fin", 4.4, [(0, [-22, -0.72, 14]), (1, [16, -0.72, 9])])],
+         cam((0, [-20, 2.4, 24], [0, 1, 0], {"fov": 34}), (1, [-11, 2.0, 19], [3, 1, 0], {"fov": 34})),
+         [{"type": "count", "at": "80,000-0.3", "to": 80000, "d": 1.5, "x": 0.7, "y": 0.32, "size": 190, "kicker": "Shark tourism", "label": "visitors a year", "prefix": "", "suffix": "+"}],
+         props=[{"kind": "boat", "id": "b1", "pos": [0, 0, 0], "heading": 18, "cage": True},
+                {"kind": "boat", "id": "b2", "pos": [26, 0, -34], "heading": -30, "cage": True, "length": 12},
+                {"kind": "boat", "id": "b3", "pos": [-34, 0, -58], "heading": 60, "length": 10},
+                {"kind": "island", "id": "isle", "pos": [10, 0, -240], "radius": 80, "height": 5, "stretch": 2.4}], cut="After that"),
+])
+
+P(5, [
+    # every trip is written down
+    shot({"kind": "surface", "sky": "overcast", "swell": 0.3},
+         [gw("fin", 4.6, [(0, [-14, -0.7, 9]), (0.5, [0, -0.7, 6.5]), (1, [13, -0.74, 10])])],
+         cam((0, [-9, 1.7, 15], [0, 0.9, 1], {"fov": 36}), (1, [-5, 1.5, 12.5], [1, 0.9, 1], {"fov": 36})),
+         [{"type": "rows", "at": "log", "title": "Boat log", "side": "right", "y": 0.2, "w": 560,
+           "rows": [{"k": "Trip 1", "v": "3 sharks"}, {"k": "Trip 2", "v": "5 sharks"}, {"k": "Trip 3", "v": "2 sharks"}, {"k": "Trip 4", "v": "4 sharks"}]},
+          line("record", "Years of notes became a scientific record", "scientific record")],
+         props=[{"kind": "boat", "id": "boat", "pos": [1, 0, 1], "heading": 12, "cage": True}]),
+    # the record, with its two short gaps
+    shot(COAST, [gw("a", 4.4, across(-6, -10, -6, -20, 14, 0.4), lo=True), gw("b", 4.0, across(-8, -18, -12, 18, -14, 0.3, -2), lo=True)],
+         cam((0, [0, -6, 14], [0, -6.4, 0], {"fov": 40}), (1, [3, -5.6, 12], [0, -6.4, 0], {"fov": 40})),
+         [{"type": "dim", "at": 0.0, "to": 0.3},
+          {"type": "timeline", "at": 0.2, "from": 2005, "to": 2017, "title": "The logbook record", "sub": "gaps of a week or more without a great white",
+           "spans": [{"from": 2007.3, "to": 2007.5, "label": "1 week", "at": "One gap"}, {"from": 2016.3, "to": 2016.75, "label": "3 weeks", "at": "three"}],
+           "marks": []},
+          {"type": "count", "at": "only", "to": 2, "d": 0.5, "x": 0.82, "y": 0.3, "size": 200, "kicker": "before 2017", "label": "gaps in the record"}], cut="Before"),
+])
+
+P(1, shot(SEA, [],
+          cam((0, [0, -6, 12], [3, -6.4, 0], {"fov": 42}), (1, [6, -5.4, 9], [12, -6, -4], {"fov": 42})),
+          [{"type": "dots", "at": 0.15, "n": 90, "cols": 30, "size": 22, "gap": 12, "x": 0.5, "y": 0.34, "title": "Early 2017", "sub": "days with a great white", "from": 90,
+            "lit": [{"at": "began", "to": 22, "d": 2.2}]},
+           line("empty", "The logbooks began to fill with empty days", "empty days")]))
 
 # ====================================================================================== 3. BODIES ON THE BEACH
-S(2, beach(gw(0.5, 0.76, 0.95, view="beached"), sky="overcast", zoom=[1.0, 1.06], kicker="FEBRUARY 2017", heading="Near Gansbaai",
-           scaleBar={"x1": 0.335, "x2": 0.665, "y": 0.9, "label": "2.6 metres", "at": "metres"}),
-  chapter="Bodies on the Beach", mood="mystery")
-S(1, beach(gw(0.5, 0.74, 1.25, view="beached"), sky="overcast", zoom=[1.08, 1.2], callout="Body whole. Cause unknown.", calloutAt="nobody"))
-S(1, beach(gw(0.5, 0.74, 1.7, view="beached"), sky="dusk", zoom=[1.1, 1.0], kicker="3 MAY 2017", heading="The big female"))
-S(1, photo("4.9m great white", tpl("MapScene", bbox=[[18.95, -34.85], [19.85, -34.38]], cities=[{**GANSBAAI, "at": 0.3}],
-                                   pulses=[{"lon": 19.395, "lat": -34.605, "label": "Franskraal beach", "at": 0.5}],
-                                   title="3 May 2017", subtitle="Franskraal beach", zoom=1.1)))
-S(1, beach(gw(0.5, 0.72, 1.7, view="beached"), sky="dusk", heading="Franskraal beach", kicker="DYER ISLAND CONSERVATION TRUST",
-           scaleBar={"x1": 0.2, "x2": 0.8, "y": 0.9, "label": "4.9 metres · about 16 feet", "at": "measured"}))
-S(2, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Length", "value": "4.9 m", "at": 0.3}, {"label": "Weight", "value": "1,110 kg", "at": "weight"}],
-         stamp={"text": "Largest ever dissected in South Africa", "at": "larger"}))
-S(1, sea(gw(0.2, 0.5, 1.3, to=[0.6, 0.48], view="three_quarter"), seal(0.85, 0.2, 0.36, to=[0.95, 0.14]),
-         depth=0.3, kicker="ALMOST A YEAR EARLIER", heading="Alive at Dyer Island"))
-S(1, tpl("Anatomy", sprite={"creature": "greatWhite", "view": "side"}, backdrop="abyss",
-         callouts=[{"x": 0.66, "y": 0.72, "label": "The tear", "sub": "between the front fins", "at": "tear", "side": "right"}],
-         zoom=[{"at": "tear", "x": 0.66, "y": 0.66, "scale": 1.5}]))
-S(1, tpl("Anatomy", sprite={"creature": "greatWhiteLiver", "view": "side"}, backdrop="abyss",
-         callouts=[{"x": 0.46, "y": 0.6, "label": "The liver", "sub": "the only thing missing", "at": "liver", "side": "left"}]))
-S(2, beach(gw(0.36, 0.76, 1.25, view="beached"), gw(0.82, 0.66, 0.7, view="beached", flip=True, opacity=0.9), sky="overcast",
-           kicker="4 MAY 2017", heading="A male", callout="Liver gone. Heart gone.", calloutAt="heart"))
-S(2, tpl("SourceList", backdrop="ocean", tag="Gansbaai, 2017", tagNote="great whites washed ashore",
-         rows=[{"title": "February · young female, 2.6 m", "source": "body whole", "at": 0.3},
-               {"title": "3 May · female, 4.9 m", "source": "liver missing", "at": 0.9},
-               {"title": "4 May · male", "source": "liver and heart missing", "at": 1.5},
-               {"title": "Later in May · great white", "source": "the same torn chest", "at": "May"},
-               {"title": "June · great white", "source": "the same torn chest", "at": "June"}]))
-S(1, sea(orca(0.3, 0.45, 2.2, silhouette="#050b10", opacity=0.55, blur=3), gw(0.56, 0.56, 1.5, view="three_quarter"),
-         depth=0.6, callout="Scratches left by orca teeth", calloutAt="scratches"))
-S(1, sea(port(-0.2, 0.4, 1.4, to=[0.3, 0.42], silhouette="#050b10", opacity=0.9), star(-0.4, 0.66, 1.4, to=[0.12, 0.64], silhouette="#050b10", opacity=0.9),
-         depth=0.7, callout="She had a good idea who had done it", calloutAt="idea"))
-S(1, sea(sg(0.9, 0.6, 1.1, to=[0.55, 0.58], label={"text": "Sevengill shark", "at": "different"}), depth=0.55, zoom=[1.0, 1.1],
-         callout="The same wound, on a different shark", calloutAt="different"))
+P(3, shot(GREY, [carcass("f", 0, 2.4, 2.6, -12, wound=None)],
+          cam((0, [5.5, 0.5, 6.2], [0.2, 0.3, 2.4], {"fov": 34}), (0.5, [0.5, 0.9, 6.6], [0, 0.25, 2.4], {"fov": 34}), (1, [-3.6, 1.6, 7.4], [0, 0.2, 2.4], {"fov": 34})),
+          [chapter(2, "Bodies on the beach"),
+           stamp("February", "February 2017", "A beach near Gansbaai"),
+           tape("2.6", 0, 2.4, 2.6, -12, "young female", size=70),
+           tag("whole", at("f", "back"), "Body whole", "cause unknown", "ne")], mood="mystery"))
+
+P(6, [
+    # from high above the tide line
+    shot(DAWN, [carcass("her", 0, 2.6, 4.9, 8)],
+         cam((0, [-6, 9.5, 12], [0, 0.3, 2.6], {"fov": 30}), (1, [3, 5.2, 11], [0.2, 0.3, 2.6], {"fov": 30})),
+         [stamp("third", "3 May 2017", "Franskraal beach")]),
+    # the tape along her side
+    shot(DAWN, [carcass("her", 0, 2.6, 4.9, 8)],
+         cam((0, [-4.2, 0.8, 7.4], [-0.6, 0.45, 2.6], {"fov": 36}), (1, [2.8, 1.1, 8.2], [0.4, 0.4, 2.6], {"fov": 36})),
+         [tape("measured", 0, 2.6, 4.9, 8, "about 16 feet"),
+          {"type": "count", "at": "weight", "to": 1110, "d": 1.2, "x": 0.8, "y": 0.26, "size": 150, "kicker": "weight", "label": "kilograms"},
+          line("larger", "The largest great white ever dissected in South Africa", "largest")], cut="Biologist"),
+    # a year earlier, alive
+    shot(COAST, [gw("her", 4.9, across(-5, -2, 2, -15, 11))],
+         follow("her", [-4, 0.4, 10], [3.5, 0.8, 7]),
+         [stamp("alive", "A year earlier", "Dyer Island · last logged alive")], cut="Boat crews"),
+])
+
+P(2, shot(STUDIO,
+          [gw("her", 4.9, pos=[0, 0, 0], heading=18, roll=-64, pitch=5, spin=-3, pose="still", wound="chest",
+              xray={"at": "Inside-0.2", "d": 0.7}, parts={"liver": {"at": "Inside-0.2", "out": "missing-0.2"}})],
+          cam((0, [1.6, -1.5, 5.0], [0.55, -0.3, 0], {"fov": 34}), (1, [1.0, -1.0, 3.4], [0.6, -0.3, 0], {"fov": 34})),
+          [tag("tear", at("her", "chest"), "The tear", "between her front fins", "sw", out="Inside-0.2"),
+           tag("missing-0.1", at("her", "liver"), "Only the liver", "missing", "ne", len=210)]))
+
+P(5, [
+    shot(DUSK, [carcass("m", 0, 2.4, 4.0, 172, -1)],
+         cam((0, [-5, 0.6, 6.4], [0, 0.35, 2.4], {"fov": 34}), (1, [-1.2, 1.3, 7.6], [0.3, 0.3, 2.4], {"fov": 34})),
+         [stamp("next", "4 May 2017", "A male · the next day"),
+          tag("gone", at("m", "liver"), "Liver", "gone", "nw"),
+          tag("heart", at("m", "gills"), "Heart", "gone", "ne")]),
+    # all four along one stretch of coast
+    shot(GREY, [carcass("a", -10, 2.2, 4.9, 8, lo=True), carcass("b", -3, 3.0, 4.0, 172, -1, lo=True), carcass("c", 4, 2.1, 3.6, 20, lo=True), carcass("d", 10.5, 2.8, 3.3, 190, -1, lo=True)],
+         cam((0, [-15, 2.6, 11], [-7, 0.3, 2.4], {"fov": 38}), (1, [0, 8.5, 19], [0.5, 0.2, 2.4], {"fov": 38})),
+         [note("Two", at("a", "back"), "3 May", dy=-80), note("Two+0.25", at("b", "back"), "4 May", dy=-80),
+          note("later", at("c", "back"), "Late May", dy=-80), note("June", at("d", "back"), "June", dy=-80),
+          line("four", "All four · the same torn chest", "same torn chest")], cut="Two more"),
+    # what was left on the skin
+    shot(STUDIO, [gw("s", 4.4, pos=[0, 0, 0], heading=18, roll=-10, spin=-3, pose="swim", amp=0.4)],
+         cam((0, [1.2, 0.3, 4.6], [0.6, 0.05, 0], {"fov": 34}), (1, [0.2, 0.2, 3.5], [0.5, 0.05, 0], {"fov": 34})),
+         [{"type": "ring", "at": "scratches-0.4", "anchor": at("s", "flank"), "r": 120},
+          tag("scratches", at("s", "flank"), "Tooth scratches", "left by orcas", "ne", len=200)], cut="On two"),
+])
+
+P(2, [
+    shot({"kind": "sea", "depth": 0.75},
+         [port(across(-9, -9, -3, -24, 16, 0.5), shadow=0.93), star(across(-11.5, -4, 3, -29, 11, 0.5), shadow=0.93)],
+         cam((0, [3, -10.5, 15], [-6, -10, -3], {"fov": 40}), (1, [6, -10, 17], [3, -10, 0], {"fov": 40})),
+         [line("idea", "She had a good idea who had done it", "who")]),
+    shot(STUDIO, [sg("s", 2.4, pos=[0, 0, 0], heading=22, roll=-30, spin=-5, pose="swim", amp=0.5, wound=None)],
+         cam((0, [0.9, -0.5, 3.9], [0.15, -0.05, 0], {"fov": 34}), (1, [0.2, -0.35, 2.9], [0.2, -0.05, 0], {"fov": 34})),
+         [tag("different", at("s", "gills"), "Broadnose sevengill shark", "a different kind of shark", "ne", len=170)], cut="She had"),
+], mood="tension")
 
 # ====================================================================================== 4. TWO BENT FINS
-S(1, tpl("MapScene", bbox=[[18.0, -34.6], [19.3, -33.75]], cities=[{**CAPE_TOWN, "at": "Cape"}],
-         countryLabels=[{"name": "False Bay", "lon": 18.68, "lat": -34.22}],
-         title="Two years earlier", subtitle="False Bay, 2015", zoom=1.14),
-  chapter="Two Bent Fins", mood="mystery")
-S(1, sea(sg(0.15, 0.62, 0.5, to=[0.4, 0.6]), sg(0.75, 0.7, 0.55, to=[0.5, 0.72]), sg(0.4, 0.8, 0.45, to=[0.62, 0.82]),
-         sg(0.9, 0.52, 0.4, to=[0.7, 0.5]), sg(0.25, 0.44, 0.38, to=[0.45, 0.42]), sg(0.6, 0.36, 0.34, to=[0.4, 0.34]),
-         depth=0.5, callout="Up to 70 sevengill sharks on one dive", calloutAt="count"))
-S(1, sea(sg(0.3, 0.6, 1.5, to=[0.5, 0.6], label={"text": "Sevengill shark", "at": 0.5}), depth=0.55, zoom=[1.0, 1.08],
-         callout="Hunts close to the seabed", calloutAt="seabed"))
-S(1, sea(A("fishSchool", 0.7, 0.5, 0.5, to=[0.55, 0.46]), depth=0.5, kicker="9 NOVEMBER 2015", heading="The same reef", bigText="NONE", bigAt="none"))
-S(1, sea(sg(0.3, 0.84, 0.7, view="beached", opacity=0.9), sg(0.66, 0.9, 0.6, view="beached", flip=True, opacity=0.85), sg(0.86, 0.8, 0.45, view="beached", opacity=0.8),
-         depth=0.65, rays=False, callout="Carcasses on the seabed", calloutAt="carcasses"))
-S(1, beach(sg(0.16, 0.7, 0.5, view="beached"), sg(0.36, 0.8, 0.6, view="beached", flip=True), sg(0.56, 0.7, 0.5, view="beached"),
-           sg(0.76, 0.8, 0.6, view="beached"), sg(0.9, 0.68, 0.42, view="beached", flip=True), sky="overcast",
-           kicker="APRIL 2016", heading="False Bay", callout="Alison Kock examined five", calloutAt="five"))
-S(2, tpl("Anatomy", sprite={"creature": "sevengill", "view": "side"}, backdrop="abyss",
-         callouts=[{"x": 0.6, "y": 0.7, "label": "Torn chest", "at": "torn", "side": "right"},
-                   {"x": 0.42, "y": 0.62, "label": "No liver", "at": "liver", "side": "left"},
-                   {"x": 0.75, "y": 0.4, "label": "Orca tooth marks", "sub": "on the skin", "at": "marks", "side": "right"}]))
-S(1, tpl("Statement", backdrop="ocean", kicker2="The first proof", line1="Orcas were killing sharks", line2="for a single organ"))
-S(1, sea(port(0.3, 0.42, 1.6, view="three_quarter", to=[0.34, 0.42]), star(0.7, 0.66, 1.6, view="three_quarter", to=[0.74, 0.66]),
-         depth=0.3, surface=True, zoom=[1.0, 1.12], callout="Their tall back fins have folded over", calloutAt="folded"))
-S(1, aerial(port(0.34, 0.47, 1.3, view="top", rotate=-90, idle=False, label={"text": "Leans left", "at": "left", "dy": 0.43}),
-            star(0.66, 0.47, 1.3, view="top", rotate=-90, idle=False, label={"text": "Leans right", "at": "right", "dy": 0.43}),
-            zoom=[1.0, 1.06], source="Seen from above"))
-S(1, photo("Port and Starboard orcas",
-           aerial(port(0.34, 0.45, 1.3, view="top", rotate=-90, idle=False, label={"text": "Port", "at": "Port", "dy": 0.42}),
-                  star(0.66, 0.45, 1.3, view="top", rotate=-90, idle=False, label={"text": "Starboard", "at": "Starboard", "dy": 0.42}),
-                  zoom=[1.06, 1.12], callout="Port = left · Starboard = right", calloutAt="sailor's")))
-S(2, sea(port(0.2, 0.42, 1.5, to=[0.4, 0.42]), star(0.32, 0.68, 1.5, to=[0.52, 0.68]), depth=0.35,
-         callout="They may be half-brothers", calloutAt="half-brothers"))
-S(2, tpl("MapScene", bbox=[[11.0, -37.0], [29.5, -24.0]], countryLabels=["Namibia", "South Africa"],
-         cities=[{**CAPE_TOWN, "at": 0.4}, {"name": "Port Elizabeth", "lon": 25.6, "lat": -33.96, "at": "Port"}],
-         pulses=[{"lon": 15.16, "lat": -26.65, "label": "Lüderitz · 2009", "at": "Namibia"}],
-         arrows=[{"from": [15.0, -27.2], "to": [18.6, -35.0], "at": "Since", "dur": 1.6, "curve": 0.25},
-                 {"from": [18.9, -35.2], "to": [25.6, -34.4], "at": "coast", "dur": 1.6, "curve": 0.12}],
-         title="Port and Starboard", subtitle="Where they have been seen"))
-S(1, aerial(port(0.2, 0.42, 1.3, view="top", to=[0.5, 0.42]), star(0.1, 0.64, 1.3, view="top", to=[0.42, 0.62]),
-            kicker="FEBRUARY 2017", heading="Off Gansbaai", callout="Seen the day before the first dead shark", calloutAt="day", source=RECON))
-S(1, sea(star(0.24, 0.5, 1.5, to=[0.3, 0.5]), A("greatWhiteLiver", 0.74, 0.52, 1.1, flip=True, idle=False), depth=0.6,
-         title="Why the liver?", titleAt="why"))
+P(4, [
+    shot(MAP([[17.6, -34.9], [19.6, -33.6]], pins=[pin(REEF_SITE, "reef"), pin(CAPE_TOWN, "beside")],
+             zones=[{"lon": FALSE_BAY[0], "lat": FALSE_BAY[1], "km": 20, "at": "False"}]), [],
+         mcam((0, (18.7, -34.1), 120, 66, 0), (1, (18.5, -34.22), 62, 44, -12)),
+         [chapter(3, "Two bent fins"),
+          stamp("Two", "2015", "False Bay · beside Cape Town"),
+          tag("reef+0.2", geo(REEF_SITE, 5), "The divers' reef", None, "sw")]),
+    # the reef on a good day
+    shot(REEF,
+         milling(sg, 13, -9.9, 24, 5, -10, 8, 2.2),
+         cam((0, [-3, -9.2, 11], [0, -9.2, 0], {"fov": 44}), (1, [2.5, -8.8, 8.5], [0, -9.1, -1], {"fov": 44})),
+         [{"type": "count", "at": "count", "to": 70, "d": 1.4, "x": 0.8, "y": 0.28, "size": 200, "kicker": "on a good dive", "label": "sevengill sharks"}], cut="On a good"),
+    shot(REEF, [sg("s", 2.4, across(-10.0, -1, 1, -9, 8, 0.15, 0.8))],
+         follow("s", [1.5, 0.4, 4.6], [-1.2, 0.5, 3.6], fov=36),
+         [tag("smaller", at("s", "gills"), "Seven gill slits", "most sharks have five", "ne"),
+          line("seabed", "Hunts close to the seabed", "seabed")], cut="Sevengills are"),
+    # the same reef, empty
+    shot(REEF, [],
+         cam((0, [-4, -9.4, 11], [0, -9.2, 0], {"fov": 44}), (1, [3, -8.9, 8], [1, -9.1, -2], {"fov": 44})),
+         [stamp("ninth", "9 November 2015", "The same reef"),
+          {"type": "count", "at": "none-0.15", "from": 70, "to": 0, "d": 0.7, "x": 0.8, "y": 0.28, "size": 200, "kicker": "that day", "label": "sevengill sharks"}], cut="On the ninth"),
+], mood="mystery")
+
+P(5, [
+    shot(REEF, [sg("a", 2.3, pos=[-1.5, -10.75, 0.5], heading=25, roll=78, pose="limp"), sg("b", 2.0, pos=[3.2, -10.78, -2.5], heading=160, roll=-82, pose="limp"),
+                sg("c", 2.2, pos=[-5.5, -10.76, -4], heading=-70, roll=95, pose="limp")],
+         cam((0, [-6, -10.0, 6], [-1.5, -10.6, 0], {"fov": 40}), (1, [1.5, -9.7, 5], [0.5, -10.7, -0.5], {"fov": 40})),
+         [line("carcasses", "Carcasses on the seabed", "carcasses")]),
+    shot(GREY, [carcass(f"k{i}", -9 + 4.6 * i, 2.2 + 0.5 * (i % 2), 2.0 + 0.15 * (i % 3), 20 + 150 * (i % 2), 1 if i % 2 else -1, kind=sg, lo=True) for i in range(5)],
+         cam((0, [-12, 1.0, 7], [-6, 0.2, 2.4], {"fov": 36}), (1, [-2, 4.6, 12], [1, 0.1, 2.4], {"fov": 36})),
+         [stamp("April", "April 2016", "False Bay"),
+          {"type": "count", "at": "five", "to": 5, "d": 0.6, "x": 0.82, "y": 0.26, "size": 190, "kicker": "examined", "label": "sevengill sharks"}], cut="More washed"),
+    shot(STUDIO,
+         [sg("s", 2.4, pos=[0, 0, 0], heading=18, roll=-62, pitch=5, spin=-3, pose="still",
+             xray={"at": "liver-0.6", "d": 0.6}, parts={"liver": {"at": "liver-0.6", "out": "liver+0.15"}})],
+         cam((0, [0.8, -0.8, 2.7], [0.3, -0.15, 0], {"fov": 34}), (1, [0.5, -0.55, 1.9], [0.32, -0.15, 0], {"fov": 34})),
+         [tag("torn", at("s", "chest"), "Torn chest", None, "sw", out="liver-0.6"),
+          tag("liver+0.1", at("s", "liver"), "No liver", None, "ne", len=170),
+          line("marks", "Orca tooth marks on the skin", "orca")], cut="Each one"),
+    shot(REEF,
+         [port(across(-5.5, -12, -5, -26, 14, 0.4), shadow=0.55), star(across(-7.5, -7, 0, -31, 9, 0.4), shadow=0.55)],
+         cam((0, [2, -9.6, 12], [-6, -7, -4], {"fov": 44}), (1, [5, -9.4, 13], [3, -6.6, 0], {"fov": 44})),
+         [{"type": "dim", "at": "proof-0.3", "to": 0.3},
+          {"type": "title", "at": "proof-0.2", "kicker": "the first proof", "size": 96, "lines": ["Orcas were killing sharks", {"text": "for a single organ", "accent": True}]}], cut="Her work"),
+], mood="tension")
+
+P(3, [
+    # the two of them at the surface
+    shot({"kind": "surface", "sky": "overcast", "swell": 0.3},
+         [port([(0, [-22, -1.7, 4]), (0.3, [-10, -0.66, 5]), (0.6, [1, -1.5, 6]), (1, [15, -0.68, 7])]),
+          star([(0, [-27, -0.7, -3]), (0.3, [-15, -1.6, -2]), (0.6, [-4, -0.66, -1]), (1, [10, -1.5, 0])])],
+         cam((0, [-2, 1.3, 19], [-9, 0.5, 2], {"fov": 30}), (1, [3, 1.2, 18], [6, 0.5, 3], {"fov": 30})),
+         [line("fins", "Their tall back fins have folded over", "folded over")]),
+    # seen from behind: one fin to each side
+    shot(STUDIO,
+         [port(pos=[0, 0, -3.4], heading=0, pose="swim", amp=0.5), star(pos=[0, 0, 3.4], heading=0, pose="swim", amp=0.5)],
+         cam((0, [-15, 4.6, -2.5], [2, 0.7, 0], {"fov": 36}), (1, [-13.5, 3.2, 2.5], [2, 0.7, 0], {"fov": 36})),
+         [tag("left", at("port", "dorsal"), "Leans left", None, "nw"),
+          tag("right", at("star", "dorsal"), "Leans right", None, "ne")], cut="One fin"),
+    shot(STUDIO,
+         [port(pos=[0, 0, -4.6], heading=90, pose="swim", amp=0.5), star(pos=[0, 0, 4.6], heading=90, pose="swim", amp=0.5)],
+         cam((0, [-3, 17, 0.4], [1, 0, 0], {"fov": 40}), (1, [-1, 14, 0.4], [1, 0, 0], {"fov": 40})),
+         [{"type": "versus", "at": "named", "y": 0.70, "size": 120, "left": {"title": "sailors' word for left", "value": "Port", "hot": True},
+           "right": {"title": "sailors' word for right", "value": "Starboard", "hot": True}}], cut="Local boat"),
+])
+
+P(4, [
+    shot(SEA,
+         [port([(0, [-6, -6, -24]), (1, [4, -5.4, 3])]), star([(0, [3, -7.2, -28]), (1, [11, -6.6, -1])])],
+         cam((0, [6, -6.4, 13], [0, -6, -8], {"fov": 40}), (1, [9, -6.2, 15], [5, -6, 0], {"fov": 40})),
+         [tag("old", at("port", "back"), "Age", "unknown", "nw"),
+          line("hints", "They may be half-brothers", "half-brothers")]),
+    # where they have been seen
+    shot(MAP([[10.5, -37.5], [30.5, -24.0]], pins=[pin(LUDERITZ, "place"), pin(ALGOA, "east")],
+             routes=[{"points": [list(LUDERITZ), [15.8, -29.5], [17.2, -32.6], [18.1, -34.4], [19.9, -35.1], [22.6, -34.5], [24.8, -34.4], list(ALGOA)], "at": "Since", "d": 3.2}]), [],
+         mcam((0, (17.0, -29.0), 150, 68, 0), (1, (21.5, -32.8), 170, 58, 4)),
+         [tag("place+0.2", geo(LUDERITZ), "Lüderitz, Namibia", "2009", "ne"),
+          tag("east+0.2", geo(ALGOA), "Port Elizabeth", "the eastern end of their range", "nw")], cut="Sighting"),
+])
+
+P(2, [
+    shot(AIR,
+         [port(across(-3, 3, -1, -30, 20, 0)), star(across(-3.6, -6, -9, -35, 15, 0))],
+         cam((0, [-6, 34, 0.5], [-6, 0, 0], {"fov": 40}), (1, [4, 30, 0.5], [4, 0, 0], {"fov": 40})),
+         [stamp("pair", "February 2017", "Off Gansbaai"),
+          line("before", "Seen the day before the first dead shark", "day before")]),
+    shot(STUDIO, [gw("s", 4.6, pos=[0, 0, 0], heading=20, roll=-8, spin=-5, pose="swim", amp=0.5, xray=True, parts={"liver": {"at": 0.0, "glow": 1.0}})],
+         cam((0, [1.6, 0.6, 7.6], [0.2, 0, 0], {"fov": 36}), (1, [0.4, 0.3, 5.4], [0.3, -0.05, 0], {"fov": 36})),
+         [{"type": "title", "at": "why", "size": 120, "v": "bottom", "pad": 110, "lines": ["Why only", {"text": "the liver?", "accent": True}]}], cut="The next"),
+])
 
 # ====================================================================================== 5. WHY THE LIVER
-S(1, sea(gw(0.3, 0.6, 1.3, to=[0.55, 0.46]), depth=0.35, heading="Why the Liver", kicker="PART 4",
-         callout="How does a shark stay afloat?", calloutAt="afloat"),
-  chapter="Why the Liver", mood="wonder")
-S(1, tpl("Anatomy", sprite={"creature": "fishBladder", "view": "side"}, backdrop="ocean", kicker="MOST FISH",
-         callouts=[{"x": 0.5, "y": 0.42, "label": "Swim bladder", "sub": "a small bag of gas", "at": "bladder", "side": "right"}]))
-S(1, tpl("Anatomy", sprite={"creature": "greatWhiteLiver", "view": "side"}, backdrop="ocean", kicker="A SHARK",
-         callouts=[{"x": 0.46, "y": 0.6, "label": "The liver", "sub": "huge and oily", "at": "liver", "side": "left"}]))
-S(2, tpl("Anatomy", sprite={"creature": "greatWhiteLiver", "view": "side"}, backdrop="abyss",
-         callouts=[{"x": 0.46, "y": 0.6, "label": "A quarter to a third", "sub": "of the whole body weight", "at": "quarter", "side": "left"},
-                   {"x": 0.56, "y": 0.64, "label": "Mostly fat", "at": "fat", "side": "right"}],
-         zoom=[{"at": "quarter", "x": 0.5, "y": 0.6, "scale": 1.35}]))
-S(1, sea(A("greatWhiteLiver", 0.12, 0.5, 1.2, to=[0.86, 0.48]), depth=0.5, zoom=[1.0, 1.04],
-         callout="Fat is its fuel on long ocean trips", calloutAt="fuel"))
-S(1, sea(star(0.22, 0.5, 1.5, to=[0.3, 0.5]), A("greatWhiteLiver", 0.75, 0.52, 1.1, flip=True, idle=False, ring={"at": "liver", "r": 0.09}),
-         depth=0.5, callout="Hundreds of kilograms of rich food", calloutAt="hundreds"))
-S(1, sea(A("orcaMale", 0.42, 0.5, 2.6, to=[0.46, 0.5]), depth=0.45, zoom=[1.3, 1.5], focus=[0.78, 0.52],
-         callout="Taking only the liver may protect the teeth", calloutAt="protect"))
-S(1, {"model": "shark skin", "props": {"shot": "push", "callout": "Tiny scales shaped like teeth", "calloutAt": "scales", "heading": "Shark skin, up close"},
-      "fallback_visual": sea(gw(0.5, 0.5, 2.6, view="three_quarter"), depth=0.4, zoom=[1.4, 1.8], focus=[0.5, 0.5],
-                             callout="Tiny scales shaped like teeth", calloutAt="scales")})
-S(1, {"model": "orca teeth", "props": {"shot": "turn", "callout": "Worn down flat by shark skin", "calloutAt": "flat", "heading": "Orca teeth"},
-      "fallback_visual": tpl("Statement", backdrop="ocean", kicker2="Orcas that eat a lot of shark", line1="wear their teeth", line2="down flat")})
-S(1, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Since", "value": "1969", "at": 0.3},
-                                                             {"label": "Dead orcas with flat-worn teeth and shark in the stomach", "value": "3", "at": "three"}],
-         stamp={"text": "Washed up in South Africa", "at": "washed"}))
-S(1, sea(port(0.2, 0.42, 1.5, to=[0.42, 0.42]), star(0.3, 0.68, 1.5, to=[0.52, 0.68]), depth=0.4,
-         callout="The shark-eating type", calloutAt="shark-eating"))
-S(1, sea(star(0.2, 0.5, 1.5, to=[0.34, 0.5]), A("greatWhiteLiver", 0.76, 0.52, 1.1, flip=True, idle=False, target={"at": "tear"}),
-         depth=0.55, callout="The richest part, with very little chewing", calloutAt="richest"))
-S(1, sea(gw(0.4, 0.36, 0.8, to=[0.5, 0.34]), gw(0.6, 0.6, 1.0, to=[0.7, 0.6]), gw(0.35, 0.8, 0.7, to=[0.45, 0.8]),
-         depth=0.35, callout="The great whites made a move of their own", calloutAt="move"))
+P(5, [
+    shot(SEA, [gw("s", 4.6, [(0, [-12, -5.6, 0]), (0.5, [-1, -5.2, 1.2]), (1, [10, -5.5, 0])])],
+         follow("s", [3, 0.2, 10.5], [-3, 0.6, 8]),
+         [chapter(4, "Why the liver"),
+          line("afloat-0.5", "How does a shark stay afloat?", "afloat")]),
+    # an ordinary fish and its bag of gas
+    shot(STUDIO, [animal("fishBladder", "f", 3.2, pos=[0, 0, 0], heading=18, spin=-5, pose="swim", amp=0.55, xray=True, parts={"bladder": {"at": 0.0, "glow": 1.0}})],
+         cam((0, [1.2, 0.3, 5.6], [0.1, 0, 0], {"fov": 34}), (1, [0.3, 0.2, 4.2], [0.1, 0, 0], {"fov": 34})),
+         [tag("bladder", at("f", "bladder"), "Swim bladder", "a small bag of gas", "ne", len=170)], cut="Most fish"),
+    # the shark's answer
+    shot(STUDIO, [gw("s", 4.6, pos=[0, 0, 0], heading=20, roll=-8, spin=-4, pose="swim", amp=0.5, xray={"at": 0.0, "d": 0.6}, parts={"liver": {"at": "liver-0.5", "glow": 1.0}})],
+         cam((0, [1.9, 0.5, 8.4], [0.2, 0, 0], {"fov": 36}), (1, [0.2, 0.3, 5.6], [0.3, -0.05, 0], {"fov": 36})),
+         [tag("liver", at("s", "liver"), "The liver", "huge and oily", "ne", len=230),
+          {"type": "gauge", "at": "quarter-0.4", "label": "Share of the body's weight", "from": 0, "to": 0.33, "d": 1.6, "show": "¼ to ⅓", "x": 0.08, "y": 0.74, "w": 620},
+          line("fat", "Most of it is fat", "fat", y=64)], cut="A shark uses"),
+])
+
+P(2, [
+    # fuel for crossing an ocean
+    shot(GLOBE(routes=[{"points": [[19.3, -35.0], [45, -38], [80, -36], [110, -30]], "at": "long-0.3", "d": 4.2, "arc": 0}], pins=[pin((19.3, -35.0), 0.2), pin((112, -27), "ocean")]), [],
+         mcam((0, (35, -30), 96, 90, 0), (1, (85, -28), 86, 90, 0)),
+         [{"type": "gauge", "at": 0.3, "runAt": "burns", "label": "Liver fat", "from": 1, "to": 0.32, "d": 4.0, "x": 0.08, "y": 0.76, "w": 600},
+          line("engine", "Burned like fuel on long ocean crossings", "fuel", y=64)]),
+    # what that means to an orca
+    shot(SEA,
+         [gw("s", 4.8, across(-5.2, 0, 1, -11, 10, 0.3), xray={"at": "liver-0.6", "d": 0.8}, parts={"liver": {"at": "liver-0.6", "glow": 1.1}}),
+          port([(0, [-27, -9.5, -9]), (1, [1, -7.6, -5])])],
+         follow("s", [4.5, -0.2, 11], [-1, 0.4, 8.5]),
+         [tag("hundreds", at("s", "liver"), "Hundreds of kilograms", "of rich food in one place", "ne", len=210)], cut="For an orca"),
+])
+
+P(5, [
+    shot(STUDIO, [], cam((0, [-4, 2.4, 13.5], [0, 0.45, 0], {"fov": 32}), (1, [2, 1.8, 11.5], [0, 0.45, 0], {"fov": 32})),
+         [tag("teeth", {"prop": "teeth", "point": "tip"}, "Orca teeth", "sharp cones", "ne")],
+         props=[{"kind": "teeth", "id": "teeth", "pos": [0, 0, 0]}]),
+    # shark skin, close enough to see what it is made of
+    shot(STUDIO, [], cam((0, [-7, 1.6, 4.6], [-2, 0.2, 0], {"fov": 30}), (1, [1.5, 1.1, 3.4], [3, 0.2, 0], {"fov": 30})),
+         [tag("scales", {"prop": "skin", "point": "scale"}, "Scales shaped like teeth", "shark skin, magnified", "ne", len=190),
+          line("sandpaper", "It feels like sandpaper", "sandpaper")],
+         props=[{"kind": "denticles", "id": "skin", "pos": [0, 0, 0]}], cut="Shark skin"),
+    # the same teeth after years of it
+    shot(STUDIO, [], cam((0, [2, 1.8, 11.5], [0, 0.4, 0], {"fov": 32}), (1, [-1.5, 1.4, 9.5], [0, 0.35, 0], {"fov": 32})),
+         [tag("flat", {"prop": "teeth", "point": "row"}, "Worn flat", "by a diet of shark", "ne", len=200)],
+         props=[{"kind": "teeth", "id": "teeth", "pos": [0, 0, 0], "wear": "wear-0.2", "wearD": 1.8}], cut="Orcas that"),
+    shot({"kind": "sea", "depth": 0.5},
+         [port(across(-7, -8, -2, -24, 16, 0.4)), star(across(-9.4, -3, 4, -29, 11, 0.4))],
+         cam((0, [4, -8, 15], [-6, -8, -2], {"fov": 40}), (1, [7, -7.6, 17], [3, -8, 2], {"fov": 40})),
+         [{"type": "rows", "at": 0.2, "title": "Since 1969", "side": "left", "y": 0.2, "w": 700,
+           "rows": [{"k": "Dead orcas washed up", "v": "3", "hot": True, "at": "three"}, {"k": "Teeth", "v": "worn flat", "at": "flat-worn"}, {"k": "In the stomach", "v": "shark", "at": "remains"}]},
+          line("belong", "Port and Starboard: the shark-eating type", "shark-eating")], cut="Since"),
+])
+
+P(2, [
+    shot(SEA,
+         [gw("s", 4.6, across(-5.0, 1, 2, -8, 8, 0.2), xray={"at": "tear", "d": 0.6}, parts={"liver": {"at": "tear", "glow": 1.1}}),
+          star([(0, [-20, -8.5, -6]), (0.6, [-5, -6.4, 0.5]), (1, [1, -5.9, 1.0])])],
+         follow("s", [3.5, -0.4, 9.5], [0.5, 0.2, 7]),
+         [{"type": "ring", "at": "tear", "anchor": at("s", "chest"), "r": 70},
+          line("richest", "The richest part, with very little chewing", "richest")]),
+    # the sharks' answer
+    shot(AIR,
+         [gw(f"g{i}", 3.8 + 0.2 * (i % 4), [(0, [-8 + 6 * (i % 4), -3.6 - 0.3 * i, -12 + 7 * (i // 4) + 3 * (i % 2)]), (0.35, [-3 + 6 * (i % 4), -3.6 - 0.3 * i, -9 + 7 * (i // 4)]),
+                                               (1, [48 + 4 * (i % 3), -3.6 - 0.3 * i, -30 + 22 * (i // 4) + 8 * (i % 4)])], lo=True) for i in range(8)],
+         cam((0, [2, 38, 0.5], [2, 0, 0], {"fov": 40}), (1, [9, 33, 0.5], [9, 0, 0], {"fov": 40})),
+         [line("answered", "The great whites answered with a move of their own", "move")], cut="The great whites"),
+])
 
 # ====================================================================================== 6. THE EMPTY SEA
-# "They left." is two words (under a second): it shares its scene with the next sentence, so the sharks swimming
-# off get about three seconds on screen without a silence in the voice
-S(2, [sea(gw(0.45, 0.36, 0.8, to=[1.35, 0.3]), gw(0.6, 0.6, 1.0, to=[1.45, 0.62]), gw(0.4, 0.8, 0.7, to=[1.3, 0.86]),
-          depth=0.35, bigText="THEY LEFT", bigAt="left", duration=3.5),
-      tpl("ClipCard", publication="African Journal of Marine Science", title="Fear at the top", date="2022",
-          lines=["Five and a half years of boat sightings", "Signals from tagged great white sharks", "Gansbaai, South Africa"],
-          highlight=[{"text": "Five and a half years", "at": "five"}, {"text": "tagged great white sharks", "at": "tagged"}],
-          source="Towner et al. 2022")],
-  chapter="The Empty Sea", mood="tension")
-S(1, aerial(port(-0.1, 0.4, 1.2, view="top", to=[0.22, 0.42]), star(-0.2, 0.62, 1.2, view="top", to=[0.12, 0.6]),
-            gw(0.5, 0.3, 0.75, view="top", to=[1.2, 0.1]), gw(0.6, 0.55, 0.8, view="top", to=[1.3, 0.5]), gw(0.5, 0.78, 0.7, view="top", to=[1.2, 0.95]),
-            gw(0.72, 0.4, 0.6, view="top", to=[1.3, 0.28]), heading="14 tagged great whites", kicker="TRACKED LEAVING GANSBAAI",
-            callout="They left when the orcas were near", calloutAt="near", source=RECON))
-S(2, sea(seal(0.3, 0.4, 0.42, to=[0.5, 0.44]), A("fishSchool", 0.75, 0.62, 0.55, to=[0.6, 0.58]), depth=0.3,
-         heading="Stayed away", stats=[{"label": "After the first attacks", "value": "Weeks"}, {"label": "Later", "value": "Months"}], statsAt="weeks"))
-S(1, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Sightings kept dropping for", "value": "2½ years", "at": "dropping"}]))
-S(1, sea(seal(0.2, 0.3, 0.4, to=[0.45, 0.34]), seal(0.8, 0.62, 0.42, to=[0.6, 0.58]), A("fishSchool", 0.5, 0.78, 0.6, to=[0.4, 0.74]),
-         depth=0.25, surface=True, zoom=[1.0, 1.1], callout="Not a single great white", calloutAt="single"))
-S(1, tpl("Statement", backdrop="ocean", kicker2="Alison Towner's comparison", line1="Wild dogs keep away from lions", line2="Great whites keep away from orcas"))
-S(1, sea(orca(0.12, 0.5, 2.0, silhouette="#050b10", opacity=0.6, blur=4), gw(0.55, 0.52, 1.0, to=[1.3, 0.46]), depth=0.5,
-         callout="The fear of being hunted was enough", calloutAt="fear"))
-S(1, tpl("Globe", **{"from": [19.3, -34.6]}, to=[-123.0, 37.7], zoomFrom=1.0, zoomTo=2.2,
-         marker={"label": "Southeast Farallon Island", "note": "off San Francisco", "at": "other"}))
-S(1, tpl("MapScene", bbox=[[-123.7, 37.2], [-121.9, 38.2]], cities=[{"name": "San Francisco", "lon": -122.42, "lat": 37.77, "at": "San"}],
-         pulses=[{"lon": -123.0, "lat": 37.7, "label": "Southeast Farallon Island", "at": "Farallon"}],
-         title="2 November 2009", subtitle="Orcas pass the island"))
-S(1, photo("Southeast Farallon Island aerial",
-           aerial(orca(-0.1, 0.4, 1.2, view="top", to=[0.9, 0.36]), orca(-0.25, 0.6, 1.1, view="top", to=[0.75, 0.58]), tone="open",
-                  hud={"label": "Near the island for", "value": "≈ 2.5 hours"}, source=RECON),
-           hud={"label": "Orcas near the island for", "value": "≈ 2.5 hours"}))
-S(1, tpl("DotGrid", backdrop="ocean", count=17, highlight=17, cols=9, value="17", label="Tagged great whites feeding at the island",
-         note="Southeast Farallon Island, 2 November 2009", fillAt=0.4, color="#3fb6c9"))
-S(1, aerial(gw(0.5, 0.36, 0.7, view="top", to=[1.2, 0.05]), gw(0.42, 0.5, 0.8, view="top", to=[-0.3, 0.3]), gw(0.56, 0.62, 0.75, view="top", to=[1.3, 0.9]),
-            gw(0.4, 0.68, 0.65, view="top", to=[-0.25, 0.95]), gw(0.6, 0.46, 0.6, view="top", to=[1.3, 0.4]), tone="open",
-            hud={"label": "Every one gone within", "value": "8 hours"}, source=RECON))
-S(1, tpl("DotGrid", backdrop="ocean", count=17, highlight=16, cols=9, value="16 of 17", label="Stayed away for the rest of the season", fillAt="stayed"))
-S(1, tpl("BarCompare", backdrop="ocean", heading="Elephant seals killed by great whites", kicker="SOUTHEAST FARALLON ISLAND",
-         bars=[{"label": "A normal year", "value": 7, "display": "A normal year's kills", "at": 0.5},
-               {"label": "A year when orcas visited", "value": 1, "display": "Sometimes only a seventh", "at": "seventh"}]))
-S(1, sea(orca(0.22, 0.5, 1.5, to=[0.36, 0.5]), A("greatWhiteLiver", 0.76, 0.52, 1.0, flip=True, idle=False),
-         depth=0.5, kicker="OCTOBER 1997", heading="Southeast Farallon Island", callout="It ate only the liver", calloutAt="liver", source=RECON))
-S(1, sea(star(0.0, 0.5, 1.5, to=[0.4, 0.5], silhouette="#050b10", opacity=0.9), gw(0.8, 0.52, 0.9, to=[0.9, 0.5], silhouette="#0a1a24", opacity=0.9),
-         depth=0.7, heading="South Africa", callout="Never caught on film", calloutAt="filmed"))
-S(1, tpl("DateStamp", date="2022", place="Mossel Bay, South Africa", at=0.2))
+P(3, [
+    shot(SEA,
+         [gw(f"g{i}", 4.0 + 0.2 * (i % 3), [(0, [-6 + 4 * i, -5 - 0.6 * (i % 3), 2 - 2 * (i % 2)]), (1, [-2 + 6 * i, -7 - 0.5 * i, -46 - 4 * (i % 3)])], lo=True, out=3.2 + 0.25 * i) for i in range(5)],
+         cam((0, [0, -5.5, 12], [4, -6, -10], {"fov": 44}), (1, [1, -5.3, 10], [6, -6.4, -14], {"fov": 44})),
+         [chapter(5, "The empty sea"),
+          {"type": "title", "at": 0.25, "size": 190, "lines": ["They left."], "out": "team"}]),
+    shot({"kind": "sea", "depth": 0.4}, [],
+         cam((0, [0, -6, 12], [4, -6.4, 0], {"fov": 42}), (1, [5, -5.6, 9], [12, -6, -4], {"fov": 42})),
+         [{"type": "count", "at": "five", "to": 5.5, "decimals": 1, "d": 1.2, "x": 0.5, "y": 0.4, "size": 230, "kicker": "the study", "label": "years of boat sightings and tag signals"}], cut="team"),
+    # the tagged sharks leaving
+    shot(MAP([[18.3, -35.5], [20.9, -34.0]], pins=[pin(GANSBAAI, 0.2)],
+             flows=[{"from": list(DYER), "to": [20.7, -35.0], "via": [[19.9, -34.95]], "at": "tracked", "d": 5.5, "n": 14, "spread": 16},
+                    {"from": [18.75, -34.75], "to": list(DYER), "at": 0.4, "d": 4.0, "n": 2, "spread": 2, "color": "#FB9002"}]), [],
+         mcam((0, (19.4, -34.72), 86, 60, 0), (1, (19.75, -34.8), 70, 48, 10)),
+         [tag(0.4, geo(GANSBAAI), "Gansbaai", None, "nw"),
+          {"type": "count", "at": "Fourteen", "to": 14, "d": 1.0, "x": 0.8, "y": 0.26, "size": 200, "kicker": "tracked leaving", "label": "tagged great whites"},
+          line("orcas", "Gone when the orcas were near", "orcas")], cut="Fourteen"),
+], mood="mystery")
+
+P(4, [
+    shot(COAST, [], cam((0, [0, -6, 12], [3, -6.4, 0], {"fov": 42}), (1, [6, -5.4, 9], [12, -6, -4], {"fov": 42})),
+         [{"type": "bars", "at": 0.2, "title": "How long the sharks stayed away", "y": 0.3, "w": 1200, "max": 100,
+           "bars": [{"label": "After the first attacks", "value": 22, "show": "weeks", "at": "weeks"}, {"label": "Later", "value": 92, "show": "months", "at": "months", "hot": True}]}]),
+    shot(COAST, [], cam((0, [6, -5.4, 9], [12, -6, -4], {"fov": 42}), (1, [10, -5.0, 7], [18, -6, -6], {"fov": 42})),
+         [{"type": "timeline", "at": 0.15, "from": 2016, "to": 2020, "y": 0.6, "w": 1300, "title": "Great white sightings, Gansbaai", "sub": "falling for two and a half years",
+           "spans": [{"from": 2017.1, "to": 2019.6, "label": "sightings keep dropping", "at": "dropping"}], "marks": [{"year": 2017.1, "label": "first attacks", "at": 0.5, "hot": True, "up": False}]}], cut="Sightings"),
+    # a boat with nothing to show
+    shot({"kind": "surface", "sky": "overcast", "swell": 0.35}, [],
+         cam((0, [-16, 2.6, 20], [0, 1, 0], {"fov": 34}), (1, [-6, 2.0, 22], [1, 1, 0], {"fov": 34})),
+         [line("without", "Back without seeing a single great white", "single")],
+         props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "heading": 25, "cage": True}], cut="On many"),
+])
+
+P(2, shot(SEA,
+          [gw("s", 4.4, [(0, [8, -5, 2]), (0.45, [1, -5.2, 3]), (0.7, [-1, -5.6, 7]), (1, [6, -6.5, 22])]),
+           port(across(-7, -22, -17, -32, 14, 0.3), shadow=0.5), star(across(-9, -18, -13, -37, 9, 0.3), shadow=0.5)],
+          cam((0, [3, -5.4, 14], [0, -5.6, 0], {"fov": 42}), (1, [5, -5.2, 15], [1, -5.8, 2], {"fov": 42})),
+          [{"type": "versus", "at": "wild", "y": 0.16, "size": 96, "left": {"title": "where lions hunt", "value": "Wild dogs", "sub": "keep away", "at": "wild"},
+            "right": {"title": "where orcas hunt", "value": "Great whites", "sub": "keep away", "hot": True, "at": "lions"}},
+           line("fear", "The fear of being hunted was enough", "fear")]))
+
+P(6, [
+    # the other side of the world
+    shot(GLOBE(routes=[{"points": [list(GANSBAAI), [-30, 5], [-90, 30], list(FARALLON)], "at": 0.4, "d": 2.6, "arc": 5}], pins=[pin(GANSBAAI, 0.1), pin(FARALLON, "world-0.2")]), [],
+         mcam((0, (5, -20), 100, 90, 0), (1, (-105, 30), 84, 90, 0)),
+         [tag("world", geo(FARALLON, 3), "California", "the other side of the world", "ne")]),
+    shot(MAP([[-124.6, 36.6], [-121.2, 38.8]], pins=[pin(FARALLON, 0.2), pin(SAN_FRANCISCO, "near")],
+             routes=[{"points": [[-123.9, 38.4], [-123.3, 37.9], [-122.95, 37.62], [-123.2, 37.1]], "at": "passed-0.3", "d": 2.2, "color": "#FB9002"}]), [],
+         mcam((0, (-122.9, 37.75), 110, 64, 0), (1, (-123.0, 37.7), 70, 46, -10)),
+         [stamp("second", "2 November 2009", "Southeast Farallon Island"),
+          tag("near+0.2", geo(SAN_FRANCISCO), "San Francisco", None, "ne"),
+          {"type": "timer", "at": "stayed", "to": 2.5, "decimals": 1, "unit": "hours", "label": "the orcas stayed", "d": 1.6, "x": 0.92, "y": 0.68}], cut="On the second"),
+    # seventeen tagged sharks, then none
+    shot(MAP([[-123.5, 37.3], [-122.5, 38.1]], pins=[pin(FARALLON, 0.0, pulse=False)],
+             flows=[{"from": [-123.02, 37.72], "to": [-122.98, 37.68], "at": 0.0, "d": 3.0, "n": 17, "spread": 5, "loop": True, "out": "Within"},
+                    {"from": [-123.0, 37.7], "to": [-123.45, 37.35], "via": [[-123.2, 37.6]], "at": "Within", "d": 3.6, "n": 17, "spread": 7}]), [],
+         mcam((0, (-123.0, 37.7), 44, 58, 0), (1, (-123.08, 37.64), 56, 50, 12)),
+         [{"type": "count", "at": "Seventeen", "to": 17, "d": 0.8, "x": 0.2, "y": 0.3, "size": 190, "kicker": "that day", "label": "tagged great whites", "out": "Within"},
+          {"type": "count", "at": "Within+0.2", "from": 17, "to": 0, "d": 1.6, "x": 0.2, "y": 0.3, "size": 190, "kicker": "within eight hours", "label": "left at the island"},
+          line("Sixteen", "Sixteen stayed away for the rest of the season", "sixteen")], cut="Seventeen"),
+])
+
+P(2, [
+    shot({"kind": "surface", "sky": "day", "swell": 0.45}, [],
+         cam((0, [-40, 3.0, 150], [0, 6, 0], {"fov": 30}), (1, [-10, 4.0, 110], [0, 6, 0], {"fov": 30})),
+         [{"type": "bars", "at": 0.3, "title": "Elephant seals killed by sharks", "y": 0.56, "w": 1100, "max": 7,
+           "bars": [{"label": "A normal year", "value": 7, "show": "7 in 7", "at": "fewer-0.6"}, {"label": "A year when orcas visited", "value": 1, "show": "as few as 1 in 7", "at": "seventh-0.5", "hot": True}]}],
+         props=[{"kind": "island", "id": "isle", "pos": [0, 0, 0], "radius": 60, "height": 14, "stretch": 1.6, "top": "#9a9484"}]),
+    shot({"kind": "sea", "depth": 0.3},
+         [orca("o", across(-4.4, -2, 1, -18, 9, 0.3), 7.0), gw("s", 4.2, across(-3.6, 2, 3, -6, 13, 0.2), xray={"at": "liver-0.5", "d": 0.6}, parts={"liver": {"at": "liver-0.5", "out": "liver+0.5"}})],
+         follow("s", [5, -0.6, 11], [1, 0, 8.5]),
+         [stamp("October", "October 1997", "Farallon Islands"),
+          line("only", "It ate only the liver", "liver")], cut="Back in"),
+])
+
+P(2, shot(AIR, [],
+          cam((0, [-10, 34, 0.5], [-10, 0, 0], {"fov": 40}), (1, [6, 30, 0.5], [6, 0, 0], {"fov": 40})),
+          [{"type": "hud", "at": 0.2, "label": "Drone", "alt": 60, "note": "South Africa · no footage yet", "clock": 0, "out": "changed"},
+           {"type": "dim", "at": "changed", "to": 0.3},
+           {"type": "title", "at": "changed", "size": 260, "lines": [{"text": "2022", "accent": True}], "kicker": "that changed in"}]))
 
 # ====================================================================================== 7. CAUGHT ON CAMERA
-S(1, tpl("MapScene", bbox=SOUTH_COAST, countryLabels=[{"name": "South Africa", "lon": 21.0, "lat": -33.35}],
-         cities=[{**CAPE_TOWN, "at": 0.3}, {**GANSBAAI, "at": 0.4}],
-         pulses=[{"lon": 22.13, "lat": -34.18, "label": "Mossel Bay", "at": "Mossel"}],
-         arrows=[{"from": [19.6, -34.75], "to": [22.0, -34.35], "at": "further", "dur": 1.4, "curve": 0.15}],
-         title="16 May 2022", subtitle="A drone over Mossel Bay"),
-  chapter="Caught on Camera", mood="danger")
-CHASE = aerial(gw(0.62, 0.46, 0.8, view="top", to=[0.9, 0.4]),
-               star(0.34, 0.5, 1.2, view="top", to=[0.62, 0.46]), orca(0.2, 0.3, 1.05, view="top", to=[0.5, 0.28]),
-               orca(0.16, 0.7, 1.05, view="top", to=[0.46, 0.68]), orca(0.02, 0.44, 1.0, view="top", to=[0.32, 0.4]),
-               orca(-0.02, 0.62, 0.9, view="top", to=[0.26, 0.6]),
-               heading="Mossel Bay", kicker="16 MAY 2022", callout="Five orcas, one great white", calloutAt="five", source=RECON)
-S(1, clip("orcas kill great white", CHASE))
-S(1, aerial(star(0.4, 0.5, 2.0, view="top", to=[0.52, 0.5], label={"text": "Starboard", "at": "Starboard", "dy": 0.2}),
-            orca(0.08, 0.2, 1.1, view="top", to=[0.2, 0.2], opacity=0.85), orca(0.05, 0.84, 1.1, view="top", to=[0.18, 0.82], opacity=0.85),
-            zoom=[1.0, 1.1], source=RECON))
-S(1, aerial(gw(0.5, 0.4, 0.8, view="top", to=[0.85, 0.62]), star(0.2, 0.36, 1.2, view="top", to=[0.55, 0.52]),
-            orca(0.1, 0.62, 1.05, view="top", to=[0.44, 0.74]), orca(0.0, 0.2, 1.0, view="top", to=[0.34, 0.3]),
-            hud={"label": "The chase", "value": "≈ 1 hour"}, source=RECON))
-S(2, aerial(orca(0.5, 0.5, 1.15, view="top", rotate=-20, idle=False),
-            gw(0.5, 0.5, 0.75, view="top", orbit={"cx": 0.5, "cy": 0.5, "r": 0.2, "turns": 1.6, "phase": 0.6}),
-            callout="Tight circles, keeping the hunter in sight", calloutAt="circles", source=RECON))
-S(1, aerial(orca(0.5, 0.5, 1.1, view="top", rotate=-20, idle=False),
-            gw(0.5, 0.5, 0.75, view="top", orbit={"cx": 0.5, "cy": 0.5, "r": 0.2, "turns": 0.9, "phase": 0.2}),
-            star(0.02, 0.14, 1.15, view="top", to=[0.24, 0.26]), orca(0.98, 0.14, 1.0, view="top", to=[0.78, 0.26]),
-            orca(0.02, 0.9, 1.0, view="top", to=[0.22, 0.76]), orca(0.98, 0.9, 1.0, view="top", to=[0.78, 0.76]),
-            callout="It could only watch one at a time", calloutAt="watch", source=RECON))
-S(1, sea(star(0.18, 0.5, 1.5, to=[0.34, 0.5]), A("greatWhiteLiver", 0.74, 0.52, 1.1, flip=True, idle=False, ring={"at": "liver", "r": 0.09}),
-         depth=0.4, callout="Bitten right where the liver sits", calloutAt="liver", source=RECON))
-S(1, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "More sharks thought to have died that day", "value": "3", "at": "three"}]))
-S(1, aerial(star(0.14, 0.5, 0.95, view="top", rotate=-90, idle=False, label={"text": "Starboard", "at": 0.4, "dy": 0.26}),
-            orca(0.32, 0.5, 0.9, view="top", rotate=-90, idle=False, label={"text": "New", "at": "Four", "dy": 0.26, "color": "#e5372f"}),
-            orca(0.5, 0.5, 0.85, view="top", rotate=-90, idle=False, label={"text": "New", "at": "Four+0.2", "dy": 0.26, "color": "#e5372f"}),
-            orca(0.68, 0.5, 0.9, view="top", rotate=-90, idle=False, label={"text": "New", "at": "Four+0.4", "dy": 0.26, "color": "#e5372f"}),
-            orca(0.86, 0.5, 0.8, view="top", rotate=-90, idle=False, label={"text": "New", "at": "Four+0.6", "dy": 0.26, "color": "#e5372f"}),
-            heading="Four of the five", kicker="NEVER LINKED TO SHARK HUNTING BEFORE"))
-S(1, sea(orca(0.3, 0.42, 1.4, to=[0.5, 0.42]), orca(0.2, 0.66, 1.0, to=[0.4, 0.64]), orca(0.08, 0.8, 0.75, to=[0.28, 0.78]),
-         depth=0.35, callout="Orcas learn from one another", calloutAt="learn"))
-S(2, tpl("StatCards", backdrop="ocean", center=True, heading="Great whites seen by survey boats", kicker="MOSSEL BAY",
-         cards=[{"label": "Before the hunt", "value": "Every trip", "at": 0.4}, {"label": "45 days after", "value": "1", "at": "after"}]))
-S(1, sea(star(0.2, 0.5, 1.9, view="three_quarter", to=[0.5, 0.5], label={"text": "Starboard", "at": "Starboard"}), depth=0.4,
-         kicker="A YEAR LATER", heading="Alone"))
-S(1, sea(star(0.1, 0.48, 1.5, to=[0.38, 0.5]), gw(0.6, 0.56, 0.5, to=[0.84, 0.6]), depth=0.35, kicker="18 JUNE 2023", heading="Mossel Bay",
-         scaleBar={"x1": 0.74, "x2": 0.94, "y": 0.72, "label": "About 2.5 metres", "at": "metres"}, source=RECON))
-S(1, tpl("Anatomy", sprite={"creature": "greatWhite", "view": "three_quarter"}, backdrop="abyss",
-         callouts=[{"x": 0.6, "y": 0.78, "label": "Grabbed here", "sub": "the side fin", "at": "fin", "side": "right"}]))
-S(1, sea(star(0.2, 0.5, 1.5, to=[0.36, 0.5]), A("greatWhiteLiver", 0.74, 0.54, 0.6, flip=True, idle=False), depth=0.4,
-         hud={"label": "Start to finish", "value": "Under 2 minutes"}, callout="Torn open, liver taken", calloutAt="liver", source=RECON))
-S(1, aerial(star(0.16, 0.5, 1.1, view="top", idle=False, label={"text": "Starboard", "at": 0.3, "dy": 0.2}),
-            port(0.86, 0.5, 1.1, view="top", rotate=180, idle=False, label={"text": "Port", "at": "Port", "dy": 0.2}),
-            scaleBar={"x1": 0.28, "x2": 0.74, "y": 0.5, "label": "About 100 metres", "at": "hundred"}, source=RECON))
-S(1, beach(gw(0.5, 0.74, 1.25, view="beached"), sky="overcast", kicker="THE SAME DAY", heading="A second great white",
-           scaleBar={"x1": 0.28, "x2": 0.72, "y": 0.9, "label": "3.5 metres", "at": "metres"}))
-S(1, tpl("StatCards", backdrop="ocean", center=True, cards=[{"label": "Great whites kept away from that part of the bay for", "value": "≈ 4 months", "at": "four"}]))
-S(1, sea(bw(1.1, 0.5, 0.7, to=[0.62, 0.5], at="other"), bw(1.2, 0.72, 0.6, to=[0.74, 0.7], at="other"), depth=0.3,
-         callout="Other animals took their place", calloutAt="place"))
+P(3, [
+    shot(MAP(CAPE, pins=[pin(GANSBAAI, 0.2, pulse=False), pin(MOSSEL, "over")],
+             routes=[{"points": [list(GANSBAAI), [20.2, -35.0], [21.3, -34.75], list(MOSSEL)], "at": "east-0.6", "d": 2.2}]), [],
+         mcam((0, (20.3, -34.5), 150, 62, 0), (1, (21.9, -34.25), 76, 46, -8)),
+         [chapter(6, "Caught on camera"),
+          stamp("sixteenth", "16 May 2022", "Mossel Bay"),
+          tag("over+0.2", geo(MOSSEL), "Mossel Bay", "further east", "nw")]),
+    # what the drone saw
+    shot(AIR,
+         [gw("s", 3.6, [(0, [-6, -3.2, 2]), (0.5, [6, -3.2, -3]), (1, [19, -3.2, 3])]),
+          star([(0, [-21, -3.5, 5]), (0.5, [-8, -3.5, 0]), (1, [6, -3.5, 4])]),
+          orca("o1", [(0, [-24, -4, -6]), (0.5, [-11, -4, -9]), (1, [3, -4, -5])], 6.4),
+          orca("o2", [(0, [-28, -3.8, 13]), (0.5, [-14, -3.8, 9]), (1, [0, -3.8, 12])], 6.0),
+          orca("o3", [(0, [-31, -4.2, 0]), (0.5, [-18, -4.2, -3]), (1, [-4, -4.2, -1])], 7.4, male=True),
+          orca("o4", [(0, [-34, -4.4, -13]), (0.5, [-21, -4.4, -15]), (1, [-7, -4.4, -11])], 5.6)],
+         cam((0, [-9, 40, 0.5], [-9, 0, 0], {"fov": 40}), (1, [5, 36, 0.5], [5, 0, 0], {"fov": 40})),
+         [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 60, "clock": 600},
+          {"type": "ring", "at": "chasing", "anchor": at("s"), "r": 80},
+          tag("chasing+0.2", at("s"), "Great white shark", None, "ne"),
+          tag("Starboard-0.3", at("star", "dorsal"), "Starboard", "one of the five", "sw")], cut="Below"),
+], mood="tension")
+
+P(4, [
+    shot(AIR,
+         [gw("s", 3.6, [(0, [-16, -3.2, -2]), (0.5, [0, -3.2, 3]), (1, [15, -3.2, -3])]),
+          star([(0, [-27, -3.5, 2]), (0.5, [-11, -3.5, 6]), (1, [5, -3.5, 0])]),
+          orca("o1", [(0, [-30, -4, -9]), (0.5, [-14, -4, -5]), (1, [2, -4, -10])], 6.4),
+          orca("o3", [(0, [-34, -4.2, 8]), (0.5, [-19, -4.2, 11]), (1, [-3, -4.2, 6])], 7.4, male=True)],
+         cam((0, [-12, 38, 0.5], [-12, 0, 0], {"fov": 40}), (1, [4, 36, 0.5], [4, 0, 0], {"fov": 40})),
+         [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 60, "clock": 1500},
+          {"type": "timer", "at": "lasted", "to": 3600, "d": 2.2, "label": "the chase", "x": 0.92, "y": 0.2, "size": 120}]),
+    # the circling trick
+    shot(AIR,
+         [gw("s", 3.6, [(0, [3.2, -3.0, 0]), (0.125, [2.3, -3.0, 2.3]), (0.25, [0, -3.0, 3.2]), (0.375, [-2.3, -3.0, 2.3]), (0.5, [-3.2, -3.0, 0]), (0.625, [-2.3, -3.0, -2.3]),
+                         (0.75, [0, -3.0, -3.2]), (0.875, [2.3, -3.0, -2.3]), (1, [3.2, -3.0, 0])]),
+          orca("o1", [(0, [-1.5, -3.8, -0.5]), (0.5, [0.5, -3.8, 0.4]), (1, [1.6, -3.8, -0.3])], 6.4)],
+         cam((0, [0, 21, 0.4], [0, 0, 0], {"fov": 40}), (1, [0.5, 17, 0.4], [0.5, 0, 0], {"fov": 40})),
+         [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 30, "clock": 2100},
+          tag("circles", at("s"), "Tight circles", "keeping the hunter in sight", "ne", len=170)], cut="Twice"),
+    # five against one
+    shot(AIR,
+         [gw("s", 3.6, [(0, [2.6, -3.0, 0]), (0.25, [0, -3.0, 2.6]), (0.5, [-2.6, -3.0, 0]), (0.75, [0, -3.0, -2.6]), (1, [2.6, -3.0, 0])]),
+          orca("o1", [(0, [-1.2, -3.8, -0.4]), (1, [1.0, -3.8, 0.4])], 6.4),
+          star([(0, [-22, -3.5, 9]), (1, [-7, -3.5, 5])]),
+          orca("o2", [(0, [20, -3.8, 12]), (1, [8, -3.8, 6])], 6.0),
+          orca("o3", [(0, [18, -4.2, -14]), (1, [6, -4.2, -7])], 7.4, male=True),
+          orca("o4", [(0, [-16, -4.4, -15]), (1, [-5, -4.4, -8])], 5.6)],
+         cam((0, [0, 30, 0.4], [0, 0, 0], {"fov": 40}), (1, [0, 36, 0.4], [0, 0, 0], {"fov": 40})),
+         [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 50, "clock": 2700},
+          note("Five", at("o1"), "1"), note("Five+0.15", at("star"), "2"), note("Five+0.3", at("o2"), "3"), note("Five+0.45", at("o3"), "4"), note("Five+0.6", at("o4"), "5"),
+          line("watch", "It could only watch one at a time", "one")], cut="Five orcas"),
+])
+
+P(4, [
+    shot({"kind": "sea", "depth": 0.25, "water": "teal"},
+         [gw("s", 3.6, across(-3.4, 0.5, 1.5, -7, 9, 0.2), xray={"at": "liver-0.8", "d": 0.5}, parts={"liver": {"at": "liver-0.8", "glow": 1.2}}),
+          orca("o", [(0, [-21, -6.2, -5]), (0.7, [-1.5, -4.2, 0.2]), (1, [5.5, -3.9, 1.0])], 6.4)],
+         follow("s", [4.5, -0.6, 9.5], [1.5, -0.1, 6.5]),
+         [{"type": "ring", "at": "right", "anchor": at("s", "liver"), "r": 84},
+          tag("right+0.2", at("s", "liver"), "Right where the liver sits", None, "ne", len=190)]),
+    shot(AIR, [star(across(-3.5, 4, 0, -10, 34, 0)), orca("o1", across(-4, -5, -8, -14, 30, 0), 6.4), orca("o3", across(-4.2, 11, 8, -18, 26, 0), 7.4, male=True)],
+         cam((0, [0, 38, 0.5], [0, 0, 0], {"fov": 40}), (1, [10, 36, 0.5], [10, 0, 0], {"fov": 40})),
+         [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 60, "clock": 4200},
+          {"type": "count", "at": "three", "to": 3, "d": 0.5, "x": 0.8, "y": 0.3, "size": 210, "prefix": "+", "kicker": "scientists think", "label": "more sharks died that day"}], cut="Scientists"),
+    shot(STUDIO,
+         [star(pos=[0, 0, 0], heading=0, pose="swim", amp=0.5), orca("o1", pos=[-3, 0, -5.2], heading=0, pose="swim", amp=0.5, length=6.4),
+          orca("o2", pos=[-3, 0, 5.2], heading=0, pose="swim", amp=0.5, length=6.0), orca("o3", pos=[-6.5, 0, -10.4], heading=0, pose="swim", amp=0.5, length=7.4, male=True),
+          orca("o4", pos=[-6.5, 0, 10.4], heading=0, pose="swim", amp=0.5, length=5.6)],
+         cam((0, [-20, 9, -2], [-2, 0, 0], {"fov": 40}), (1, [-18, 7.5, 3], [-2, 0, 0], {"fov": 40})),
+         [note(0.3, at("star"), "Known shark hunter", dy=-70),
+          note("Four", at("o1"), "New", fill="#F7F7F8", dy=-60), note("Four+0.12", at("o2"), "New", fill="#F7F7F8", dy=-60),
+          note("Four+0.24", at("o3"), "New", fill="#F7F7F8", dy=-60), note("Four+0.36", at("o4"), "New", fill="#F7F7F8", dy=-60),
+          line("learn", "Orcas learn from one another", "learn")], cut="Four of"),
+])
+
+P(2, shot({"kind": "surface", "sky": "day", "swell": 0.3}, [],
+          cam((0, [-18, 2.4, 24], [0, 4.6, 0], {"fov": 34}), (1, [-9, 2.0, 21], [2, 4.4, 0], {"fov": 34})),
+          [{"type": "dots", "at": 0.2, "n": 45, "cols": 15, "size": 26, "gap": 13, "x": 0.5, "y": 0.1, "title": "Mossel Bay survey boats", "sub": "great whites seen", "from": 45,
+            "lit": [{"at": "45", "to": 1, "d": 1.6}], "readout": "in 45 days"},
+           line("every", "Before the hunt: great whites on every trip", "every trip", out="45")],
+          props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "heading": 20}]))
+
+P(7, [
+    shot(SEA, [star(across(-6, 0, 2, -20, 12, 0.4))],
+         follow("star", [8, 0.5, 16], [0, 1.5, 12], fov=40),
+         [stamp("alone", "A year later", "Starboard, alone")]),
+    # the young shark
+    shot({"kind": "sea", "depth": 0.25, "water": "teal"},
+         [gw("s", 2.5, [(0, [-2, -3.6, 1]), (0.5, [6, -3.2, 3]), (1, [14, -3.4, 0])]), star([(0, [-24, -5, -2]), (0.5, [-8, -4, 2]), (1, [7, -3.8, 0])])],
+         follow("s", [3.5, 0.2, 9], [-1, 0.8, 7.5]),
+         [stamp("eighteenth", "18 June 2023", "Mossel Bay"),
+          tag("2.5", at("s", "dorsal"), "Young great white", "about 2.5 metres", "ne")], cut="On the"),
+    shot({"kind": "sea", "depth": 0.25, "water": "teal"},
+         [gw("s", 2.5, across(-3.4, 0.6, 1.2, -3, 5, 0.1, 0.5), turn=[{"at": "Within", "d": 1.4, "roll": 150, "limp": True}],
+             xray={"at": "torn", "d": 0.5}, parts={"liver": {"at": "torn", "out": "liver"}}),
+          star([(0, [-9.5, -3.9, -0.4]), (0.5, [-3.6, -3.6, 0.5]), (1, [0.4, -3.5, 1.0])])],
+         follow("s", [3.2, -0.3, 6.5], [1.5, 0.2, 5]),
+         [{"type": "ring", "at": "fin", "anchor": at("s", "pectoral"), "r": 60},
+          tag("fin", at("s", "pectoral"), "By the side fin", None, "se"),
+          {"type": "timer", "at": "Within", "to": 120, "d": 2.4, "label": "from catch to liver", "x": 0.92, "y": 0.14}], cut="He grabbed"),
+    # a hundred metres away
+    shot({**AIR, "swell": 0.05}, [star(pos=[-50, -3.5, 0], heading=15, pose="swim"), port(pos=[50, -3.5, 2], heading=-170, pose="swim")],
+         cam((0, [0, 96, 0.6], [0, 0, 0], {"fov": 50}), (1, [0, 88, 0.6], [0, 0, 0], {"fov": 50})),
+         [{"type": "hud", "at": 0.0, "label": "Drone · Mossel Bay", "alt": 90, "clock": 300},
+          tag(0.3, at("star"), "Starboard", "the hunt", "sw"), tag(0.5, at("port"), "Port", "keeps his distance", "ne"),
+          {"type": "measure", "at": "hundred-0.3", "from": at("star"), "to": at("port"), "value": 100, "decimals": 0, "unit": " m", "off": -90, "size": 80}], cut="Port stayed"),
+    shot(GREY, [carcass("x", 0, 2.4, 3.5, 12)],
+         cam((0, [4.5, 0.6, 6.6], [0.2, 0.3, 2.4], {"fov": 34}), (1, [-2.5, 1.4, 8], [0, 0.25, 2.4], {"fov": 34})),
+         [tape("3.5", 0, 2.4, 3.5, 12, "a second great white", size=70),
+          line("four", "Great whites stayed away for about four months", "four months")], cut="A second"),
+], mood="tension")
+
+P(1, shot(COAST,
+          [bw(f"b{i}", 2.5 + 0.1 * (i % 3), across(-5.5 - 0.5 * (i % 3), -20 + 3 * i, -8 + 2.5 * i, -22 - 2 * i, 12 - i, 0.3, 1.0), lo=True, at=0.6 + 0.35 * i) for i in range(5)],
+          cam((0, [1, -5.6, 13], [0, -5.8, -4], {"fov": 42}), (1, [4, -5.4, 11], [1, -5.8, -4], {"fov": 42})),
+          [line("other", "Other animals began to take their place", "take their place")]))
 
 # ====================================================================================== 8. A COAST REARRANGED
-S(1, sea(bw(0.9, 0.44, 0.9, to=[0.56, 0.46], label={"text": "Bronze whaler", "at": "bronze"}), bw(1.1, 0.72, 0.7, to=[0.74, 0.7]),
-         depth=0.3, heading="Gansbaai", kicker="A SMALLER SHARK MOVES IN"),
-  chapter="A Coast Rearranged", mood="wonder")
-S(1, sea(gw(0.24, 0.5, 1.2, lookAt="right"), bw(0.8, 0.56, 0.65, to=[0.96, 0.58], target={"at": "eat"}),
-         depth=0.4, callout="Great whites eat bronze whalers", calloutAt="eat"))
-S(1, sea(bw(0.2, 0.34, 0.7, to=[0.44, 0.34]), bw(0.82, 0.52, 0.85, to=[0.56, 0.52]), bw(0.3, 0.74, 0.6, to=[0.5, 0.76]), bw(0.9, 0.82, 0.55, to=[0.7, 0.82]),
-         depth=0.25, surface=True, callout="Bronze whalers on most trips", calloutAt="most"))
-S(1, tpl("MapScene", bbox=[[18.0, -34.6], [19.3, -33.75]], cities=[{**CAPE_TOWN, "at": 0.4}],
-         countryLabels=[{"name": "False Bay", "lon": 18.72, "lat": -34.3}], pulses=[{"lon": 18.58, "lat": -34.14, "label": "Seal Island", "at": 0.8}],
-         title="False Bay", subtitle="The change went further", zoom=1.12))
-S(1, clip("great white shark breach",
-          sea(seal(0.62, 0.3, 0.4, to=[0.8, 0.22]), gw(0.36, 0.95, 1.3, to=[0.56, 0.3], rotate=-62, at=0.3),
-              split={"y": 0.34, "land": "rocks", "landWidth": 0.24, "sky": "polar", "floes": False},
-              heading="Seal Island", callout="Great whites leaping clear of the water", calloutAt="leaping", source=RECON)))
-S(2, tpl("Counter", backdrop="ocean", **{"from": 2000}, to=2018, plain=True, label="Great whites recorded at Seal Island",
-         countAt=0.5, countDur=6, timeline={"start": 2000, "end": 2026, "tickEvery": 4,
-                                           "events": [{"year": 2000, "label": "Surveys begin", "at": "surveyed"}, {"year": 2018, "label": "None after August 2018", "at": "August"}],
-                                           "band": {"from": 2018.6, "to": 2026, "label": "none recorded"}}))
-S(2, tpl("BarCompare", backdrop="ocean", heading="Great white sightings", kicker="SHARK SPOTTERS, CAPE TOWN BEACHES",
-         bars=[{"label": "2011", "value": 300, "display": "More than 300", "at": "logged"}, {"label": "2019", "value": 0, "display": "None", "at": "none"}]))
-S(1, sea(sg(1.1, 0.5, 0.8, to=[0.6, 0.5], label={"text": "Sevengill shark", "at": "appear"}), sg(1.2, 0.74, 0.65, to=[0.74, 0.72]), sg(1.15, 0.3, 0.55, to=[0.7, 0.32]),
-         depth=0.4, heading="Seal Island", kicker="NEVER RECORDED THERE BEFORE"))
-S(1, sea(seal(0.08, 0.3, 0.4, detail={"rest": True}), seal(0.2, 0.28, 0.36, detail={"rest": True}, flip=True), seal(0.32, 0.3, 0.4, detail={"rest": True}),
-         seal(0.43, 0.3, 0.34, detail={"rest": True}, flip=True), seal(0.53, 0.3, 0.3, detail={"rest": True, "pup": True}),
-         seal(0.72, 0.6, 0.42, to=[0.86, 0.56]), seal(0.62, 0.8, 0.4, to=[0.48, 0.76]), seal(0.9, 0.82, 0.36, to=[0.74, 0.86]),
-         split={"y": 0.42, "land": "rocks", "landWidth": 0.62, "sky": "polar", "floes": False},
-         heading="Cape fur seal sightings", bigText="ABOUT 6×", bigAt="six", bigColor="#e6edf2"))
-S(1, tpl("SourceList", backdrop="ocean", tag="Knock-on effects", tagNote="False Bay",
-         rows=[{"title": "More fur seals", "source": "the fish they eat became harder to find", "at": "fish"},
-               {"title": "More sevengill sharks", "source": "the small sharks they hunt became harder to find", "at": "small"}]))
-S(1, sea(port(0.1, 0.42, 1.5, to=[0.5, 0.42]), star(0.0, 0.68, 1.5, to=[0.4, 0.68]), depth=0.4, callout="Port and Starboard kept hunting", calloutAt="kept"))
-S(1, photo("sevengill sharks washed up",
-           beach(sg(0.1, 0.66, 0.42, view="beached"), sg(0.26, 0.76, 0.55, view="beached", flip=True), sg(0.42, 0.66, 0.42, view="beached"),
-                 sg(0.56, 0.8, 0.6, view="beached"), sg(0.72, 0.68, 0.45, view="beached", flip=True), sg(0.88, 0.78, 0.52, view="beached"),
-                 sg(0.34, 0.9, 0.5, view="beached", flip=True), sg(0.76, 0.92, 0.5, view="beached"), sky="overcast",
-                 kicker="FEBRUARY 2023", heading="Near Gansbaai", callout="About twenty sharks after one visit", calloutAt="twenty", source=RECON)))
-S(1, tpl("Anatomy", sprite={"creature": "sevengill", "view": "side"}, backdrop="abyss",
-         callouts=[{"x": 0.44, "y": 0.62, "label": "Liver removed", "sub": "nearly all were sevengills", "at": "liver", "side": "left"}]))
-S(1, sea(port(0.3, 0.42, 1.5, view="three_quarter", silhouette="#050b10", opacity=0.92), star(0.7, 0.66, 1.5, view="three_quarter", silhouette="#050b10", opacity=0.92),
-         depth=0.65, check={"text": "The case against the two orcas", "at": "case", "ok": True}))
-S(1, tpl("Statement", backdrop="abyss", kicker2="Several shark scientists", line1="The case is missing", line2="a second suspect"))
+P(3, [
+    shot(COAST,
+         [bw(f"b{i}", 2.5 + 0.12 * (i % 4), across(-4.8 - 0.55 * (i % 3), -8 + 2.6 * i - 9 * (i // 4), -4 + 2.4 * i - 9 * (i // 4), (-16 - 2 * (i % 3)), (13 + (i % 4)), 0.3, 1.0), lo=True) for i in range(7)],
+         follow("b1", [4, 0.2, 8], [-1.5, 0.6, 6], fov=40),
+         [chapter(7, "A coast rearranged"),
+          tag("whaler", at("b1", "dorsal"), "Bronze whaler", "a smaller shark", "ne")]),
+    # the two side by side
+    shot(STUDIO, [gw("g", 4.5, pos=[0, 0.75, 0], heading=14, pose="swim", amp=0.5, spin=-2), bw("b", 2.8, pos=[0.3, -1.05, 1.2], heading=14, pose="swim", amp=0.6, spin=-2)],
+         cam((0, [1.4, 0.4, 9.2], [0.2, -0.1, 0], {"fov": 36}), (1, [0, 0.2, 7.2], [0.2, -0.1, 0], {"fov": 36})),
+         [tag("eat", at("g", "dorsal"), "Great white", "the hunter", "ne"),
+          tag("smaller", at("b", "tail"), "Bronze whaler", "the hunted", "sw")], cut="Great whites eat"),
+    shot({"kind": "sea", "depth": 0.2, "water": "teal"},
+         [bw("a", 2.8, [(0, [-13, -2.6, 8]), (0.55, [-1.2, -1.9, 5.4]), (1, [10, -2.3, 8])]), bw("b", 2.5, across(-3.4, 11, 7.5, 13, -11, 0.2, 1.5)),
+          bw("c", 2.6, across(-5, 14, 12, -16, 12, 0.3, 1))],
+         cam((0, [5.5, -4.2, 13], [-1.3, -0.9, 2.6], {"fov": 40}), (1, [2.8, -3.4, 10.6], [-1.3, -0.9, 2.6], {"fov": 40})),
+         [line("most", "Bronze whalers on most trips", "most trips")],
+         props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "cage": True}], cut="Today"),
+])
+
+P(6, [
+    shot(MAP([[17.6, -34.9], [19.6, -33.6]], pins=[pin(SEAL_ISLAND, "change")], zones=[{"lon": FALSE_BAY[0], "lat": FALSE_BAY[1], "km": 20, "at": 0.2}]), [],
+         mcam((0, (18.7, -34.2), 110, 64, 0), (1, (18.6, -34.16), 60, 46, 8)),
+         [stamp("False", "False Bay", "Beside Cape Town"),
+          tag("change+0.2", geo(SEAL_ISLAND, 5), "Seal Island", None, "ne")]),
+    # what the island was famous for
+    shot({"kind": "surface", "sky": "dawn", "swell": 0.3, "sun": [-0.5, 0.3, -0.8]},
+         [gw("s", 3.9, [(0, [-9, -7, 3]), (0.34, [-2, -1.5, 1.5]), (0.5, [1.2, 3.4, 0.8]), (0.66, [4.2, -1.2, 0.2]), (1, [10, -6, -1])])],
+         cam((0, [-3, 1.6, 22], [0, 2.4, 0], {"fov": 30}), (1, [1, 1.5, 19], [1, 2.2, 0], {"fov": 30})),
+         [line("leaping", "Great whites leaping clear of the water", "leaping")],
+         props=[{"kind": "island", "id": "isle", "pos": [-30, 0, -190], "radius": 55, "height": 4, "stretch": 2.6},
+                {"kind": "spray", "id": "up", "pos": [-0.6, 0, 1.2], "u": 0.38, "power": 1.0}, {"kind": "spray", "id": "down", "pos": [4.0, 0, 0.3], "u": 0.63, "power": 0.75}], cut="Seal Island"),
+    # the survey record
+    shot({"kind": "surface", "sky": "overcast", "swell": 0.35}, [],
+         cam((0, [20, 2.4, 150], [0, 3, 0], {"fov": 30}), (1, [-6, 3.2, 120], [0, 3, 0], {"fov": 30})),
+         [{"type": "timeline", "at": 0.2, "from": 2000, "to": 2020, "every": 2, "y": 0.72, "w": 1400, "titleUp": 235, "title": "Seal Island surveys", "sub": "great whites recorded",
+           "spans": [{"from": 2000, "to": 2018.6, "label": "great whites every season", "at": "surveyed", "color": "rgba(247,247,248,0.8)"},
+                     {"from": 2018.65, "to": 2020, "label": "none", "at": "no"}], "marks": []}],
+         props=[{"kind": "island", "id": "isle", "pos": [0, 0, 0], "radius": 55, "height": 4, "stretch": 2.6}], cut="Shark scientist"),
+    # the beaches
+    shot({"kind": "beach", "sky": "day", "sun": [0.3, 0.75, 0.5]}, [],
+         cam((0, [-14, 2.2, 14], [0, 0.6, -8], {"fov": 36}), (1, [-4, 3.4, 16], [6, 0.4, -8], {"fov": 36})),
+         [{"type": "bars", "at": 0.2, "title": "Great white sightings · Cape Town beaches", "y": 0.2, "w": 1200, "max": 320,
+           "bars": [{"label": "2011", "value": 300, "show": "300+", "at": "300"}, {"label": "2019", "value": 0, "show": "0", "at": "2019", "hot": True}]}], cut="On the beaches"),
+])
+
+P(3, [
+    shot(COAST, [sg("a", 2.4, across(-12.6, -2, 1, -14, 10, 0.2, 1)), sg("b", 2.1, across(-11.8, 5, 3, 13, -12, 0.2, -1)), sg("c", 2.2, across(-12.2, -7, -5, -20, 8, 0.2, 1))],
+         follow("a", [2.5, 0.6, 6.5], [-1.5, 0.9, 5], fov=40),
+         [tag("never", at("a", "gills"), "Sevengill sharks", "never recorded here before", "ne")]),
+    shot({"kind": "surface", "sky": "day", "swell": 0.4}, [],
+         cam((0, [-30, 2.6, 130], [0, 3, 0], {"fov": 30}), (1, [0, 3.4, 96], [0, 3, 0], {"fov": 30})),
+         [{"type": "count", "at": "six", "to": 6, "d": 1.0, "x": 0.5, "y": 0.34, "size": 260, "prefix": "×", "kicker": "Cape fur seal sightings", "label": "about six times as many"}],
+         props=[{"kind": "island", "id": "isle", "pos": [0, 0, 0], "radius": 55, "height": 4, "stretch": 2.6}], cut="Reported"),
+    # who gained and who lost
+    shot(REEF, [sg("a", 2.3, across(-9.6, -2, 0, -13, 10, 0.2, 1), lo=True), sg("b", 2.0, across(-9.0, 4, 2, 12, -11, 0.2, -1), lo=True)],
+         cam((0, [-3, -9.2, 11], [0, -9.2, 0], {"fov": 44}), (1, [2.5, -8.8, 8.5], [0, -9.1, -1], {"fov": 44})),
+         [{"type": "dim", "at": 0.0, "to": 0.28},
+          {"type": "rows", "at": 0.15, "title": "False Bay without its great whites", "side": "left", "y": 0.2, "w": 820,
+           "rows": [{"k": "Great whites", "v": "gone", "at": 0.3}, {"k": "Sevengill sharks", "v": "up", "hot": True, "at": 0.5}, {"k": "Cape fur seals", "v": "up × 6", "hot": True, "at": 0.7},
+                    {"k": "Fish that seals eat", "v": "down", "at": "fish"}, {"k": "Small sharks", "v": "down", "at": "small"}]}], cut="The fish"),
+])
+
+P(3, [
+    shot(REEF, [port(across(-6, -4, 1, -22, 14, 0.4)), star(across(-8, 1, 6, -27, 9, 0.4))],
+         cam((0, [4, -8.6, 14], [-6, -7, -2], {"fov": 42}), (1, [7, -8.2, 16], [3, -7, 2], {"fov": 42})),
+         [line("kept", "Port and Starboard kept hunting", "kept hunting")]),
+    # one visit
+    shot(GREY,
+         [carcass(f"k{i}", -24 + 2.7 * i + 0.8 * (i % 3), 1.7 + 0.9 * ((i * 7) % 4) / 3 + 0.5 * (i % 2), 1.9 + 0.12 * (i % 5), (25 + 47 * i) % 360, 1 if i % 2 else -1, kind=sg, lo=True) for i in range(19)],
+         cam((0, [-26, 2.0, 9], [-14, 0.2, 2.4], {"fov": 38}), (1, [-4, 9.5, 19], [4, 0.1, 2.4], {"fov": 38})),
+         [stamp("February", "February 2023", "Near Gansbaai", out="Nearly-0.2"),
+          {"type": "count", "at": "twenty", "to": 20, "d": 1.2, "x": 0.8, "y": 0.24, "size": 210, "kicker": "after a single visit", "label": "sharks washed up"},
+          line("Nearly", "Nearly all sevengills · each with its liver removed", "liver removed")], cut="In February"),
+])
+
+P(2, shot({"kind": "sea", "depth": 0.7},
+          [port(across(-8, -8, -3, -22, 16, 0.4), shadow=0.8), star(across(-10.4, -3, 3, -27, 11, 0.4), shadow=0.8)],
+          cam((0, [3, -9.5, 15], [-5, -9, -3], {"fov": 40}), (1, [6, -9, 17], [3, -9, 0], {"fov": 40})),
+          [{"type": "dim", "at": 0.2, "to": 0.3},
+           {"type": "title", "at": "case", "size": 170, "lines": ["Case closed?"], "out": "Several"},
+           {"type": "title", "at": "second-0.3", "size": 150, "kicker": "several shark scientists say it is missing", "lines": ["A second", {"text": "suspect", "accent": True}]}], mood="tension"))
 
 # ====================================================================================== 9. THE SECOND SUSPECT
-WHOLE_COAST = [[15.5, -36.6], [33.5, -26.5]]
-S(1, tpl("MapScene", bbox=WHOLE_COAST, highlight=["South Africa"], countryLabels=["South Africa"],
-         cities=[{**CAPE_TOWN, "at": 0.4}, {**GANSBAAI, "at": 0.6}, {**MOSSEL, "at": 0.8}, {**ALGOA, "at": 1.0}],
-         title="2023", subtitle="Great white records from the whole coast"),
-  chapter="The Second Suspect", mood="mystery")
-S(2, tpl("MapScene", bbox=WHOLE_COAST, highlight=["South Africa"],
-         pulses=[{"lon": 18.9, "lat": -34.5, "label": "West: sightings fell", "color": "#e5372f", "at": "fallen"},
-                 {"lon": 25.7, "lat": -33.85, "label": "East: sightings rose", "color": "#3fb6c9", "at": "risen"}],
-         title="Steady overall", subtitle="Fewer in the west, more in the east"))
-S(1, tpl("BarCompare", backdrop="ocean", heading="Great whites caught by shore anglers", kicker="ALGOA BAY",
-         bars=[{"label": "2013", "value": 6, "display": "6", "at": "six"}, {"label": "2019", "value": 59, "display": "59", "at": "2019"}]))
-S(1, tpl("MapScene", bbox=WHOLE_COAST, highlight=["South Africa"], cities=[{**GANSBAAI, "at": 0.3}, {**ALGOA, "at": 0.5}],
-         arrows=[{"from": [19.6, -35.0], "to": [25.6, -34.3], "at": "moved", "dur": 1.8, "curve": 0.14, "label": "Moved east?"}],
-         title="Away from the orcas"))
-S(1, tpl("Statement", backdrop="ocean", kicker2="2024", line1="Another group of scientists", line2="pushed back"))
-S(2, tpl("Counter", backdrop="ocean", **{"from": 2010}, to=2015, plain=True, label="False Bay", countAt=0.5, countDur=7,
-         timeline={"start": 2010, "end": 2018, "tickEvery": 1,
-                   "events": [{"year": 2012, "label": "Sightings start falling", "at": "falling"}, {"year": 2015, "label": "Port and Starboard first seen hunting there", "at": "three"}]}))
-S(1, sea(gw(0.7, 0.6, 1.0, to=[0.6, 0.6]), depth=0.3, net={"x0": 0.06, "x1": 0.5, "top": 0.06, "bottom": 0.8, "at": 0.3},
-         bigText="PEOPLE", bigAt="people", bigColor="#e6edf2"))
-S(1, [tpl("MapScene", bbox=[[27.5, -32.2], [34.5, -26.3]], highlight=["South Africa"], cities=[{"name": "Durban", "lon": 31.02, "lat": -29.86, "at": 0.4}],
-          countryLabels=[{"name": "KwaZulu-Natal", "lon": 30.6, "lat": -28.6}], title="KwaZulu-Natal", subtitle="Shark nets and baited hooks"),
-      clip("shark nets KwaZulu-Natal",
-           sea(gw(0.8, 0.56, 1.0, to=[0.66, 0.56]), depth=0.25, surface=True, net={"x0": 0.05, "x1": 0.56, "top": 0.05, "bottom": 0.82},
-               heading="Shark nets", callout="Protecting swimming beaches", calloutAt="protect"))])
-S(1, tpl("StatCards", backdrop="ocean", center=True, heading="Nets and baited hooks, 1978 to 2018", kicker="KWAZULU-NATAL",
-         cards=[{"label": "Great whites caught", "value": "1,317", "at": "caught"}, {"label": "Died", "value": "1,108", "at": "died"}]))
-S(2, tpl("BarCompare", backdrop="ocean", heading="Great whites killed", bars=[{"label": "Nets and hooks, every year", "value": 28, "display": "About 28 a year", "at": "about"},
-                                                                              {"label": "Orcas, known kills since 2017", "value": 8, "display": "8 in total", "at": "eight"}]))
-S(2, sea(bw(0.25, 0.62, 0.5, to=[0.4, 0.6]), bw(0.6, 0.76, 0.45, to=[0.74, 0.74]), gw(1.1, 0.5, 0.95, to=[0.7, 0.46], at="great"),
-         depth=0.35, longline={"y": 0.16, "hooks": 9}, heading="Fishing boats",
-         facts=[{"text": "Take the smaller sharks great whites eat", "at": "food"}, {"text": "Long lines of hooks catch great whites too", "at": "hooks", "red": True}]))
-S(1, tpl("DotGrid", backdrop="ocean", count=1000, highlight=300, cols=50, value="A few hundred to 1,000", label="Great whites in South Africa (estimates)",
-         fillAt="estimates", color="#3fb6c9"))
-S(1, tpl("DotGrid", backdrop="ocean", count=1000, highlight=36, cols=50, value="A few dozen a year", label="Lost: enough to push the population into decline",
-         fillAt="dozen"))
-S(2, tpl("Statement", backdrop="ocean", kicker2="So who is right?", line1="Orcas and people", line2="both played a part"))
-S(1, aerial(port(-0.2, 0.4, 1.2, view="top", to=[0.25, 0.42]), star(-0.3, 0.62, 1.2, view="top", to=[0.14, 0.6]),
-            gw(0.6, 0.3, 0.7, view="top", to=[1.25, 0.12]), gw(0.7, 0.56, 0.8, view="top", to=[1.3, 0.56]), gw(0.58, 0.78, 0.7, view="top", to=[1.2, 0.96]),
-            heading="Orcas", kicker="THE SUDDEN EXITS", callout="A busy bay went quiet within days", calloutAt="quiet", source=RECON))
-S(1, sea(gw(0.78, 0.6, 0.9, to=[0.68, 0.6]), depth=0.3, surface=True, net={"x0": 0.05, "x1": 0.5, "top": 0.05, "bottom": 0.82},
-         heading="Nets and fishing", kicker="YEARS OF LOSSES", callout="Fewer sharks left to come back", calloutAt="fewer"))
+P(5, [
+    shot(MAP(SOUTH_AFRICA, pins=[pin(GANSBAAI, 0.4, pulse=False), pin(MOSSEL, 0.6, pulse=False), pin(ALGOA, 0.8, pulse=False), pin(DURBAN, 1.0, pulse=False)]), [],
+         mcam((0, (20.0, -33.5), 150, 70, 0), (1, (26.0, -32.5), 170, 58, 0)),
+         [chapter(8, "The second suspect"),
+          stamp("2023", "The 2023 study", "Great white records from the whole coast"),
+          line("steady", "Numbers looked steady overall", "steady")]),
+    # down in the west, up in the east
+    shot(MAP(SOUTH_AFRICA, zones=[{"lon": 18.9, "lat": -34.5, "km": 120, "at": "fallen", "color": "#F7F7F8"}, {"lon": 25.9, "lat": -34.0, "km": 130, "at": "risen", "color": "#FDE302"}]), [],
+         mcam((0, (22.3, -33.6), 165, 62, 0), (1, (22.6, -33.9), 150, 54, 0)),
+         [tag("fallen+0.2", geo((18.9, -34.5), 4), "West", "sightings fell", "sw"),
+          tag("risen+0.2", geo((25.9, -34.0), 4), "East", "sightings rose", "ne")], cut="Sightings"),
+    shot(MAP([[23.0, -35.2], [28.5, -32.2]], pins=[pin(ALGOA, 0.2)]), [],
+         mcam((0, (25.7, -33.9), 96, 60, 0), (1, (25.8, -34.0), 78, 50, 8)),
+         [tag(0.4, geo(ALGOA), "Algoa Bay", None, "nw"),
+          {"type": "bars", "at": 0.3, "title": "Great whites caught by shore anglers", "x": 0.66, "y": 0.5, "w": 900, "max": 62,
+           "bars": [{"label": "2013", "value": 6, "at": "six"}, {"label": "2019", "value": 59, "at": "59", "hot": True}]}], cut="At Algoa"),
+    shot(MAP(SOUTH_AFRICA, pins=[pin(GANSBAAI, 0.1, pulse=False), pin(ALGOA, 0.1, pulse=False)],
+             flows=[{"from": [19.4, -34.9], "to": [25.9, -34.2], "via": [[21.0, -35.2], [23.5, -34.7]], "at": 0.3, "d": 5.5, "n": 34, "spread": 22}]), [],
+         mcam((0, (21.0, -33.8), 150, 60, 0), (1, (23.8, -33.8), 150, 54, 4)),
+         [line("moved", "Moved east, away from the orcas", "east")], cut="To that team"),
+])
+
+P(3, shot(COAST, [gw("a", 4.2, across(-6, -14, -9, -22, 12, 0.3), lo=True)],
+          cam((0, [0, -6, 13], [2, -6.3, 0], {"fov": 42}), (1, [4, -5.6, 11], [8, -6, -3], {"fov": 42})),
+          [{"type": "dim", "at": 0.0, "to": 0.3},
+           stamp("2024", "2024", "Another group pushes back", y=820),
+           {"type": "timeline", "at": "sightings-0.5", "from": 2008, "to": 2020, "every": 2, "y": 0.66, "w": 1400, "title": "Great white sightings in False Bay",
+            "spans": [{"from": 2012, "to": 2015, "label": "about three years", "at": "three"}],
+            "marks": [{"year": 2012, "label": "Sightings start to fall", "at": "falling-0.4", "hot": True}, {"year": 2015, "label": "Port and Starboard first seen hunting here", "at": "before", "up": False}]}]))
+
+P(5, [
+    shot(MAP([[27.5, -33.5], [34.5, -26.5]], pins=[pin(DURBAN, "people")], zones=[{"lon": 31.3, "lat": -29.6, "km": 170, "at": "province-1.2", "color": "#FB9002"}]), [],
+         mcam((0, (30.6, -30.2), 130, 62, 0), (1, (31.0, -29.9), 90, 48, -10)),
+         [line("people", "This group pointed to people", "people", out="protect"),
+          tag("protect", geo(DURBAN), "KwaZulu-Natal", "nets and baited hooks off swimming beaches", "nw")]),
+    # the net itself
+    shot({"kind": "sea", "depth": 0.25, "water": "teal", "floor": 9},
+         [gw("s", 3.4, [(0, [-13, -4, 18]), (0.7, [-1, -3.6, 5]), (1, [2.5, -3.5, 2.6])])],
+         cam((0, [-13, -4.6, 8.5], [2, -3, 0], {"fov": 42}), (1, [-9, -4, 7], [2, -3, 0], {"fov": 42})),
+         [tag(0.5, {"prop": "net", "point": "mid"}, "Shark net", "KwaZulu-Natal", "nw"),
+          {"type": "rows", "at": "Between", "title": "1978 to 2018", "side": "right", "y": 0.2, "w": 620,
+           "rows": [{"k": "Great whites caught", "v": "1,317", "at": "caught"}, {"k": "Died", "v": "1,108", "hot": True, "at": "died-0.5"}, {"k": "Each year", "v": "about 28", "at": "28"}]}],
+         props=[{"kind": "net", "id": "net", "pos": [0, 0, 0], "heading": 20, "length": 70}], cut="Shark nets"),
+    shot({"kind": "sea", "depth": 0.6},
+         [port(across(-8, -8, -3, -22, 16, 0.4), shadow=0.45), star(across(-10.4, -3, 3, -27, 11, 0.4), shadow=0.45)],
+         cam((0, [3, -9.5, 15], [-5, -9, -3], {"fov": 40}), (1, [6, -9, 17], [3, -9, 0], {"fov": 40})),
+         [{"type": "dim", "at": 0.0, "to": 0.25},
+          {"type": "versus", "at": 0.2, "y": 0.3, "size": 190, "left": {"title": "Nets and hooks · 1978 to 2018", "value": 1108, "sub": "great whites killed", "at": 0.2},
+           "right": {"title": "Orcas · since 2017", "value": 8, "sub": "great whites known killed", "hot": True, "at": "eight-0.3", "d": 0.6}}], cut="Orcas, by"),
+])
+
+P(4, [
+    shot({"kind": "surface", "sky": "overcast", "swell": 0.45}, [],
+         cam((0, [-20, 2.6, 24], [0, 1, 0], {"fov": 34}), (1, [-10, 2.0, 20], [2, 1, 0], {"fov": 34})),
+         [line("add", "Fishing boats add to the pressure", "pressure")],
+         props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "heading": 30, "length": 14, "color": "#c7d0d6"}]),
+    shot({"kind": "sea", "depth": 0.3},
+         [gw("s", 4.0, [(0, [-16, -6, 9]), (1, [6, -4.6, 3])]), bw("a", 2.4, across(-4.5, -6, -4, 14, -12, 0.2, -1), lo=True)],
+         cam((0, [-11, -4.6, 12], [2, -3, 0], {"fov": 42}), (1, [-6, -4, 10], [3, -3, 0], {"fov": 42})),
+         [tag("lines", {"prop": "line", "point": "mid"}, "Longline", "hooks that catch great whites too", "ne")],
+         props=[{"kind": "longline", "id": "line", "pos": [0, -1.2, 0], "heading": 15, "length": 90}], cut="They take"),
+    # how few there are
+    shot({"kind": "sea", "depth": 0.5}, [],
+         cam((0, [0, -6, 12], [4, -6.4, 0], {"fov": 42}), (1, [5, -5.6, 9], [12, -6, -4], {"fov": 42})),
+         [{"type": "dim", "at": 0.0, "to": 0.25},
+          {"type": "dots", "at": 0.15, "n": 800, "cols": 50, "size": 13, "gap": 7, "x": 0.5, "y": 0.2, "title": "South Africa's great whites", "sub": "a few hundred to about a thousand", "from": 800,
+           "lit": [{"at": "losing", "to": 560, "d": 3.2}], "readout": "left"}], cut="South Africa's"),
+])
+
+P(4, shot(AIR,
+          [gw(f"g{i}", 3.9 + 0.2 * (i % 3), [(0, [-6 + 6 * (i % 3), -3.8 - 0.3 * i, -8 + 8 * (i // 3)]), (0.45, [-1 + 6 * (i % 3), -3.8 - 0.3 * i, -5 + 8 * (i // 3)]), (1, [46, -3.8 - 0.3 * i, -20 + 20 * (i // 3) + 6 * (i % 3)])], lo=True) for i in range(6)]
+          + [port([(0, [-46, -3, 4]), (0.5, [-16, -3, 2]), (1, [10, -3, -1])]), star([(0, [-50, -3.6, -5]), (0.5, [-20, -3.6, -6]), (1, [5, -3.6, -8])])],
+          cam((0, [2, 36, 0.5], [2, 0, 0], {"fov": 40}), (1, [6, 32, 0.5], [6, 0, 0], {"fov": 40})),
+          [{"type": "dim", "at": 0.0, "to": 0.25},
+           {"type": "title", "at": 0.2, "size": 150, "v": "top", "pad": 150, "lines": ["Who is right?"], "out": "both"},
+           {"type": "versus", "at": "both", "y": 0.3, "size": 110, "left": {"title": "the orcas", "value": "Sudden exits", "sub": "a busy bay quiet within days", "hot": True, "at": "sudden-0.3"},
+            "right": {"title": "nets and fishing", "value": "Fewer sharks", "sub": "left to come back", "at": "Years"}}]))
 
 # ====================================================================================== 10. OTHER OCEANS
-S(1, tpl("Globe", **{"from": [19.3, -34.6]}, to=[-111.5, 26.5], zoomFrom=1.0, zoomTo=2.0, marker={"label": "Gulf of California", "at": "other"}),
-  chapter="Other Oceans", mood="wonder")
-S(1, aerial(gw(0.56, 0.5, 0.5, view="top", to=[0.7, 0.5]), orca(0.24, 0.34, 1.1, view="top", to=[0.44, 0.4]), orca(0.2, 0.66, 1.1, view="top", to=[0.42, 0.6]),
-            orca(0.88, 0.24, 1.0, view="top", to=[0.78, 0.36]), orca(0.9, 0.78, 0.95, view="top", to=[0.8, 0.64]), tone="open",
-            heading="Moctezuma's pod", kicker="GULF OF CALIFORNIA", stats=[{"label": "Filmed", "value": "August 2020"}, {"label": "Again", "value": "August 2022"}],
-            statsAt="August", source=RECON))
-S(1, sea(orca(0.36, 0.62, 1.4, to=[0.46, 0.5], rotate=-14), gw(0.56, 0.3, 0.7, view="upside", idle=False, to=[0.58, 0.2]),
-         depth=0.15, surface=True, callout="Pushed to the surface and rolled onto its back", calloutAt="roll", source=RECON))
-S(1, sea(gw(0.5, 0.46, 1.6, view="upside", idle=False), depth=0.2, surface=True, zoom=[1.0, 1.08],
-         title="Tonic immobility", titleAt="tonic", callout="Held upside down, a shark goes limp", calloutAt="limp"))
-S(1, sea(gw(0.56, 0.3, 0.8, view="upside", idle=False), orca(0.3, 0.58, 1.4, to=[0.4, 0.52], rotate=-12), orca(0.9, 0.66, 1.2, to=[0.78, 0.56], flip=True),
-         depth=0.2, surface=True, callout="While it lies still, the orcas take the liver", calloutAt="liver", source=RECON))
-S(1, sea(orca(0.28, 0.5, 1.5), gw(0.76, 0.56, 0.5, flip=True, keepFacing=True, label={"text": "Young great white", "at": "young"}), depth=0.35,
-         callout="Every shark in those hunts was young", calloutAt="young"))
-S(2, tpl("Statement", backdrop="ocean", kicker2="Salvador Jorgensen, biologist", line1="Young sharks may simply have", line2="no experience of orcas yet",
-         footnote="He led the Farallon study"))
-S(1, [tpl("Globe", **{"from": [-111.5, 26.5]}, to=[141.6, -38.35], zoomFrom=1.2, zoomTo=2.2, marker={"label": "Portland, Victoria", "note": "Australia", "at": 0.6}),
-      beach(gw(0.5, 0.74, 1.6, view="beached"), sky="day", kicker="OCTOBER 2023", heading="Near Portland, Victoria",
-            scaleBar={"x1": 0.22, "x2": 0.78, "y": 0.9, "label": "4.7 metres", "at": 0.5})])
-S(2, beach(gw(0.5, 0.72, 1.9, view="beached"), sky="day", zoom=[1.05, 1.2], heading="Its liver was gone",
-           callout="Orca DNA in the biggest bite wound", calloutAt="DNA"))
-S(1, tpl("DateStamp", date="2026", place="South Africa", at=0.2))
+P(5, [
+    shot(GLOBE(pins=[pin(GANSBAAI, 0.0, pulse=False), pin(GULF_CAL, "Gulf")], routes=[{"points": [list(GANSBAAI), [-40, 0], [-90, 22], list(GULF_CAL)], "at": 0.3, "d": 2.6, "arc": 5}]), [],
+         mcam((0, (0, -15), 100, 90, 0), (1, (-106, 25), 76, 90, 0)),
+         [chapter(9, "Other oceans"),
+          tag("Gulf+0.3", geo(GULF_CAL, 3), "Gulf of California", "Moctezuma's pod · 2020 and 2022", "ne")]),
+    # up to the surface and over
+    shot({"kind": "sea", "depth": 0.15},
+         [gw("s", 2.4, [(0, [-7, -5, 1]), (0.5, [0, -1.6, 1.2]), (1, [4, -0.9, 1.0])], turn=[{"at": "roll-0.2", "d": 1.6, "roll": 180, "limp": True}]),
+          orca("o", [(0, [-13, -7, 0]), (0.5, [-4, -3.2, 0.6]), (1, [0.5, -2.4, 0.8])], 6.6), orca("p", across(-5, -8, -5, -20, 6, 0.6), 6.0)],
+         follow("s", [4, -0.8, 9], [1.5, -1.6, 6.5]),
+         [line("push", "Pushed to the surface and rolled onto its back", "rolled")], cut="Those orcas"),
+    shot({"kind": "sea", "depth": 0.15},
+         [gw("s", 2.4, pos=[0, -1.0, 0], heading=10, roll=180, pose="limp", xray={"at": "liver-0.6", "d": 0.6}, parts={"liver": {"at": "liver-0.6", "out": "liver+0.2"}}),
+          orca("o", [(0, [-6.5, -2.6, -1.2]), (1, [-4.8, -2.3, -0.6])], 6.6)],
+         cam((0, [2.6, -2.2, 5.2], [0, -1.0, 0], {"fov": 38}), (1, [1.2, -1.8, 4.0], [0, -1.0, 0], {"fov": 38})),
+         [tag("limp", at("s", "belly"), "Tonic immobility", "upside down, the shark goes limp", "ne", len=170)], cut="A shark held"),
+])
+
+P(3, shot(SEA,
+          [gw("s", 2.3, across(-4.6, 0.5, 1.5, -8, 8, 0.2)), orca("o", across(-7.2, -7, -4, -22, 6, 0.5), 6.8, shadow=0.45)],
+          follow("s", [3.5, 0.3, 7.5], [-0.5, 0.8, 6]),
+          [tag("young", at("s", "dorsal"), "Young great white", None, "ne"),
+           line("experience", "Young sharks may have no experience of orcas yet", "no experience")]))
+
+P(3, [
+    shot(GLOBE(pins=[pin(PORTLAND, "Portland-0.5")]), [],
+         mcam((0, (120, -20), 96, 90, 0), (1, (140, -35), 70, 90, 0)),
+         [stamp("Australia", "October 2023", "Portland, Victoria · Australia"),
+          tag("Portland", geo(PORTLAND, 3), "Portland", None, "nw")]),
+    shot({"kind": "beach", "sky": "day", "sun": [0.4, 0.7, 0.55]}, [carcass("x", 0, 2.5, 4.7, 10)],
+         cam((0, [4.8, 0.6, 7], [0.4, 0.4, 2.5], {"fov": 34}), (1, [-1.5, 1.2, 8], [0.2, 0.35, 2.5], {"fov": 34})),
+         [tape(0.2, 0, 2.5, 4.7, 10, size=70),
+          tag("gone", at("x", "flank"), "Liver", "gone", "nw"),
+          note("DNA-0.2", at("x", "chest"), "Orca DNA in the bite wound", dy=-150, size=26)], cut="Its liver"),
+])
+
+P(1, shot(GLOBE(pins=[pin(GANSBAAI, "news-0.6")]), [],
+          mcam((0, (120, -32), 84, 90, 0), (1, (24, -31), 70, 90, 0)),
+          [{"type": "title", "at": "2026-0.2", "size": 250, "v": "bottom", "pad": 130, "align": "left", "lines": [{"text": "2026", "accent": True}], "sub": "news from South Africa"}]))
 
 # ====================================================================================== 11. THE RETURN
-YOUNG = sea(gw(-0.1, 0.56, 0.75, to=[0.5, 0.5]), A("fishSchool", 0.8, 0.3, 0.5, to=[0.7, 0.26]), depth=0.2, surface=True, rays=True,
-            kicker="23 SEPTEMBER 2026", heading="Just north of Seal Island", callout="A young great white, filmed from a tour boat", calloutAt="filmed", source=RECON)
-S(1, clip("great white shark False Bay September 2026", YOUNG), chapter="The Return", mood="calm")
-S(1, sea(gw(0.3, 0.5, 1.2, view="three_quarter", to=[0.5, 0.5]), depth=0.2, surface=True, rays=True,
-         hud={"label": "The first seen there in", "value": "≈ 8 years"}))
-S(1, sea(gw(0.1, 0.8, 0.7, to=[0.4, 0.5]), gw(0.9, 0.86, 0.8, to=[0.64, 0.58], at="two"), depth=0.2, surface=True, rays=True,
-         kicker="3 NOVEMBER 2026", heading="Off Gansbaai", callout="Two great whites at a cage-diving boat", calloutAt="two"))
-S(1, sea(gw(0.36, 0.48, 0.8, to=[0.46, 0.46]), gw(0.7, 0.6, 0.9, to=[0.6, 0.58]), depth=0.2, surface=True, rays=True,
-         hud={"label": "The company's first in", "value": "Over a year"}))
-S(2, tpl("Statement", backdrop="ocean", kicker2="The people who saw them", line1="A few sharks", line2="are a hopeful sign"))
-S(1, sea(gw(0.6, 0.5, 0.6, to=[0.9, 0.46]), depth=0.3, callout="Too early to call it a return", calloutAt="early"))
-S(1, sea(port(0.24, 0.42, 1.5, view="three_quarter", to=[0.32, 0.42], label={"text": "Port", "at": "Port"}),
-         star(0.66, 0.68, 1.5, view="three_quarter", to=[0.74, 0.68], label={"text": "Starboard", "at": "Starboard"}), depth=0.35,
-         heading="Still on this coast"))
-S(1, aerial(port(0.4, 0.4, 1.1, view="top", to=[0.1, 0.2]), star(0.6, 0.6, 1.1, view="top", to=[0.92, 0.82]),
-            kicker="EARLY 2026", heading="Around the Cape", callout="Sometimes swimming apart", calloutAt="apart"))
-S(1, sea(port(0.3, 0.42, 1.5, to=[0.36, 0.42]), star(0.66, 0.66, 1.5, to=[0.72, 0.66]), gw(1.2, 0.84, 0.6, to=[0.9, 0.86], opacity=0.8),
-         depth=0.45, title="Did two orcas empty a great white shark coast?", titleAt=0.3))
-S(1, tpl("MapScene", bbox=SOUTH_COAST, countryLabels=[{"name": "South Africa", "lon": 21.0, "lat": -33.35}],
-         pulses=[{"lon": 19.35, "lat": -34.58, "label": "Gansbaai: yes", "at": "Gansbaai"}, {"lon": 22.13, "lat": -34.18, "label": "Mossel Bay: yes", "at": "Mossel"}],
-         title="They did", subtitle="More than once, on camera"))
-S(2, sea(gw(0.76, 0.6, 0.9, to=[0.66, 0.6]), depth=0.3, surface=True, net={"x0": 0.05, "x1": 0.5, "top": 0.05, "bottom": 0.82},
-         longline={"y": 0.12, "hooks": 8, "at": "lines"}, heading="Across the wider coast", callout="Nets and lines came long before the orcas", calloutAt="long"))
-S(3, sea(gw(0.3, 0.56, 0.55, to=[0.44, 0.54], label={"text": "Born knowing, or learned?", "at": "born"}),
-         orca(0.95, 0.4, 1.6, silhouette="#050b10", opacity=0.5, blur=4, to=[0.86, 0.4]), depth=0.45, zoom=[1.0, 1.1],
-         title="One question is still open", titleAt=0.3))
-S(3, sea(port(0.1, 0.4, 1.3, to=[0.42, 0.4]), star(0.0, 0.64, 1.3, to=[0.32, 0.64]), gw(0.9, 0.8, 0.7, to=[0.66, 0.8]), depth=0.35, rays=True,
-         title="What do you think?", titleAt=0.2, callout="Tell us in the comments · Subscribe for more", calloutAt="comments"))
+P(4, [
+    shot({"kind": "surface", "sky": "day", "swell": 0.3},
+         [gw("s", 2.6, [(0, [-16, -0.52, 10]), (0.5, [-2, -0.5, 7]), (1, [12, -0.52, 9])])],
+         cam((0, [-10, 1.9, 17], [0, 0.8, 2], {"fov": 34}), (1, [-5, 1.6, 14], [2, 0.8, 2], {"fov": 34})),
+         [chapter(10, "The return"),
+          stamp("twenty-third", "23 September 2026", "Seal Island · False Bay"),
+          tag("young", at("s", "dorsal"), "A young great white", None, "ne")],
+         props=[{"kind": "boat", "id": "boat", "pos": [2, 0, 0], "heading": 14},
+                {"kind": "island", "id": "isle", "pos": [-20, 0, -180], "radius": 55, "height": 4, "stretch": 2.6}]),
+    shot({"kind": "sea", "depth": 0.2, "water": "green"},
+         [gw("s", 2.6, [(0, [-12, -3, -4]), (0.6, [-1, -2.6, 4]), (1, [4, -2.8, 10])])],
+         cam((0, [3, -3.4, 11], [-4, -2.8, 0], {"fov": 40}), (1, [5, -3.2, 12], [0, -2.7, 4], {"fov": 40})),
+         [line("first", "The first seen there in about eight years", "eight years")],
+         props=[{"kind": "boat", "id": "boat", "pos": [-2, 0, -3], "heading": 14}], cut="The crew"),
+    shot({"kind": "sea", "depth": 0.2, "water": "teal"},
+         [gw("a", 3.8, [(0, [-14, -2.8, 9]), (0.6, [-1.5, -1.9, 5.5]), (1, [9, -2.4, 8])]), gw("b", 3.3, [(0, [15, -4, 11]), (0.6, [4, -3, 7]), (1, [-8, -3.4, 9.5])])],
+         cam((0, [5.5, -4.4, 13.5], [-1.3, -0.9, 2.6], {"fov": 40}), (1, [2.6, -3.5, 10.5], [-1.3, -0.9, 2.6], {"fov": 40})),
+         [stamp("third", "3 November 2026", "Off Gansbaai", out="first-0.4"),
+          line("year", "The first in more than a year", "more than a year")],
+         props=[{"kind": "boat", "id": "boat", "pos": [0, 0, 0], "cage": True}], cut="Six weeks"),
+], mood="hope")
 
-assert _pos == len(SENT), f"{len(SENT) - _pos} sentence(s) of the script have no shot yet"
+P(5, [
+    shot(COAST, [gw("a", 3.8, across(-5.5, -1, 2, -13, 10, 0.3)), gw("b", 3.3, across(-7, -6, -3, -18, 7, 0.3))],
+         follow("a", [4, 0.3, 10], [-2, 0.8, 7.5]),
+         [line("hopeful", "A few sharks are a hopeful sign", "hopeful", out="early"),
+          line("early", "Too early to call it a return", "too early")]),
+    shot(MAP([[17.0, -35.6], [20.6, -33.2]],
+             routes=[{"points": [[17.6, -34.6], [18.2, -34.75], [18.75, -34.6], [18.9, -34.3]], "at": "reported-0.3", "d": 2.4, "color": "#FDE302"},
+                     {"points": [[17.5, -34.3], [18.0, -34.9], [19.0, -35.1], [20.0, -34.95]], "at": "reported", "d": 2.6, "color": "#FB9002"}]), [],
+         mcam((0, (18.7, -34.5), 110, 62, 0), (1, (18.9, -34.6), 92, 52, 6)),
+         [stamp("still", "Early 2026", "Around the Cape"),
+          tag("reported+0.8", geo((18.9, -34.3), 4), "Port", None, "ne"), tag("reported+1.1", geo((20.0, -34.95), 4), "Starboard", None, "se"),
+          line("apart", "Sometimes swimming apart", "apart")], cut="Port and"),
+])
 
+P(4, [
+    shot(SEA,
+         [port([(0, [-22, -3.4, -9]), (1, [20, -2.8, -1])]), star([(0, [-27, -4.6, -3]), (1, [15, -4.2, 4])])],
+         cam((0, [0, -9.5, 13], [-4, -3.5, -3], {"fov": 42}), (1, [2, -9, 12], [6, -3.2, 0], {"fov": 42})),
+         [{"type": "dim", "at": 0.0, "to": 0.3},
+          {"type": "title", "at": 0.2, "size": 112, "lines": ["Did two orcas empty", {"text": "a great white shark coast?", "accent": True}]}]),
+    shot(MAP(CAPE, pins=[pin(GANSBAAI, 0.2), pin(MOSSEL, 0.5)], zones=[{"lon": GANSBAAI[0], "lat": GANSBAAI[1] - 0.1, "km": 26, "at": 0.3}, {"lon": MOSSEL[0], "lat": MOSSEL[1] - 0.1, "km": 26, "at": 0.6}]), [],
+         mcam((0, (20.6, -34.5), 150, 62, 0), (1, (20.8, -34.5), 130, 54, 0)),
+         [tag(0.4, geo(GANSBAAI), "Gansbaai", "they did", "nw"), tag(0.7, geo(MOSSEL), "Mossel Bay", "they did", "ne"),
+          line("cameras", "More than once, and on camera", "on camera")], cut="At Gansbaai"),
+    shot({"kind": "sea", "depth": 0.3, "water": "teal", "floor": 9},
+         [gw("s", 3.4, [(0, [-14, -4, 17]), (1, [1, -3.5, 4])])],
+         cam((0, [-12, -4.4, 9], [2, -3, 0], {"fov": 42}), (1, [-8, -4, 7.5], [2, -3, 0], {"fov": 42})),
+         [line("help", "Across the wider coast, they had help", "help")],
+         props=[{"kind": "net", "id": "net", "pos": [0, 0, 0], "heading": 20, "length": 70}], cut="Across"),
+])
 
-# ====================================================================================== real b-roll
-# The script's own cues ask for footage of the actual events, which no free library holds. So that the video still
-# carries real pictures, these lines get real photos or clips of the animal or the place the sentence is about
-# (never of a different event). Every library is searched (iNaturalist, Unsplash, Pexels, Pixabay, Openverse,
-# Wikimedia Commons, NASA); only licences that allow commercial use pass; each find is checked against `shows`.
-# A line whose search finds nothing keeps its 3D shot (the list of finds is pruned after the collection run).
-import copy  # noqa: E402
+P(6, [
+    shot(SEA, [gw("s", 2.5, across(-5, 0, 2, -10, 9, 0.3)), orca("o", across(-9.5, -20, -15, -34, 8, 0.4), 6.8, shadow=0.8)],
+         follow("s", [4, 0.3, 8.5], [-1.5, 0.8, 6.5]),
+         [line("born", "Born knowing to flee, or learned?", "learned")]),
+    # the last word
+    shot(SEA,
+         [port([(0, [-24, -4, -10]), (1, [22, -3.2, -2])]), star([(0, [-30, -5.4, -4]), (1, [16, -4.8, 4])]), gw("s", 4.2, across(-8, 8, 6, 16, -16, 0.3, -1), lo=True)],
+         cam((0, [0, -9.5, 14], [-3, -4, -3], {"fov": 42}), (1, [2, -9.2, 13], [5, -3.6, 0], {"fov": 42})),
+         [{"type": "dim", "at": 0.0, "to": 0.32},
+          {"type": "title", "at": 0.15, "size": 150, "lines": ["What do you think?"], "sub": "Tell us in the comments", "out": "more-0.4"},
+          {"type": "title", "at": "more-0.3", "size": 150, "kicker": "more stories like this", "lines": [{"text": "Beast Atlas", "accent": True}], "sub": "Subscribe"}],
+         cut="What do", exit="fade"),
+], mood="wonder")
 
+assert _pos == len(SENT), f"{len(SENT) - _pos} sentences of the script have no shot"
 
-def real(words, shows, fallback, first="video", **look):
-    """look: how the photo is framed (focus: [x, y] = the part to keep in view, zoom: [from, to], parallax: False)."""
-    ph = {"remotion": "PhotoStory", "props": {"layout": "full", "photos": [{"photo": "stock:" + words, "parallax": True, "verify": shows, **look}]},
-          "fallback_visual": fallback}
-    return ph if first == "photo" else {"stock": words, "verify": shows, "fallback_visual": ph}
-
-
-def add_real(starts, words, shows, first="video", place="before", **look):
-    sc = next(s for s in scenes if s["text"].startswith(starts))
-    vs = sc.pop("visuals", None) or [sc.pop("visual")]
-    r = real(words, shows, copy.deepcopy(vs[0] if place == "before" else vs[-1]), first, **look)
-    sc["visuals"] = [r] + vs if place == "before" else vs + [r]
-
-
-def widen(starts, more_words, photo_words=None, photo_shows=None):
-    """One of the script's own cues: more search words after the script's, and a photo when no clip is found."""
-    sc = next(s for s in scenes if s["text"].startswith(starts))
-    for v in sc.get("visuals") or [sc["visual"]]:
-        if "stock" in v:
-            v["stock"] += "|" + more_words
-            if photo_words:
-                v["fallback_visual"] = real(photo_words, photo_shows or v["verify"], v["fallback_visual"], first="photo")
-        elif v.get("remotion") == "PhotoStory":
-            v["props"]["photos"][0]["photo"] += "|" + more_words
-
-
-# Looked at on the review sheet of collection run #9 (27 November 2026). Kept: the eight below. Turned down and
-# removed: a cliff coast with no seals (for the seal colony), a snorkeller (for cage diving), Cape Town harbour (for
-# Mossel Bay), a drone photo of a swimming shark (for the breach), a swim-zone buoy line (for the shark nets), a Shark Spotters flag that is mostly a clothing brand's logo; nothing
-# was found for Gansbaai town or for a great white swimming.
-add_real("Sevengills are smaller sharks", "broadnose sevengill shark|sevengill shark|Notorynchus cepedianus",
-         "a sevengill shark swimming underwater", first="photo")
-add_real("Orcas learn from one another", "orca pod|killer whales swimming|orcas swimming", "a pod of orcas swimming together")
-add_real("In years when orcas visited", "northern elephant seal|elephant seals beach California|elephant seal",
-         "elephant seals lying on a beach", first="photo", parallax=False, focus=[0.6, 0.45], zoom=[1.0, 1.05])
-add_real("At Gansbaai, a smaller shark called the bronze whaler", "bronze whaler shark|copper shark|Carcharhinus brachyurus",
-         "a bronze whaler shark swimming underwater", first="photo", place="after")
-add_real("In False Bay the change went further.", "Seal Island False Bay|False Bay Cape Town|False Bay aerial",
-         "False Bay near Cape Town: the sea with its coast or an island", first="photo", place="after")
-add_real("Reported sightings of Cape fur seals", "Cape fur seals swimming|Cape fur seal|fur seals swimming underwater",
-         "Cape fur seals in the water or on rocks")
-add_real("Fishing boats that target smaller sharks", "longline fishing boat|commercial fishing boat at sea|fishing trawler",
-         "a commercial fishing boat at sea")
-add_real("Orcas in other oceans have learned the same hunt.", "killer whales ocean|orca pod aerial|orcas",
-         "orcas swimming in the open sea", place="after")
-# Only these reviewed items may be used: a render can never bring in a picture or clip that was not looked at.
-APPROVED = [
-    "inaturalist-599687346",                              # sevengill shark underwater · Luca Davenport-Thomas · CC BY 4.0
-    "inaturalist-245792457",                              # northern elephant seal · Nicole · CC BY 4.0
-    "unsplash-iyVSCp0ZUj0",                               # wild orca pod at the surface · Mike Doherty · Unsplash
-    "inaturalist-592508768",                              # bronze whaler from a drone · Bryce Watts-Parker · CC BY 4.0
-    "pixabay-p7015038",                                   # fishing harbour in False Bay · jeanvdmeulen · Pixabay
-    "pixabay-v261267",                                    # Cape fur seals in the surf · MountainDweller · Pixabay
-    "pixabay-v6412",                                      # a fishing boat · Life-Of-Vids · Pixabay
-    "unsplash-qM9tSt_5orU",                               # two wild orcas · Vidar Nordli-Mathisen · Unsplash
-]
+# ------------------------------------------------------------------------------------------ checks
+def _norm(w):
+    return re.sub(r"[^\w]", "", w.lower())
 
 
-# ------------------------------------------------------------------------------------------ checks + write
+def _has(phrase, text):
+    phrase = re.sub(r"(#\d+)?([+-]\d+(\.\d+)?)?$", "", phrase)
+    toks, want = [_norm(w) for w in text.split()], [_norm(w) for w in phrase.split() if _norm(w)]
+    return any(all(toks[i + j] == want[j] or (j == len(want) - 1 and toks[i + j].startswith(want[j])) for j in range(len(want)))
+               for i in range(len(toks) - len(want) + 1))
+
+
 def _cue_words(node, text, where):
     if isinstance(node, dict):
         for k, v in node.items():
-            if (k == "at" or k.endswith("At")) and k != "lookAt" and isinstance(v, str):
-                phrase = re.sub(r"(#\d+)?([+-]\d+(\.\d+)?)?$", "", v)
-                norm = lambda w: re.sub(r"[^\w]", "", w.lower())                 # noqa: E731
-                toks, want = [norm(w) for w in text.split()], [norm(w) for w in phrase.split()]
-                ok = any(all(toks[i + j] == want[j] or (j == len(want) - 1 and toks[i + j].startswith(want[j])) for j in range(len(want)))
-                         for i in range(len(toks) - len(want) + 1))
-                if not ok:
-                    raise SystemExit(f"{where}: cue word {v!r} is not in the line: {text}")
+            if k in ("at", "out", "cut") and isinstance(v, str):
+                if not _has(v, text):
+                    raise SystemExit(f"{where}: the word {v!r} is not in the passage: {text}")
             else:
                 _cue_words(v, text, where)
     elif isinstance(node, list):
@@ -618,8 +1061,8 @@ def _cue_words(node, text, where):
             _cue_words(v, text, where)
 
 
-for i, sc in enumerate(scenes):
-    _cue_words({k: v for k, v in sc.items() if k != "text"}, sc["text"], f"scene {i + 1}")
+for _i, _sc in enumerate(scenes):
+    _cue_words({k: v for k, v in _sc.items() if k != "text"}, _sc["text"], f"passage {_i + 1}")
 
 # ------------------------------------------------------------------------------------------------ thumbnail
 # Real photos, cut out and turned black and white (thumbnail/), on black, with two to four huge words: the look
@@ -656,6 +1099,9 @@ THUMBNAIL = {
     ],
 }
 
+# ------------------------------------------------------------------------------------------ write
+SAMPLE = int(os.environ.get("ORCA_SAMPLE", "0"))        # only the first N scenes (a sample of the look and the voice)
+OUT = Path(os.environ.get("ORCA_OUT", HERE))
 doc = {
     "preset": "ocean",
     "title": script.title,
@@ -668,13 +1114,14 @@ doc = {
     "sources": script.sources,
     "thumbnail": THUMBNAIL,
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
-    # max_pause: no gap inside the voice longer than this. padding: the gap after each scene (about 0.2 s between
-    # sentences with the voice trimmed tight). Both can be changed without recording anything again.
-    "settings": {"stock_approved": APPROVED, "padding": 0.06, "voice": {"max_pause": 0.10}},
-    "scenes": scenes,
+    # The voice tells each passage in one go (voice.delivery: told): a natural rise and fall inside sentences, the same
+    # register, pace and loudness throughout. padding: the breath between two passages.
+    "settings": {"padding": 0.55, "voice": {"delivery": "told"}},
+    "scenes": scenes[:SAMPLE] if SAMPLE else scenes,
 }
-head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'
-        '# Written by direct.py from script.txt (the narration is the script, sentence for sentence). Change the shots in\n'
+head = ('# The Two Orcas That Emptied a Great White Shark Coast.\n'
+        '# Written by direct.py from script.txt (the narration is the script, word for word). Change the shots in\n'
         '# direct.py and run it again; this file is what gets rendered.\n')
-(HERE / "script.yaml").write_text(head + yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, width=130), encoding="utf-8")
-print(f"{len(scenes)} scenes, {sum(len(s['text'].split()) for s in scenes)} words → {HERE / 'script.yaml'}")
+OUT.mkdir(parents=True, exist_ok=True)
+(OUT / "script.yaml").write_text(head + yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, width=130), encoding="utf-8")
+print(f"{len(doc['scenes'])} scenes, {sum(len(s['text'].split()) for s in doc['scenes'])} words → {OUT / 'script.yaml'}")

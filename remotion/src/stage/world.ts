@@ -34,7 +34,7 @@ float ytFbm(vec2 p) { float a = 0.5; float s = 0.0; for (int i = 0; i < 4; i++) 
 `;
 
 export type EnvSpec = {
-  kind?: 'sea' | 'surface' | 'beach' | 'studio' | 'aerial';
+  kind?: 'sea' | 'surface' | 'beach' | 'studio' | 'aerial' | 'map' | 'globe';
   /** sea: 0 = just under the surface, bright · 1 = deep and dark */
   depth?: number;
   /** water colour: blue (open sea) · green (cold coastal water) · teal */
@@ -257,8 +257,10 @@ export const buildSea = (spec: EnvSpec): Env => {
     const rockGeo = new THREE.IcosahedronGeometry(1, 2);
     const rp = rockGeo.attributes.position;
     for (let i = 0; i < rp.count; i++) {
-      const k = 1 + 0.28 * (rnd(i * 9.1) - 0.5) + 0.2 * Math.sin(rp.getX(i) * 3.1 + rp.getZ(i) * 2.3);
-      rp.setXYZ(i, rp.getX(i) * k, rp.getY(i) * k * 0.7, rp.getZ(i) * k);
+      // every corner that shares a place moves the same way, so the rock stays one solid lump
+      const x = rp.getX(i), y0 = rp.getY(i), z = rp.getZ(i);
+      const k = 1 + 0.22 * Math.sin(x * 4.3 + z * 2.1) * Math.cos(y0 * 3.7 + x * 1.3) + 0.16 * Math.sin(x * 3.1 + z * 2.3 + y0 * 5.1);
+      rp.setXYZ(i, x * k, y0 * k * 0.7, z * k);
     }
     rockGeo.computeVertexNormals();
     const rockMat = new THREE.MeshStandardMaterial({color: col(spec.water === 'green' ? '#4a4a3c' : '#4c4a44'), roughness: 0.95});
@@ -613,9 +615,12 @@ export const buildStudio = (spec: EnvSpec): Env => {
   rim.position.set(-6, 3, -8);
   scene.add(rim);
   scene.add(new THREE.HemisphereLight(0x9fc8e6, 0x05121c, 0.9));
+  // a soft light from where the camera stands, so whatever side it looks at is never left in the dark
+  const front = new THREE.DirectionalLight(0xcfe6ff, 0.85);
+  scene.add(front);
   const {points: dust, mat: dustMat} = makeSnow(col('#9fd8ff'), 260, 24, shared, 0.55);
   scene.add(dust);
-  return {scene, shared, exposure: spec.exposure ?? 1.0, underwater: false, update: (t, cam) => { shared.uTime.value = t; dome.position.copy(cam.position); dustMat.uniforms.uCam.value.copy(cam.position); grid.position.x = Math.round(cam.position.x / 2) * 2; grid.position.z = Math.round(cam.position.z / 2) * 2; }};
+  return {scene, shared, exposure: spec.exposure ?? 1.0, underwater: false, update: (t, cam) => { shared.uTime.value = t; dome.position.copy(cam.position); front.position.copy(cam.position); dustMat.uniforms.uCam.value.copy(cam.position); grid.position.x = Math.round(cam.position.x / 2) * 2; grid.position.z = Math.round(cam.position.z / 2) * 2; }};
 };
 
 /* ------------------------------------------------------------------------------------------- from the air */

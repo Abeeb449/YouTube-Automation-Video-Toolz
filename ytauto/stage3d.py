@@ -19,7 +19,9 @@ from .utils import REPO_ROOT, YtautoError, file_fingerprint, log, run, stable_ha
 
 MODEL_DIR = REPO_ROOT / "remotion" / "public" / "models"
 # the animals that can be exported (blender/sealife.py)
-MODELS = ("greatWhite", "orca", "orcaMale", "orcaPort", "orcaStarboard", "sevengill", "bronzeWhaler", "fishBladder")
+MODELS = ("greatWhite", "orca", "orcaMale", "orcaPort", "orcaStarboard", "sevengill", "bronzeWhaler", "fishBladder",
+          # the same animals with fewer triangles, for shots with many of them at once
+          "greatWhiteLo", "sevengillLo", "bronzeWhalerLo")
 
 
 def model_files(name: str) -> tuple[Path, Path]:
@@ -38,7 +40,9 @@ def export_model(name: str, force: bool = False) -> Path:
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     tmp = MODEL_DIR / f"{name}.new.glb"
     log(f"Exporting the 3D model {name} with Blender …")
-    run([blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "export_glb.py", "--", "--creature", name, "--out", tmp])
+    lo = name.endswith("Lo")
+    run([blender, "-b", "--factory-startup", "-P", REPO_ROOT / "blender" / "export_glb.py", "--", "--creature", name[:-2] if lo else name,
+         "--out", tmp, "--levels", "1" if lo else "2", "--tex", "1024" if lo else "2048"])
     if not tmp.exists() or not tmp.with_suffix(".json").exists():
         raise YtautoError(f"Blender did not export {name}")
     tmp.with_suffix(".json").replace(meta)       # put in place whole, so a half-written model is never used

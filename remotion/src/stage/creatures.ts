@@ -39,6 +39,8 @@ export type ActorSpec = {
   /** when the whole animal appears / goes (seconds) */
   at?: number;
   out?: number;
+  /** changes of attitude during the shot (a shark rolled onto its back): degrees added from that moment on */
+  turn?: {at?: number; u?: number; d?: number; roll?: number; pitch?: number; limp?: boolean}[];
   /** a dark shape only (0..1): the animal before it is recognised */
   shadow?: number | {from: number; to: number; at?: number; u?: number; d?: number};
   bob?: number;
@@ -271,6 +273,14 @@ export class Actor {
         g.position.y += Math.sin(t * 0.5) * 0.02 * s.length;
       }
     }
+    let limp = 0;
+    for (const tr of s.turn ?? []) {
+      const k = ramp(t, keyTime(tr, this.dur, 0), tr.d ?? 1.2, 'inOut');
+      g.rotation.x += (tr.roll ?? 0) * DEG * k;
+      g.rotation.z += (tr.pitch ?? 0) * DEG * k;
+      if (tr.limp) limp = Math.max(limp, k);
+    }
+    amp *= 1 - limp;
     this.u.uPhase.value = phase;
     this.u.uAmp.value = s.pose === 'limp' || s.pose === 'still' ? 0 : amp;
     this.u.uBend.value = s.pose === 'limp' ? 0.012 : bend;

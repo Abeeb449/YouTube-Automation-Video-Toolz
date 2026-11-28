@@ -19,18 +19,24 @@ import {Actor, ActorSpec, loadModels, Loaded, ModelRef} from './creatures';
 import {Anchor, Ctx, Gfx, GfxLayer} from './gfx';
 import {clamp, ease, Key, keyTime, noise1, ramp, track, V3} from './math';
 import {buildEnv, Env, EnvSpec} from './world';
+import {buildGlobe, buildMap, GeoEnv, MapSpec} from './mapworld';
+import {buildProp, Prop, PropSpec} from './props';
 
 export type CamKey = {
   at?: number; u?: number;
   /** where the camera is; with `rel` it is measured from that animal */
-  pos: V3; rel?: string;
+  pos?: V3; rel?: string;
+  /** map and globe shots: the place looked at [lon, lat], from how far, how steeply (90 = straight down) and from which compass bearing */
+  over?: [number, number]; dist?: number; tilt?: number; bearing?: number;
   /** what it looks at: a point, or an animal's id (optionally one of its named points) */
   look?: V3 | string; point?: string;
   fov?: number; ease?: string; cut?: boolean;
 };
 
 export type Shot3DProps = BaseProps & {
-  env?: EnvSpec;
+  env?: EnvSpec & {map?: MapSpec};
+  /** things that are not animals: boat, island, net, denticles, teeth, spray, longline */
+  props?: PropSpec[];
   models?: Record<string, ModelRef>;
   cast?: ActorSpec[];
   camera?: CamKey[];
@@ -50,7 +56,7 @@ const FONTS: [string, string, string, string][] = [
   ['Anton', '400', 'normal', 'fonts/anton.woff2'],
 ];
 
-type World = {env: Env; actors: Record<string, Actor>; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer};
+type World = {env: Env; actors: Record<string, Actor>; things: Record<string, Prop>; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer};
 
 export const Shot3D: React.FC<Shot3DProps> = (props) => {
   const frame = useCurrentFrame();
@@ -71,8 +77,16 @@ export const Shot3D: React.FC<Shot3DProps> = (props) => {
       renderer.setSize(width, height, false);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      const env = buildEnv(props.env ?? {});
+      const es: any = {...(props.env ?? {}), __dur: dur, __size: props.env?.kind === 'globe' ? 0.55 : 1.6};
+      const env: Env = es.kind === 'map' ? buildMap(es) : es.kind === 'globe' ? buildGlobe(es) : buildEnv(es);
       renderer.toneMappingExposure = env.exposure;
+      renderer.localClippingEnabled = true;
+      const things: Record<string, Prop> = {};
+      for (const ps of props.props ?? []) {
+        const pr = buildProp(ps, env, dur);
+        env.scene.add(pr.group);
+        things[ps.id] = pr;
+      }
       const loaded: Record<string, Loaded> = await loadModels(props.models ?? {}, (p) => staticFile(p));
       await fonts;
       const actors: Record<string, Actor> = {};
@@ -87,7 +101,7 @@ export const Shot3D: React.FC<Shot3DProps> = (props) => {
       if (dead) return;
       // compile every material before the first frame is asked for
       renderer.compile(env.scene, camera);
-      setWorld({env, actors, camera, renderer});
+      setWorld({env, actors, things, camera, renderer});
     })().catch((err) => { console.error(err); throw err; });
     return () => { dead = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,16 +110,25 @@ export const Shot3D: React.FC<Shot3DProps> = (props) => {
   // everything in the shot at this moment (a pure function of the frame)
   const ctx: Ctx | null = useMemo(() => {
     if (!world) return null;
-    const {env, actors, camera} = world;
+    const {env, actors, things, camera} = world;
     for (const a of Object.values(actors)) a.update(t);
-    const keysSpec = props.camera?.length ? props.camera : [{u: 0, pos: [0, -4, 16] as V3}];
+    for (const th of Object.values(things)) th.update(t);
+    const genv = env as GeoEnv;
+    const keysSpec: CamKey[] = props.camera?.length ? props.camera : [{u: 0, pos: [0, -4, 16] as V3}];
     const keys: Key<number[]>[] = keysSpec.map((k, i) => {
-      const rel = k.rel ? actors[k.rel]?.group.position : undefined;
-      const pos = [k.pos[0] + (rel?.x ?? 0), k.pos[1] + (rel?.y ?? 0), k.pos[2] + (rel?.z ?? 0)];
+      const rel = k.rel ? (actors[k.rel]?.group.position ?? things[k.rel]?.group.position) : undefined;
+      const kp = k.pos ?? [0, 0, 0];
+      let pos = [kp[0] + (rel?.x ?? 0), kp[1] + (rel?.y ?? 0), kp[2] + (rel?.z ?? 0)];
       let look: number[] = [0, pos[1], 0];
-      if (typeof k.look === 'string') {
+      if (k.over && genv.view) {
+        const v = genv.view(k.over, k.dist ?? 60, k.tilt ?? 55, k.bearing ?? 0);
+        pos = [v.pos.x, v.pos.y, v.pos.z];
+        look = [v.look.x, v.look.y, v.look.z];
+      } else if (typeof k.look === 'string') {
         const a = actors[k.look];
+        const th = things[k.look];
         if (a) { const p = k.point ? a.point(k.point) : a.group.position; look = [p.x, p.y, p.z]; }
+        else if (th) { const p = th.group.position; look = [p.x, p.y, p.z]; }
       } else if (k.look) look = k.look;
       return {t: keyTime(k, dur, (i / Math.max(1, keysSpec.length - 1)) * dur), v: [...pos, ...look, k.fov ?? 38], ease: k.ease, cut: k.cut};
     }).sort((a, b) => a.t - b.t);
@@ -126,6 +149,15 @@ export const Shot3D: React.FC<Shot3DProps> = (props) => {
       if (!a) return {x: width / 2, y: height / 2, ok: true};
       if (a.screen) return {x: a.screen[0] * width, y: a.screen[1] * height, ok: true};
       if (a.actor) { const ac = actors[a.actor]; if (!ac || !ac.group.visible) return {x: 0, y: 0, ok: false}; proj.copy(ac.point(a.point)); }
+      else if (a.prop) {
+        const th = things[a.prop];
+        if (!th) return {x: 0, y: 0, ok: false};
+        const lp = (typeof a.point === 'string' ? th.points[a.point] : a.point) ?? [0, 0, 0];
+        proj.set(lp[0], lp[1], lp[2]);
+        th.group.updateMatrixWorld(true);
+        proj.applyMatrix4(th.group.matrixWorld);
+      }
+      else if (a.geo && genv.geo) proj.copy(genv.geo(a.geo[0], a.geo[1], a.h ?? 0));
       else if (a.world) proj.set(a.world[0], a.world[1], a.world[2]);
       proj.project(camera);
       return {x: (proj.x * 0.5 + 0.5) * width, y: (-proj.y * 0.5 + 0.5) * height, ok: proj.z < 1 && proj.z > -1};

@@ -377,7 +377,10 @@ class ClipRenderer:
         props_file = out.with_suffix(".props.json")
         props_file.write_text(json.dumps(props))
         raw = out.with_suffix(".remotion.mp4")
-        cmd = ["npx", "remotion", "render", "src/index.ts", comp, str(raw), f"--props={props_file}",
+        # A live 3D shot needs nothing staged per clip (its models and fonts are part of the templates), so the
+        # templates are packed once for the whole render instead of once for every clip.
+        entry = self._bundle(rdir) if comp == "Shot3D" else "src/index.ts"
+        cmd = ["npx", "remotion", "render", entry, comp, str(raw), f"--props={props_file}",
                "--log=error", "--codec=h264", "--crf=10"]
         chrome = os.environ.get("YTAUTO_CHROME")
         if chrome:
@@ -406,6 +409,22 @@ class ClipRenderer:
         self._normalize(raw, duration, out, False, False, pre)
         raw.unlink(missing_ok=True)
         props_file.unlink(missing_ok=True)
+
+    _bundle_lock = __import__("threading").Lock()
+
+    def _bundle(self, rdir: Path) -> str:
+        """The Remotion templates packed once (kept in the project's cache, named by what is in them)."""
+        from . import stage3d
+        models = sorted(stage3d.MODEL_DIR.glob("*.glb")) if stage3d.MODEL_DIR.exists() else []
+        name = stable_hash("bundle-v1", remotion_fingerprint(), [(m.name, m.stat().st_size) for m in models])
+        out = self.cache / "remotion-bundle" / name
+        with ClipRenderer._bundle_lock:
+            if not (out / "index.html").exists():
+                shutil.rmtree(out.parent, ignore_errors=True)        # an older pack is of no use any more
+                out.parent.mkdir(parents=True, exist_ok=True)
+                log("Remotion: packing the templates once for this render")
+                run(["npx", "remotion", "bundle", "src/index.ts", f"--out-dir={out}", "--log=error"], cwd=rdir)
+        return str(out)
 
     def _publish(self, src: Path, rdir: Path) -> str:
         pub = rdir / "public" / "ytauto"
