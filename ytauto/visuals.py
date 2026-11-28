@@ -391,7 +391,7 @@ class ClipRenderer:
         if comp == "Shot3D":
             # live 3D is drawn by the browser's own 3D engine; on machines without a graphics card it runs in software.
             # The faster software mode is tried first, the one every browser build has second.
-            modes = [os.environ["YTAUTO_GL"]] if os.environ.get("YTAUTO_GL") else ["angle-egl", "swangle"]
+            modes = [os.environ["YTAUTO_GL"]] if os.environ.get("YTAUTO_GL") else list(ClipRenderer._gl_modes)
             for i, gl in enumerate(modes):
                 try:
                     run([*cmd, f"--gl={gl}", "--timeout=180000"], cwd=rdir)
@@ -399,7 +399,8 @@ class ClipRenderer:
                 except YtautoError:
                     if i == len(modes) - 1:
                         raise
-                    warn(f"3D drawing mode {gl} did not work on this machine; trying {modes[i + 1]}")
+                    warn(f"3D drawing mode {gl} did not work on this machine; using {modes[i + 1]} from here on")
+                    ClipRenderer._gl_modes = [m for m in ClipRenderer._gl_modes if m != gl] or ["swangle"]   # not tried again
         else:
             run(cmd, cwd=rdir)
         # Remotion templates fade themselves; don't double-fade.
@@ -411,6 +412,7 @@ class ClipRenderer:
         props_file.unlink(missing_ok=True)
 
     _bundle_lock = __import__("threading").Lock()
+    _gl_modes = ["angle-egl", "swangle"]
 
     def _bundle(self, rdir: Path) -> str:
         """The Remotion templates packed once (kept in the project's cache, named by what is in them)."""

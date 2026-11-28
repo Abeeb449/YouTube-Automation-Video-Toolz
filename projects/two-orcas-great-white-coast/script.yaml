@@ -2608,7 +2608,7 @@ scenes:
         at: seabed
         text: Hunts close to the seabed
         hi: seabed
-    cut: Sevengills are
+    cut: smaller-0.9
   - remotion: Shot3D
     props:
       env: *id020
@@ -3878,7 +3878,8 @@ scenes:
         - 0
         - 0
         - 0
-        wear: wear-0.2
+        wear:
+          at: wear-0.2
         wearD: 1.8
     cut: Orcas that
   - remotion: Shot3D
@@ -7994,7 +7995,7 @@ scenes:
           value: 59
           at: '59'
           hot: true
-    cut: At Algoa
+    cut: shore-1.0
   - remotion: Shot3D
     props:
       env:
@@ -8145,7 +8146,7 @@ scenes:
           pins:
           - lon: 31.03
             lat: -29.86
-            at: people
+            at: 0.3
           zones:
           - lon: 31.3
             lat: -29.6

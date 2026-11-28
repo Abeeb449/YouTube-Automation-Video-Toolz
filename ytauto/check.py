@@ -92,6 +92,8 @@ def _kind(v) -> tuple[str, list]:
             cards.append(props)
         if name == "PhotoStory" and all(str(ph.get("photo", "")).startswith("stock:") for ph in props.get("photos") or [{}]):
             return "PhotoStory(stock)", cards
+        if name == "Shot3D":              # one template, many kinds of shot: named by the place it happens in
+            return f"Shot3D({(props.get('env') or {}).get('kind', 'sea')})", cards
         if name == "OceanScene":          # one template, several different kinds of shot
             for setting in ("aerial", "beach", "split"):
                 if props.get(setting):
@@ -296,8 +298,9 @@ def check(path: Path, against: list[Path] | None = None) -> Report:
         cnt = Counter(x for k in real for x in k.split("+"))
         top, n = cnt.most_common(1)[0]
         stockish = sum(1 for k in real if all(x in ("stock", "PhotoStory(stock)", "video") for x in k.split("+")))
-        if n / len(real) > 0.5 and len(real) >= 8:
-            rep.add("WARN", "variety", f"'{top}' is {n / len(real):.0%} of all scenes. Mix in close-ups, maps, data, clippings.")
+        shots = sum(cnt.values())         # a scene can hold several shots: the share is counted over shots
+        if n / shots > 0.5 and len(real) >= 8:
+            rep.add("WARN", "variety", f"'{top}' is {n / shots:.0%} of all shots. Mix in close-ups, maps, data, clippings.")
         if stockish / len(real) > 0.7:
             rep.add("WARN", "variety", f"{stockish / len(real):.0%} of scenes are plain stock footage/photos: that reads as a "
                     "stock montage. Add scenes that show your research (ClipCard, DateStamp, maps, data, Anatomy).")

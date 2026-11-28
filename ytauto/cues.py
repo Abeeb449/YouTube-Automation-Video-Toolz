@@ -17,8 +17,43 @@ from .utils import warn
 _CUE_RE = re.compile(r"^(?P<phrase>.*?)(?:#(?P<nth>\d+))?(?P<off>[+-]\d+(?:\.\d+)?)?$")
 
 
+_ONES = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+         "eighteen nineteen").split()
+_TENS = "x x twenty thirty forty fifty sixty seventy eighty ninety".split()
+_ORD = {"first": 1, "second": 2, "third": 3, "fifth": 5, "eighth": 8, "ninth": 9, "twelfth": 12, "twentieth": 20, "thirtieth": 30}
+_SPELL = {"metres": "meters", "metre": "meter", "kilometres": "kilometers", "kilometre": "kilometer", "favourite": "favorite",
+          "colour": "color", "grey": "gray", "centre": "center", "travelled": "traveled", "harbour": "harbor", "litres": "liters"}
+
+
+def _number_words() -> dict[str, str]:
+    out: dict[str, str] = {}
+    for n in range(100):
+        word = _ONES[n] if n < 20 else _TENS[n // 10] + (_ONES[n % 10] if n % 10 else "")
+        out[word] = str(n)
+        if n:                                           # ordinals: third, sixteenth, twentythird …
+            last = _ONES[n] if n < 20 else (_ONES[n % 10] if n % 10 else _TENS[n // 10])
+            head = "" if n < 20 or not n % 10 else _TENS[n // 10]
+            o = next((k for k, v in _ORD.items() if (v == n % 10 and n > 20 and n % 10) or v == n), None)
+            if n > 20 and n % 10:
+                o = next((k for k, v in _ORD.items() if v == n % 10), None) or _ONES[n % 10] + "th"
+            elif o is None:
+                o = (last[:-1] + "ieth") if last.endswith("y") else last + "th"
+            out[head + o] = str(n)
+    out.update({"hundred": "100", "thousand": "1000", "hundredth": "100"})
+    return out
+
+
+_NUM = _number_words()
+
+
 def _norm(w: str) -> str:
-    return re.sub(r"[^\w]", "", w.lower())
+    """A word as it is compared: lower case, no punctuation; numbers and dates the same whether written out or in
+    digits ("third", "3rd" and "3"; "twenty-third" and "23rd"), British and American spellings the same."""
+    t = re.sub(r"[^\w]", "", w.lower())
+    m = re.fullmatch(r"(\d+)(st|nd|rd|th)", t)
+    if m:
+        return m.group(1)
+    return _NUM.get(t) or _SPELL.get(t, t)
 
 
 def find_word_time(cue: str, words: list) -> float | None:
@@ -37,8 +72,8 @@ def find_word_time(cue: str, words: list) -> float | None:
             hits += 1
             if hits == nth:
                 return words[i].start + off
-    # a spelled-out number cue ("twenty") when the transcript wrote it in digits ("20,000"): the first number said
-    if len(phrase) == 1 and phrase[0] in _NUMBER_WORDS:
+    # a number that was heard differently from how it is written ("five and a half" heard as "5.5"): the first number said
+    if len(phrase) == 1 and phrase[0].isdigit():
         digits = [i for i, t in enumerate(toks) if t[:1].isdigit()]
         if len(digits) >= nth:
             return words[digits[nth - 1]].start + off

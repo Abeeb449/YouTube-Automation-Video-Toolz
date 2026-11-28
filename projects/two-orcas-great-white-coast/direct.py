@@ -419,7 +419,7 @@ P(4, [
     shot(REEF, [sg("s", 2.4, across(-10.0, -1, 1, -9, 8, 0.15, 0.8))],
          follow("s", [1.5, 0.4, 4.6], [-1.2, 0.5, 3.6], fov=36),
          [tag("smaller", at("s", "gills"), "Seven gill slits", "most sharks have five", "ne"),
-          line("seabed", "Hunts close to the seabed", "seabed")], cut="Sevengills are"),
+          line("seabed", "Hunts close to the seabed", "seabed")], cut="smaller-0.9"),
     # the same reef, empty
     shot(REEF, [],
          cam((0, [-4, -9.4, 11], [0, -9.2, 0], {"fov": 44}), (1, [3, -8.9, 8], [1, -9.1, -2], {"fov": 44})),
@@ -539,7 +539,7 @@ P(5, [
     # the same teeth after years of it
     shot(STUDIO, [], cam((0, [2, 1.8, 11.5], [0, 0.4, 0], {"fov": 32}), (1, [-1.5, 1.4, 9.5], [0, 0.35, 0], {"fov": 32})),
          [tag("flat", {"prop": "teeth", "point": "row"}, "Worn flat", "by a diet of shark", "ne", len=200)],
-         props=[{"kind": "teeth", "id": "teeth", "pos": [0, 0, 0], "wear": "wear-0.2", "wearD": 1.8}], cut="Orcas that"),
+         props=[{"kind": "teeth", "id": "teeth", "pos": [0, 0, 0], "wear": {"at": "wear-0.2"}, "wearD": 1.8}], cut="Orcas that"),
     shot({"kind": "sea", "depth": 0.5},
          [port(across(-7, -8, -2, -24, 16, 0.4)), star(across(-9.4, -3, 4, -29, 11, 0.4))],
          cam((0, [4, -8, 15], [-6, -8, -2], {"fov": 40}), (1, [7, -7.6, 17], [3, -8, 2], {"fov": 40})),
@@ -862,7 +862,7 @@ P(5, [
          mcam((0, (25.7, -33.9), 96, 60, 0), (1, (25.8, -34.0), 78, 50, 8)),
          [tag(0.4, geo(ALGOA), "Algoa Bay", None, "nw"),
           {"type": "bars", "at": 0.3, "title": "Great whites caught by shore anglers", "x": 0.66, "y": 0.5, "w": 900, "max": 62,
-           "bars": [{"label": "2013", "value": 6, "at": "six"}, {"label": "2019", "value": 59, "at": "59", "hot": True}]}], cut="At Algoa"),
+           "bars": [{"label": "2013", "value": 6, "at": "six"}, {"label": "2019", "value": 59, "at": "59", "hot": True}]}], cut="shore-1.0"),
     shot(MAP(SOUTH_AFRICA, pins=[pin(GANSBAAI, 0.1, pulse=False), pin(ALGOA, 0.1, pulse=False)],
              flows=[{"from": [19.4, -34.9], "to": [25.9, -34.2], "via": [[21.0, -35.2], [23.5, -34.7]], "at": 0.3, "d": 5.5, "n": 34, "spread": 22}]), [],
          mcam((0, (21.0, -33.8), 150, 60, 0), (1, (23.8, -33.8), 150, 54, 4)),
@@ -878,7 +878,7 @@ P(3, shot(COAST, [gw("a", 4.2, across(-6, -14, -9, -22, 12, 0.3), lo=True)],
             "marks": [{"year": 2012, "label": "Sightings start to fall", "at": "falling-0.4", "hot": True}, {"year": 2015, "label": "Port and Starboard first seen hunting here", "at": "before", "up": False}]}]))
 
 P(5, [
-    shot(MAP([[27.5, -33.5], [34.5, -26.5]], pins=[pin(DURBAN, "people")], zones=[{"lon": 31.3, "lat": -29.6, "km": 170, "at": "province-1.2", "color": "#FB9002"}]), [],
+    shot(MAP([[27.5, -33.5], [34.5, -26.5]], pins=[pin(DURBAN, 0.3)], zones=[{"lon": 31.3, "lat": -29.6, "km": 170, "at": "province-1.2", "color": "#FB9002"}]), [],
          mcam((0, (30.6, -30.2), 130, 62, 0), (1, (31.0, -29.9), 90, 48, -10)),
          [line("people", "This group pointed to people", "people", out="protect"),
           tag("protect", geo(DURBAN), "KwaZulu-Natal", "nets and baited hooks off swimming beaches", "nw")]),
