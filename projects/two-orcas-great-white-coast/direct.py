@@ -17,6 +17,7 @@ from ytauto.scriptfmt import parse_script  # noqa: E402
 
 script = parse_script((HERE / "script.txt").read_text(encoding="utf-8"))
 SENT = [s for p in script.paras for s in re.split(r'(?<=[.!?])\s+(?=[A-Z"])', p.text)]
+PARA = [k for k, p in enumerate(script.paras) for _s in re.split(r'(?<=[.!?])\s+(?=[A-Z"])', p.text)]   # each sentence's paragraph
 CUES = {b.search: b for p in script.paras for b in p.broll}
 scenes: list[dict] = []
 _pos = 0
@@ -31,8 +32,10 @@ def S(n: int, visual, **extra) -> None:
     """Give the next n sentences of the script this shot (a visual, or a list of visuals that share the time)."""
     global _pos
     text = " ".join(SENT[_pos:_pos + n])
+    para = PARA[_pos]
     _pos += n
     sc = {**{k: v for k, v in extra.items() if k == "chapter"}, **{k: v for k, v in extra.items() if k == "mood"}, "text": text}
+    sc["para"] = para          # scenes of one script paragraph are narrated in one breath
     sc["visuals" if isinstance(visual, list) else "visual"] = visual
     sc.update({k: v for k, v in extra.items() if k not in ("chapter", "mood")})
     scenes.append(sc)
@@ -630,8 +633,7 @@ doc = {
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
     # max_pause: no gap inside the voice longer than this. padding: the gap after each scene (about 0.2 s between
     # sentences with the voice trimmed tight). Both can be changed without recording anything again.
-    # tempo: 0.9 = the narrator reads 10 % slower (calmer), pitch unchanged.
-    "settings": {"stock_approved": APPROVED, "padding": 0.12, "voice": {"max_pause": 0.12, "tempo": 0.9}},
+    "settings": {"stock_approved": APPROVED, "padding": 0.08, "voice": {"max_pause": 0.15}},
     "scenes": scenes,
 }
 head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'

@@ -225,13 +225,19 @@ def narrate(project: Project, pack: bool = False) -> list:
         log(f"   narrator: {st['voice'].get('instruct')}")
     voice_cache = project.cache_dir / "tts"
     restore_narration(project)
+    # One narrator, one sitting: the clip every line is recorded against (made once from the script's mood), and
+    # the scenes of each paragraph recorded in one breath (ytauto/passages.py).
+    from . import passages
+    passages.ensure_anchor(project)
+    inputs = [narration_inputs(scene.text, {**st["voice"], **(scene.voice or {})}, st) for scene in project.scenes]
+    passages.record_passages(project, inputs, voice_cache)
 
-    def do_audio(scene):
-        text, voice, sst = narration_inputs(scene.text, {**st["voice"], **(scene.voice or {})}, st)
+    def do_audio(pair):
+        scene, (text, voice, sst) = pair
         return build_scene_audio(text, voice, voice_cache, sst, scene.duration)
 
     with ThreadPoolExecutor(max_workers=4) as ex:
-        audios = list(ex.map(do_audio, project.scenes))
+        audios = list(ex.map(do_audio, zip(project.scenes, inputs)))
     shutdown_workers()  # release voice-model memory before rendering
     if pack:
         out = project.root / NARRATION_DIR

@@ -98,6 +98,8 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
         anchor = steady_anchor(voice)
         if anchor and not voice.get("reference"):
             voice.update(reference=anchor["reference"], ref_text=anchor["text"], pitch_hz=anchor["pitch_hz"])
+            if anchor["pace"]:
+                voice["pace"] = anchor["pace"]           # how fast this narrator reads, against the expected length
             voice["sampling"] = {"temperature": 0.3, "top_p": 0.8, "subtalker_temperature": 0.3}
         else:
             voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
@@ -111,14 +113,16 @@ def steady_anchor(voice: dict) -> dict | None:
     recognised on another."""
     name = re.sub(r"[^a-z0-9]+", "-", str(voice.get("name") or "ryan").lower()).strip("-")
     # voice.anchor names another clip in voices/ (a mood: ryan-dread, ryan-awe); a scene can name its own
-    rel = "voices/" + re.sub(r"[^a-z0-9-]+", "-", str(voice.get("anchor") or f"{name}-steady").lower())
+    given = str(voice.get("anchor") or "")
+    rel = given if "/" in given else "voices/" + re.sub(r"[^a-z0-9-]+", "-", (given or f"{name}-steady").lower())
     try:
         meta = json.loads((REPO_ROOT / f"{rel}.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return None
     if not (REPO_ROOT / f"{rel}.wav").exists():
         return None
-    return {"reference": f"{rel}.wav", "text": meta["text"], "pitch_hz": float(meta["pitch_hz"])}
+    return {"reference": f"{rel}.wav", "text": meta["text"], "pitch_hz": float(meta["pitch_hz"]),
+            "pace": float(meta.get("pace") or 0)}
 
 
 def parse_directives(text: str) -> list[tuple]:
@@ -837,6 +841,15 @@ def retime(wav: Path, tempo: float) -> Path:
 def voice_pitch(path: Path) -> float | None:
     """The narrator's pitch in a recording: the middle (median) of its voiced pitch, in Hz. Lines recorded apart
     can come out in different registers; this is how they are told apart."""
+    tone = voice_tone(path)
+    return tone[0] if tone else None
+
+
+def voice_tone(path: Path) -> tuple[float, float] | None:
+    """(median pitch in Hz, how far the pitch moves in semitones: the span between its lowest and highest tenth).
+    A calm, even read moves 4 to 7 semitones; a line that swings much further sounds like another mood."""
+    import math
+
     import numpy as np
     sr = 16000
     x = _decode(path, sr)
@@ -853,10 +866,14 @@ def voice_pitch(path: Path) -> float | None:
         k = lo + int(np.argmax(ac[lo:hi]))
         if ac[k] / ac[0] > 0.55:
             vals.append(sr / k)
-    return float(np.median(vals)) if len(vals) >= 15 else None
+    if len(vals) < 15:
+        return None
+    return float(np.median(vals)), 12 * math.log2(float(np.percentile(vals, 90)) / float(np.percentile(vals, 10)))
 
 
 PITCH_BAND = 1.0           # semitones: a take further than this from the narrator's pitch is in another register
+SWING_MAX = 9.0            # semitones: a take whose pitch moves further than this is too lively for an even read
+PACE_BAND = (0.87, 1.15)   # against the narrator's own pace: slower or faster than this is not the same read
 PITCH_KEEP = 0.35          # semitones: closer than this is the same voice to the ear; nothing is corrected
 
 
@@ -916,21 +933,24 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         return
     exp = expected_seconds(text)
     target = float(voice.get("pitch_hz") or 0)
-    usual = 1.0 if voice.get("reference") else 1.1       # this voice's usual pace against the expected length
+    usual = float(voice.get("pace") or (1.0 if voice.get("reference") else 1.1))   # this voice's usual pace
+    band = (usual * PACE_BAND[0], usual * PACE_BAND[1]) if voice.get("pace") else TAKE_BAND
 
-    def measure(p: Path) -> tuple[float, float, float]:
-        off = 0.0                                         # semitones above (+) or below (-) the narrator's pitch
+    def measure(p: Path) -> tuple[float, float, float, float]:
+        off, swing = 0.0, 0.0             # semitones above/below the narrator's pitch; how far the pitch moves
         if target:
-            hz = voice_pitch(p)
-            off = 12 * math.log2(hz / target) if hz else 0.0
-        return ffprobe_duration(p) / exp, longest_pause(p), off
+            tone = voice_tone(p)
+            if tone:
+                off, swing = 12 * math.log2(tone[0] / target), tone[1]
+        return ffprobe_duration(p) / exp, longest_pause(p), off, swing
 
-    def good(m: tuple[float, float, float]) -> bool:
-        return TAKE_BAND[0] <= m[0] <= TAKE_BAND[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND
+    def good(m: tuple[float, float, float, float]) -> bool:
+        return band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND and m[3] <= SWING_MAX
 
-    def score(m: tuple[float, float, float]) -> float:   # a stall counts heavily; so does a different register
+    def score(m: tuple[float, float, float, float]) -> float:   # a stall counts heavily; so does another register
         return (abs(math.log(max(m[0], 0.05) / usual)) + (1.0 + m[1] if m[1] > MAX_PAUSE else 0.0)
-                + (0.5 * abs(m[2]) if abs(m[2]) > PITCH_BAND else 0.1 * abs(m[2])))
+                + (0.5 * abs(m[2]) if abs(m[2]) > PITCH_BAND else 0.1 * abs(m[2]))
+                + (0.15 * (m[3] - SWING_MAX) + 0.3 if m[3] > SWING_MAX else 0.0))
     best = measure(raw)
     if good(best):
         return
@@ -949,9 +969,11 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
         if good(best):
             break
     if best != first:
-        if abs(first[2]) > PITCH_BAND and TAKE_BAND[0] <= first[0] <= TAKE_BAND[1] and first[1] <= MAX_PAUSE:
+        if abs(first[2]) > PITCH_BAND and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
             log(f"   retook a line that came out {'higher' if first[2] > 0 else 'lower'} than the narrator's voice "
                 f"({first[2]:+.1f} → {best[2]:+.1f} semitones): {text[:60]}")
+        elif first[3] > SWING_MAX and band[0] <= first[0] <= band[1] and first[1] <= MAX_PAUSE:
+            log(f"   retook a line whose tone swung too far ({first[3]:.1f} → {best[3]:.1f} semitones): {text[:60]}")
         elif first[1] > MAX_PAUSE:
             log(f"   retook a line with a {first[1]:.1f} s silence in it (now {best[1]:.1f} s, {best[0]:.2f}x of its "
                 f"natural length): {text[:60]}")
@@ -960,8 +982,9 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
                 f"natural length): {text[:60]}")
     if not good(best):
         what = ("broken by a " + format(best[1], ".1f") + " s silence" if best[1] > MAX_PAUSE
-                else "off its natural pace" if not TAKE_BAND[0] <= best[0] <= TAKE_BAND[1]
-                else format(best[2], "+.1f") + " semitones off the narrator's pitch (it is corrected next)")
+                else "off its natural pace" if not band[0] <= best[0] <= band[1]
+                else format(best[2], "+.1f") + " semitones off the narrator's pitch (it is corrected next)"
+                if abs(best[2]) > PITCH_BAND else f"swinging {best[3]:.1f} semitones in tone")
         warn(f"narration: this line is still {what} after {tries} more takes — listen to it: {text[:70]}")
 
 
@@ -1034,19 +1057,53 @@ def lead_in(audio: SceneAudio, seconds: float, cache: Path) -> SceneAudio:
     return SceneAudio(out, audio.duration + seconds, [sh(c) for c in audio.cues], [sh(w) for w in audio.words])
 
 
-def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed_duration: float | None) -> SceneAudio:
-    """Voice every sentence of a scene, join them, and compute caption cues."""
-    cache.mkdir(parents=True, exist_ok=True)
-    sub = settings["subtitles"]
-    gap = float(settings["sentence_gap"])
+def _take_key(v: dict, sent: str) -> str:
+    """The name one recorded take is kept under: everything that decides how the line sounds, and the line."""
+    parts = [v.get("engine"), v.get("name"), v.get("rate"),
+             v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
+             v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), v.get("tone"),
+             v.get("instruct"), v.get("description"), v.get("model"), sent]
+    if v.get("sampling") or v.get("fluent") is not None or v.get("engine") == "qwen":
+        parts += [v.get("sampling"), v.get("fluent", True), "sent-v2"]
+    if v.get("engine") == "chatterbox":
+        parts.append("cbox-v2")   # earlier Chatterbox clone takes were silently Kokoro fallbacks
+    return stable_hash("sent-v1", *parts)
+
+
+def _scene_items(text: str, voice: dict, settings: dict, fixed_duration: float | None) -> tuple[list[tuple], str]:
+    """What a scene is voiced from (its passages and pauses) and the name its finished audio is kept under."""
     items = parse_directives(text)
     pol = settings.get("voice_polish") or {}
     phrasing = pol.get("mode") == "phrasing" and pol.get("enabled", True) is not False
     if voice.get("engine") in ("qwen", "chatterbox", "elevenlabs") and (not phrasing or pol.get("merge")):
         items = merge_passages(items)
-    key = stable_hash("scene-audio-v7", voice, items, gap, fixed_duration, sub["max_chars"], settings.get("align"),
+    key = stable_hash("scene-audio-v7", voice, items, float(settings["sentence_gap"]), fixed_duration,
+                      settings["subtitles"]["max_chars"], settings.get("align"),
                       settings.get("voice_polish"), settings.get("pause_scale"),
                       *(["cbox-v2"] if voice.get("engine") == "chatterbox" else []))
+    return items, key
+
+
+def scene_take(text: str, voice: dict, cache: Path, settings: dict, fixed_duration: float | None):
+    """For a scene read as one take: (the line, its voice, where the take is kept, whether the scene's finished
+    audio is already there). None when the scene is made of several takes or pauses."""
+    items, key = _scene_items(text, voice, settings, fixed_duration)
+    if len(items) != 1 or items[0][0] != "say":
+        return None
+    _, sent, over = items[0]
+    v = {**voice, **over}
+    done = (cache / f"scene_{key}.wav").exists() and (cache / f"scene_{key}.json").exists()
+    return sent, v, cache / f"sent_{_take_key(v, sent)}.wav", done
+
+
+def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed_duration: float | None) -> SceneAudio:
+    """Voice every sentence of a scene, join them, and compute caption cues."""
+    cache.mkdir(parents=True, exist_ok=True)
+    sub = settings["subtitles"]
+    gap = float(settings["sentence_gap"])
+    pol = settings.get("voice_polish") or {}
+    phrasing = pol.get("mode") == "phrasing" and pol.get("enabled", True) is not False
+    items, key = _scene_items(text, voice, settings, fixed_duration)
     out = cache / f"scene_{key}.wav"
     meta = cache / f"scene_{key}.json"
     m = json.loads(meta.read_text()) if out.exists() and meta.exists() else {}
@@ -1076,16 +1133,7 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
             continue
         _, sent, over = item
         v = {**voice, **over}
-        parts = [v.get("engine"), v.get("name"), v.get("rate"),
-                 v.get("pitch"), v.get("length_scale"), v.get("speed"), v.get("lang"),
-                 v.get("exaggeration"), v.get("cfg_weight"), v.get("reference"), v.get("tone"),
-                 v.get("instruct"), v.get("description"), v.get("model"), sent]
-        if v.get("sampling") or v.get("fluent") is not None or v.get("engine") == "qwen":
-            parts += [v.get("sampling"), v.get("fluent", True), "sent-v2"]
-        if v.get("engine") == "chatterbox":
-            parts.append("cbox-v2")   # earlier Chatterbox clone takes were silently Kokoro fallbacks
-        sk = stable_hash("sent-v1", *parts)
-        raw = cache / f"sent_{sk}.wav"
+        raw = cache / f"sent_{_take_key(v, sent)}.wav"
         if phrasing:
             wav = best_take(sent, v, raw, pol)
         else:

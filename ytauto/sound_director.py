@@ -221,6 +221,39 @@ def scene_tones(texts: list[str], given: list[bool]) -> list[str | None]:
 
 # The default delivery: one even voice from the first word to the last. A narrator whose tone, pace and volume
 # change with every scene's mood sounds as if it rises and falls; the picture and the music carry the mood instead.
+# One mood for the whole video, read from the script. Each is a moderate, natural way of speaking: the mood colours
+# the voice, it never turns into acting. The narrator's reference clip is recorded with it and every line follows.
+STEADY_MOOD = {
+    "danger": ("serious", "measured and serious, the way a good reporter tells a grave true story"),
+    "tension": ("suspenseful", "serious and quietly suspenseful, holding the listener's attention"),
+    "mystery": ("curious", "thoughtful and curious, as if working out a puzzle with the listener"),
+    "wonder": ("warm", "warm and quietly fascinated by what the story reveals"),
+    "epic": ("confident", "confident and clear, with quiet authority"),
+    "calm": ("relaxed", "relaxed, warm and friendly"),
+    None: ("clear", "clear, friendly and matter-of-fact"),
+}
+
+
+def steady_mood(texts: list[str]) -> tuple[str, str]:
+    """(mood word, direction for the narrator) for a whole script: the emotion that carries most of its weight,
+    spoken in a moderate, natural way and kept the same from the first line to the last."""
+    info = [analyse(t) for t in texts]
+    counts: dict[str, float] = {}
+    gravity = {"danger": 1.6, "tension": 1.4}
+    for i in info:
+        if i.mood:
+            counts[i.mood] = counts.get(i.mood, 0) + (1 + i.intensity) * gravity.get(i.mood, 1.0)
+    lead = max(counts, key=counts.get) if counts else None
+    felt = sum(1 for i in info if i.mood) / max(1, len(info))
+    if lead is None or felt < 0.08:          # almost all facts: a clear, plain read
+        lead = None
+    word, how = STEADY_MOOD[lead]
+    facts = " Plain and exact on names, dates and numbers." if felt < 0.4 else ""
+    return word, (f"A natural documentary narrator, {how}. Moderate pace, one even tone and one volume from the first "
+                  f"word to the last. Speak in a normal talking voice, flowing from one sentence into the next. "
+                  f"No drama, no sudden emphasis, never loud.{facts}")
+
+
 STEADY = ("Narrate as a calm, steady documentary narrator. Keep the same even pace, the same pitch and the same "
           "volume from the first word to the last, with no sudden emphasis.")
 
@@ -237,7 +270,8 @@ def direct_narration(project) -> None:
         return
     if str(voice.get("delivery", "steady")).lower() != "expressive":
         if not voice.get("instruct") or str(voice.get("instruct")).strip().lower() == "auto":
-            voice["instruct"] = STEADY
+            # the mood comes from this script's own content; it is then held for the whole video
+            voice["mood"], voice["instruct"] = steady_mood([s.text or "" for s in project.scenes])
         voice["delivery"] = "steady"
         st["voice"] = voice
         return
