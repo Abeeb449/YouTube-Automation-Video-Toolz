@@ -52,7 +52,55 @@ sources:
 - 'EarthSky: great white liver fat and migration — https://earthsky.org/earth/great-white-sharks-use-fat-stored-in-liver-to-fuel-migrations/'
 - 'Wikipedia: Port and Starboard (timeline cross-check only) — https://en.wikipedia.org/wiki/Port_and_Starboard_(orcas)'
 thumbnail:
-  text: TWO ORCAS EMPTIED THIS COAST
+  text: ONLY THE LIVER
+  design:
+    headline: ONLY THE|LIVER
+    accent: LIVER
+    kicker: 2 orcas did this
+    side: left
+    backdrop: sea
+    actors:
+    - creature: orcaPort
+      view: three_quarter
+      x: 0.8
+      y: 0.19
+      w: 0.46
+      flip: true
+      dim: 0.1
+      blur: 1.2
+    - creature: greatWhite
+      view: side
+      x: 0.715
+      y: 0.53
+      w: 0.66
+    - creature: greatWhiteLiver
+      view: side
+      x: 0.715
+      y: 0.53
+      w: 0.66
+      clip:
+        x: 0.525
+        y: 0.585
+        rx: 0.2
+        ry: 0.115
+    - creature: orcaStarboard
+      view: three_quarter
+      x: 0.63
+      y: 0.88
+      w: 0.52
+    ring:
+      x: 0.731
+      y: 0.573
+      rx: 0.134
+      ry: 0.041
+    arrow:
+      from:
+      - 0.385
+      - 0.93
+      to:
+      - 0.585
+      - 0.66
+      bend: -0.25
 youtube:
   privacy: private
   category_id: 15

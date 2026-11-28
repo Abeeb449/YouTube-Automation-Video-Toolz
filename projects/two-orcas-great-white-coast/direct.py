@@ -631,7 +631,17 @@ doc = {
     "tags": ["orca", "great white shark", "Port and Starboard", "Gansbaai", "False Bay", "Mossel Bay", "South Africa",
              "killer whale", "shark liver", "ocean documentary", "wildlife documentary", "animals"],
     "sources": script.sources,
-    "thumbnail": {"text": "TWO ORCAS EMPTIED THIS COAST"},
+    # The thumbnail (remotion/src/Thumbnail.tsx): the shark with its liver showing, the two orcas, and three words.
+    "thumbnail": {"text": "ONLY THE LIVER", "design": {
+        "headline": "ONLY THE|LIVER", "accent": "LIVER", "kicker": "2 orcas did this", "side": "left", "backdrop": "sea",
+        "actors": [
+            {"creature": "orcaPort", "view": "three_quarter", "x": 0.80, "y": 0.19, "w": 0.46, "flip": True, "dim": 0.1, "blur": 1.2},
+            {"creature": "greatWhite", "view": "side", "x": 0.715, "y": 0.53, "w": 0.66},
+            {"creature": "greatWhiteLiver", "view": "side", "x": 0.715, "y": 0.53, "w": 0.66,
+             "clip": {"x": 0.525, "y": 0.585, "rx": 0.2, "ry": 0.115}},
+            {"creature": "orcaStarboard", "view": "three_quarter", "x": 0.63, "y": 0.88, "w": 0.52}],
+        "ring": {"x": 0.731, "y": 0.573, "rx": 0.134, "ry": 0.041},
+        "arrow": {"from": [0.385, 0.93], "to": [0.585, 0.66], "bend": -0.25}}},
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
     # max_pause: no gap inside the voice longer than this. padding: the gap after each scene (about 0.2 s between
     # sentences with the voice trimmed tight). Both can be changed without recording anything again.

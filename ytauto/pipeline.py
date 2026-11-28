@@ -15,7 +15,7 @@ from .cues import find_word_time, resolve_cues
 from .music import MOODS, build_duck_envelope, build_score, speech_from_audio
 from .sound import ALLOWED, BUILTIN, TRANSITION, TRANSITION_FILE, build_track
 from .tts import Cue, SceneAudio, build_scene_audio, lead_in, narration_inputs, shutdown_workers, strip_directives
-from .utils import YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
+from .utils import REPO_ROOT, YtautoError, find_font, fmt_ts, log, run, stable_hash, warn
 from .visuals import ClipRenderer
 
 
@@ -979,12 +979,111 @@ def _slug(s: str) -> str:
     return out[:80] or "video"
 
 
+def _headline(text: str) -> tuple[str, str]:
+    """A title cut into two or three short lines for a thumbnail, and the line to highlight (the last one)."""
+    words = re.sub(r"[^\w\s'’,-]", "", str(text)).upper().split()
+    lines: list[str] = []
+    for w in words:
+        if lines and len(lines[-1]) + 1 + len(w) <= 11:
+            lines[-1] += " " + w
+        else:
+            lines.append(w)
+    lines = lines[:3]
+    return "|".join(lines), (lines[-1] if len(lines) > 1 else "")
+
+
+def thumbnail_design(project: Project, clips: list[Path]) -> dict | None:
+    """What the thumbnail shows. `thumbnail.design` in script.yaml is used as written (see remotion/src/Thumbnail.tsx).
+    Without one a design is made from the video itself: the headline from `thumbnail.text` (or the title), and
+    either the animals the video uses most, big, on a bright backdrop, or a frame of the video behind the words."""
+    cfg = project.thumbnail or {}
+    if isinstance(cfg.get("design"), dict):
+        return dict(cfg["design"])
+    headline, accent = _headline(cfg.get("text") or project.title)
+    design: dict = {"headline": headline, "accent": cfg.get("accent", accent), "side": "left"}
+    if cfg.get("kicker"):
+        design["kicker"] = cfg["kicker"]
+    counts: dict[str, int] = {}
+    try:
+        from .sprites import SETS, sprite_ready
+        for sc in project.scenes:
+            for v in sc.visuals:
+                if isinstance(v, dict) and v.get("remotion") == "OceanScene":
+                    for a in (v.get("props") or {}).get("actors") or []:
+                        c = a.get("creature")
+                        if c in SETS and not a.get("silhouette"):
+                            counts[c] = counts.get(c, 0) + 1
+        picks = []
+        for c, _n in sorted(counts.items(), key=lambda kv: -kv[1]):
+            view = next((v for v in ("three_quarter", "side") if v in SETS[c] and sprite_ready(c, v)), None)
+            if view and c.rstrip("0123456789") not in {p[0].rstrip("0123456789") for p in picks}:
+                picks.append((c, view))
+            if len(picks) == 2:
+                break
+    except Exception:  # noqa: BLE001
+        picks = []
+    if picks:
+        design["backdrop"] = "sea"
+        design["actors"] = [{"creature": picks[0][0], "view": picks[0][1], "x": 0.70, "y": 0.62, "w": 0.68}]
+        if len(picks) > 1:
+            design["actors"].insert(0, {"creature": picks[1][0], "view": picks[1][1], "x": 0.80, "y": 0.22, "w": 0.44,
+                                        "flip": True, "dim": 0.1, "blur": 1.2})
+    elif cfg.get("image") or clips:
+        design["photo_file"] = str(project.resolve(cfg["image"])) if cfg.get("image") else None
+        design["backdrop"] = "night"
+    else:
+        design["backdrop"] = "night"
+    return design
+
+
+def render_thumbnail(project: Project, design: dict, clips: list[Path], out: Path) -> Path:
+    """Draw the thumbnail design as a 1280x720 JPG (Remotion still)."""
+    cfg = project.thumbnail or {}
+    rdir = REPO_ROOT / "remotion"
+    if not (rdir / "node_modules").exists() and os.environ.get("YTAUTO_REMOTION_DIR"):
+        rdir = Path(os.environ["YTAUTO_REMOTION_DIR"])
+    if not (rdir / "node_modules").exists():
+        raise YtautoError("Remotion is not installed")
+    design = dict(design)
+    work = project.cache_dir / "thumb"
+    work.mkdir(parents=True, exist_ok=True)
+    photo = design.pop("photo_file", None)
+    if (photo or clips) and not design.get("actors") and not design.get("photo"):
+        # a frame of the video (or the project's own picture) behind the words
+        staged = rdir / "public" / "ytauto" / f"thumb_{stable_hash(str(project.root), str(photo))[:10]}.jpg"
+        staged.parent.mkdir(parents=True, exist_ok=True)
+        if photo:
+            run(["ffmpeg", "-y", "-v", "error", "-i", photo, "-frames:v", "1", "-q:v", "2", staged])
+        else:
+            clip_i = min(int(cfg.get("from_clip", 0)), len(clips) - 1)
+            run(["ffmpeg", "-y", "-v", "error", "-ss", str(cfg.get("at", 1.0)), "-i", clips[clip_i], "-frames:v", "1", "-q:v", "2", staged])
+        design["photo"] = f"ytauto/{staged.name}"
+    props = work / "thumbnail.props.json"
+    props.write_text(json.dumps(design))
+    png = work / "thumbnail.png"
+    cmd = ["npx", "remotion", "still", "src/index.ts", "Thumbnail", str(png.resolve()), f"--props={props.resolve()}", "--log=error"]
+    if os.environ.get("YTAUTO_CHROME"):
+        cmd.append(f"--browser-executable={os.environ['YTAUTO_CHROME']}")
+    run(cmd, cwd=rdir)
+    run(["ffmpeg", "-y", "-v", "error", "-i", png, "-frames:v", "1", "-q:v", "2", out])
+    return out
+
+
 def make_thumbnail(project: Project, clips: list[Path], build: Path) -> Path | None:
-    """1280x720 JPG: a background (image or a frame from the video) plus big bold text."""
+    """1280x720 JPG. The designed thumbnail (big 3D animals or a frame of the video, a short heavy headline with one
+    highlighted word); if that cannot be drawn, the plain one: a frame of the video with the text over it."""
     cfg = project.thumbnail or {}
     if cfg is False:
         return None
     out = build / "thumbnail.jpg"
+    try:
+        design = thumbnail_design(project, clips)
+        if design:
+            return render_thumbnail(project, design, clips, out)
+    except Exception as exc:  # noqa: BLE001 — the plain thumbnail below is always possible
+        warn(f"designed thumbnail not drawn ({str(exc)[:160]}); using the plain one")
+    if not clips and not cfg.get("image"):
+        return None
     text = cfg.get("text", project.title)
     if cfg.get("image"):
         src = ["-i", project.resolve(cfg["image"])]

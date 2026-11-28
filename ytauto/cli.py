@@ -297,6 +297,18 @@ def cmd_narrate(a) -> int:
     return 0
 
 
+def cmd_thumbnail(a) -> int:
+    """Make (or remake) a project's thumbnail without rendering the video."""
+    from .config import load_project
+    from .pipeline import make_thumbnail
+    project = load_project(a.project, {})
+    project.build_dir.mkdir(parents=True, exist_ok=True)
+    clips = sorted((project.cache_dir / "clips").glob("clip_*.mp4"))[:1]
+    out = make_thumbnail(project, clips, project.build_dir)
+    print(out or "no thumbnail made")
+    return 0 if out else 1
+
+
 def cmd_sprites(a) -> int:
     from .sprites import ensure_all
 
@@ -455,6 +467,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scenes", type=int, help="only the first N scenes (quick voice samples)")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_voiceover)
+
+    p = sp.add_parser("thumbnail", help="make the thumbnail of a project (build/thumbnail.jpg) without rendering the video")
+    p.add_argument("project")
+    p.set_defaults(fn=cmd_thumbnail)
 
     p = sp.add_parser("narrate", help="record the narration ahead of the render and keep it with the project (narration/)")
     p.add_argument("project")
