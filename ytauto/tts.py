@@ -995,6 +995,8 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
             tone = voice_tone(p)
             if tone:
                 off, swing = 12 * math.log2(tone[0] / target), tone[1]
+            else:
+                off = 99.0                # no voice in it at all (the engine now and then returns silence)
         took = speech_seconds(p) if target else ffprobe_duration(p)
         return took / exp, longest_pause(p), off, swing
 
@@ -1194,12 +1196,18 @@ def build_scene_audio(text: str, voice: dict, cache: Path, settings: dict, fixed
             wav = best_take(sent, v, raw, pol)
         else:
             if not _fresh(raw):
-                synthesize(sent, v, raw)
-                guard_take(sent, v, raw)
+                # recorded, checked and levelled under another name, and only then put in place: a run that is
+                # stopped half-way never leaves an unchecked take behind
+                new = raw.with_name(raw.stem + ".new.wav")
+                synthesize(sent, v, new)
+                guard_take(sent, v, new)
                 if v.get("pitch_hz"):
-                    match_pitch(raw, float(v["pitch_hz"]))
+                    match_pitch(new, float(v["pitch_hz"]))
                 if v.get("engine") in ("qwen", "chatterbox") and v.get("level") is not False:
-                    level_take(raw)
+                    level_take(new)
+                for mark in new.parent.glob(new.stem + "*.fallback"):
+                    mark.replace(raw.with_suffix(".fallback"))
+                new.replace(raw)
             wav = tighten(raw, float(v["max_pause"])) if v.get("max_pause") else polish(raw, pol)
             if v.get("tempo") and abs(float(v["tempo"]) - 1.0) > 0.005 and pol.get("enabled") is False:
                 wav = retime(wav, float(v["tempo"]))      # a calmer (or brisker) read, pitch unchanged
