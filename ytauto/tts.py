@@ -110,7 +110,8 @@ def steady_anchor(voice: dict) -> dict | None:
     voices/<name>-steady.json. The path is kept relative to the repository, so recordings made on one machine are
     recognised on another."""
     name = re.sub(r"[^a-z0-9]+", "-", str(voice.get("name") or "ryan").lower()).strip("-")
-    rel = f"voices/{name}-steady"
+    # voice.anchor names another clip in voices/ (a mood: ryan-dread, ryan-awe); a scene can name its own
+    rel = "voices/" + re.sub(r"[^a-z0-9-]+", "-", str(voice.get("anchor") or f"{name}-steady").lower())
     try:
         meta = json.loads((REPO_ROOT / f"{rel}.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001

@@ -629,9 +629,14 @@ doc = {
     "thumbnail": {"text": "TWO ORCAS EMPTIED THIS COAST"},
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
     # padding: the gap after each scene. With the voice trimmed tight this gives about 0.28 s between sentences.
-    "settings": {"stock_approved": APPROVED, "padding": 0.2},
+    # the narrator: calm and low, dread first (voices/ryan-dread), awe in the last chapter (voices/ryan-awe)
+    "settings": {"stock_approved": APPROVED, "padding": 0.2, "voice": {"anchor": "ryan-dread"}},
     "scenes": scenes,
 }
+# "Ends on awe": the last chapter (the sharks seen again, the open question) is read in the awe voice
+_last = max(i for i, s in enumerate(scenes) if s.get("chapter"))
+for s in scenes[_last:]:
+    s["voice"] = {"anchor": "ryan-awe"}
 head = ('# The Two Orcas That Emptied a Great White Shark Coast — first video for the channel.\n'
         '# Written by direct.py from script.txt (the narration is the script, sentence for sentence). Change the shots in\n'
         '# direct.py and run it again; this file is what gets rendered.\n')
