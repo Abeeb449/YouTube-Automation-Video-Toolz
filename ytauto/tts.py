@@ -123,6 +123,8 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
         voice.setdefault("max_pause", 0.30)          # inside a sentence
         voice.setdefault("sentence_pause", 0.70)     # between sentences
         voice["trim"] = "told-v2"
+        voice["fallback"] = None                     # one voice from the first word to the last: if it cannot record,
+        #                                              the narration stops rather than fill in with another voice
         st["sentence_gap"] = float(voice["sentence_pause"])   # between two takes of one paragraph
     return strip_directives(text), voice, st
 

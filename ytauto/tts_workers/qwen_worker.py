@@ -8,8 +8,15 @@ import os
 import sys
 import time
 
-import soundfile as sf
-import torch
+from pathlib import Path
+
+# A model that is already on this machine is loaded straight from its folder, without asking the model host: the host
+# limits how often it may be asked, and a refusal must never stop (or change the voice of) a narration.
+# YTAUTO_HF_ONLINE=1 asks the host again (to fetch a newer copy).
+_hub = Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface") / "hub"
+
+import soundfile as sf  # noqa: E402
+import torch  # noqa: E402
 
 torch.set_num_threads(int(os.environ.get("YTAUTO_TTS_THREADS", os.cpu_count() or 4)))
 from qwen_tts import Qwen3TTSModel  # noqa: E402
@@ -27,7 +34,12 @@ def model(kind: str):
         repo = os.environ.get(f"YTAUTO_QWEN_{kind.upper()}_REPO", f"Qwen/Qwen3-TTS-12Hz-{size}-{kind}")
         dev = "cuda:0" if torch.cuda.is_available() else "cpu"
         dtype = torch.bfloat16 if dev != "cpu" else torch.float32
-        _models[kind] = Qwen3TTSModel.from_pretrained(repo, device_map=dev, dtype=dtype)
+        local = None
+        if not os.environ.get("YTAUTO_HF_ONLINE"):
+            snaps = sorted((_hub / f"models--{repo.replace('/', '--')}" / "snapshots").glob("*"), key=lambda p: p.stat().st_mtime)
+            if snaps and (snaps[-1] / "config.json").exists():
+                local = str(snaps[-1])
+        _models[kind] = Qwen3TTSModel.from_pretrained(local or repo, device_map=dev, dtype=dtype)
     return _models[kind]
 
 
