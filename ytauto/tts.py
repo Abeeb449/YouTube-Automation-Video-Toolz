@@ -106,6 +106,7 @@ def narration_inputs(text: str, voice: dict, st: dict) -> tuple[str, dict, dict]
         else:
             voice["sampling"] = {"temperature": 0.7, "top_p": 0.9, "subtalker_temperature": 0.7}
         voice.setdefault("max_pause", 0.25)      # no gap in the voice longer than this (seconds)
+        voice["trim"] = "speech-v2"              # breaths and noise outside the words are taken out
     return strip_directives(text), voice, st
 
 
@@ -764,6 +765,48 @@ def _decode(path: Path, rate: int):
     return np.frombuffer(pcm, dtype=np.float32)
 
 
+def _speech_frames(x, sr: int):
+    """Which 10 ms frames of a (levelled) recording are the narrator speaking. A neural voice also makes sounds that
+    are not speech: a faint breath or noise before the first word, between sentences, after the last word. Speech is
+    every stretch that is clearly voice (louder than -32 dB for 50 ms or more), widened by up to 120 ms on each side
+    while there is still sound, so soft first and last consonants stay. Everything else counts as silence."""
+    import numpy as np
+    hop = sr // 100
+    n = len(x) // hop
+    db = 20 * np.log10(np.sqrt((x[:n * hop].reshape(n, hop) ** 2).mean(axis=1) + 1e-12))
+    loud = db > -32.0
+    speech = np.zeros(n, dtype=bool)
+    i, found = 0, False
+    while i < n:
+        if loud[i]:
+            j = i
+            while j < n and loud[j]:
+                j += 1
+            if j - i >= 5:
+                found = True
+                a = i
+                while a > 0 and i - a < 12 and db[a - 1] > -45.0:
+                    a -= 1
+                b = j
+                while b < n and b - j < 12 and db[b] > -45.0:
+                    b += 1
+                speech[a:b] = True
+            i = j
+        else:
+            i += 1
+    return speech if found else None
+
+
+def speech_seconds(path: Path) -> float:
+    """How long the narrator takes from the first word to the last (breaths and noise at the ends not counted)."""
+    import numpy as np
+    sp = _speech_frames(_decode(path, 16000), 16000)
+    if sp is None:
+        return ffprobe_duration(path)
+    idx = np.flatnonzero(sp)
+    return float(idx[-1] - idx[0] + 1) / 100.0
+
+
 def tighten(raw: Path, cap: float) -> Path:
     """The same take with no gap longer than `cap` seconds: silence at its start and end is trimmed, and every
     longer silence inside it is cut down to `cap` (the middle of the silence is taken out, never any speech).
@@ -771,7 +814,7 @@ def tighten(raw: Path, cap: float) -> Path:
     import wave
 
     import numpy as np
-    out = raw.with_name(f"{raw.stem}.g{int(round(cap * 1000))}.wav")
+    out = raw.with_name(f"{raw.stem}.s{int(round(cap * 1000))}.wav")
     if out.exists() and out.stat().st_mtime >= raw.stat().st_mtime:
         return out
     sr = SAMPLE_RATE
@@ -780,9 +823,11 @@ def tighten(raw: Path, cap: float) -> Path:
     n = len(x) // hop
     if n < 20:
         return raw
-    rms = np.sqrt((x[:n * hop].reshape(n, hop) ** 2).mean(axis=1) + 1e-12)
-    quiet = 20 * np.log10(rms) < -42.0
-    edge, keep = 4, max(2, int(round(cap * 100)))      # frames kept at the ends / of every inner silence
+    speech = _speech_frames(x, sr)
+    if speech is None:
+        return raw
+    quiet = ~speech
+    edge, keep = 3, max(2, int(round(cap * 100)))      # frames kept at the ends / of every inner silence
     fade = int(sr * 0.006)
     pieces, i = [], 0
     runs = []                                          # (start, end) of silent runs, in frames
@@ -950,7 +995,8 @@ def guard_take(text: str, voice: dict, raw: Path, tries: int = 4) -> None:
             tone = voice_tone(p)
             if tone:
                 off, swing = 12 * math.log2(tone[0] / target), tone[1]
-        return ffprobe_duration(p) / exp, longest_pause(p), off, swing
+        took = speech_seconds(p) if target else ffprobe_duration(p)
+        return took / exp, longest_pause(p), off, swing
 
     def good(m: tuple[float, float, float, float]) -> bool:
         return band[0] <= m[0] <= band[1] and m[1] <= MAX_PAUSE and abs(m[2]) <= PITCH_BAND and m[3] <= swing_max
