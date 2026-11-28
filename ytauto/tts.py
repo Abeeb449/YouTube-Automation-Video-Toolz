@@ -874,8 +874,8 @@ def voice_tone(path: Path) -> tuple[float, float] | None:
 
 
 PITCH_BAND = 1.0           # semitones: a take further than this from the narrator's pitch is in another register
-SWING_MAX = 8.0            # semitones: a take whose pitch moves further than this is too lively for an even read
-PACE_BAND = (0.87, 1.15)   # against the narrator's own pace: slower or faster than this is not the same read
+SWING_MAX = 7.0            # semitones: a take whose pitch moves further than this is too lively for an even read
+PACE_BAND = (0.80, 1.22)   # against the narrator's own pace: slower or faster than this is not the same read
 PITCH_KEEP = 0.35          # semitones: closer than this is the same voice to the ear; nothing is corrected
 
 

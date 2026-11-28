@@ -225,12 +225,13 @@ def narrate(project: Project, pack: bool = False) -> list:
         log(f"   narrator: {st['voice'].get('instruct')}")
     voice_cache = project.cache_dir / "tts"
     restore_narration(project)
-    # One narrator, one sitting: the clip every line is recorded against (made once from the script's mood), and
-    # the scenes of each paragraph recorded in one breath (ytauto/passages.py).
+    # One narrator, one sitting: the clip every line is recorded against, chosen by the script's mood; and, when
+    # the project asks for it, the scenes of each paragraph recorded in one breath (ytauto/passages.py).
     from . import passages
-    passages.ensure_anchor(project)
+    passages.mood_anchor(project)
     inputs = [narration_inputs(scene.text, {**st["voice"], **(scene.voice or {})}, st) for scene in project.scenes]
-    passages.record_passages(project, inputs, voice_cache)
+    if (st.get("voice") or {}).get("passages"):
+        passages.record_passages(project, inputs, voice_cache)
 
     def do_audio(pair):
         scene, (text, voice, sst) = pair

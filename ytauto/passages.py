@@ -4,29 +4,24 @@ A neural voice records one piece of text at a time. Left to itself it gives ever
 mood, and when every sentence is a separate recording the listener hears a stop and a fresh start at each one. Two
 things here take that away (steady delivery, Qwen voice):
 
-  the narrator's clip   One short clip of the narrator reading the opening of the script in the mood the script
-                        calls for (sound_director.steady_mood). It is made once per project, checked, and kept in
-                        <project>/voice/. Every later recording is made against it, so pitch, pace and mood stay
-                        where the clip put them.
-  passages              The scenes of one script paragraph are recorded together in one breath and then cut apart
-                        at the sentence ends, in the short silences between sentences. The voice flows through a
-                        paragraph the way a reader's does; the scenes still get their own audio and timings.
+  the narrator's clip   One short clip of the narrator in the mood the script calls for
+                        (sound_director.steady_mood picks the mood, voices/<speaker>-<mood>.wav is the clip).
+                        Every line is recorded against it, so pitch, pace and mood stay where the clip put them.
+  passages (optional)   voice.passages: true records the scenes of one script paragraph together in one breath
+                        and cuts the recording apart at the sentence ends. The voice then flows through a
+                        paragraph the way a reader's does, at the price of a tone that moves more within it.
 """
 from __future__ import annotations
 
 import difflib
 import json
-import math
 import re
-import shutil
 import wave
 from pathlib import Path
 
 from . import tts
-from .utils import REPO_ROOT, YtautoError, log, stable_hash, warn
+from .utils import REPO_ROOT, YtautoError, log, warn
 
-ANCHOR_DIR = "voice"
-ANCHOR_TAKES = 8             # candidates recorded for the narrator's clip
 PASSAGE_WORDS = 48           # a passage read in one breath is at most about this long (roughly 20 seconds)
 
 
@@ -62,87 +57,20 @@ def _write(path: Path, y, sr: int) -> None:
 
 
 # ------------------------------------------------------------------------------------------ the narrator's clip
-def _anchor_text(texts: list[str]) -> str:
-    """The opening sentence of the script (a second one only when the first is very short). One sentence of 7 to
-    10 seconds comes out far more even than a longer clip, and that evenness is what every line then follows."""
-    sents = [s for t in texts for s in re.split(r"(?<=[.!?])\s+", tts.strip_directives(t).strip()) if s]
-    out: list[str] = []
-    for s in sents:
-        out.append(s)
-        if len(" ".join(out).split()) >= 12:
-            break
-    return " ".join(out)
-
-
-def ensure_anchor(project) -> None:
-    """Make (once) the clip this project's narration is recorded against, and point the voice at it."""
+def mood_anchor(project) -> None:
+    """Point the voice at the narrator's clip for this script's mood: voices/<speaker>-<mood>.wav when there is one
+    (sound_director.steady_mood names the mood), else the speaker's general steady clip. The clips in voices/ are
+    chosen by measurement: an even tone, the speaker's usual pitch, a moderate pace."""
     st = project.settings
     voice = st.get("voice") or {}
     if (voice.get("engine") != "qwen" or str(voice.get("delivery", "steady")).lower() != "steady"
-            or voice.get("reference") or voice.get("anchor") or str(st.get("narration", "natural")).lower() != "natural"):
+            or voice.get("reference") or voice.get("anchor") or not voice.get("mood")):
         return
-    folder = project.root / ANCHOR_DIR
-    wav, meta = folder / "narrator.wav", folder / "narrator.json"
-    try:
-        rel = str(wav.resolve().relative_to(REPO_ROOT).with_suffix("")).replace("\\", "/")
-    except ValueError:
-        rel = str(wav.resolve().with_suffix(""))
-    if wav.exists() and meta.exists():
-        voice["anchor"] = rel
+    name = re.sub(r"[^a-z0-9]+", "-", str(voice.get("name") or "ryan").lower()).strip("-")
+    clip = f"{name}-{voice['mood']}"
+    if (REPO_ROOT / "voices" / f"{clip}.wav").exists() and (REPO_ROOT / "voices" / f"{clip}.json").exists():
+        voice["anchor"] = clip
         st["voice"] = voice
-        return
-    text = _anchor_text([s.text or "" for s in project.scenes])
-    if len(text.split()) < 8:
-        return
-    instruct = voice.get("instruct") or ""
-    log(f"   the narrator's clip: recording {ANCHOR_TAKES} takes of the opening lines "
-        f"({voice.get('mood') or 'steady'} mood) and keeping the most even one")
-    work = project.cache_dir / "tts" / "anchor"
-    work.mkdir(parents=True, exist_ok=True)
-    exp = tts.expected_seconds(text)
-    rows = []
-    for k in range(ANCHOR_TAKES):
-        take = work / f"take{k}_{stable_hash(text, instruct, voice.get('name'))[:8]}.wav"
-        try:
-            if not take.exists():
-                tts.synthesize(text, {"engine": "qwen", "name": voice.get("name") or "ryan", "instruct": instruct,
-                                      "fluent": False, "seed": 700 + 31 * k}, take)
-                tts.level_take(take)
-        except YtautoError as exc:
-            warn(f"narrator's clip, take {k + 1}: {str(exc)[:120]}")
-            continue
-        tight = tts.tighten(take, 0.2)
-        tone = tts.voice_tone(tight)
-        if not tone:
-            continue
-        rows.append({"file": tight, "hz": tone[0], "swing": tone[1], "pace": tts.ffprobe_duration(tight) / exp,
-                     "stall": tts.longest_pause(take), "says": _says(_heard(tight, text), text)})
-    ok = [r for r in rows if r["says"] >= 0.9 and r["stall"] <= 0.6]
-    if not ok:
-        warn("the narrator's clip could not be made (no clean take); the general clip in voices/ is used")
-        return
-    med_hz = sorted(r["hz"] for r in ok)[(len(ok) - 1) // 2]
-    med_pace = sorted(r["pace"] for r in ok)[len(ok) // 2]
-    for r in rows:
-        log(f"      take: {r['hz']:.0f} Hz, tone moving {r['swing']:.1f} semitones, pace {r['pace']:.2f}, "
-            f"words {r['says']:.2f}")
-
-    def score(r: dict) -> float:      # the most even tone, at the usual pace, and not in a high register
-        return (r["swing"] + 14 * abs(math.log(r["pace"] / med_pace)) + 0.6 * max(0.0, 12 * math.log2(r["hz"] / med_hz))
-                + (1 - r["says"]) * 10)
-    best = min(ok, key=score)
-    folder.mkdir(parents=True, exist_ok=True)
-    tts.run(["ffmpeg", "-y", "-v", "error", "-i", best["file"], "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", wav])
-    meta.write_text(json.dumps({
-        "text": text, "pitch_hz": round(best["hz"], 1), "pace": round(best["pace"], 3), "swing": round(best["swing"], 1),
-        "mood": voice.get("mood"), "direction": instruct, "speaker": voice.get("name") or "ryan",
-        "about": "The narrator's clip for this video. Every line of the narration is recorded against it, so the "
-                 "voice keeps this pitch, pace and mood from start to finish. Delete this folder to make a new one."},
-        indent=1), encoding="utf-8")
-    log(f"   the narrator's clip: {best['hz']:.0f} Hz, tone moving {best['swing']:.1f} semitones, "
-        f"{len(text.split()) / (tts.ffprobe_duration(best['file']) / 60):.0f} words a minute → {wav}")
-    voice["anchor"] = rel
-    st["voice"] = voice
 
 
 # ---------------------------------------------------------------------------------------------------- passages
