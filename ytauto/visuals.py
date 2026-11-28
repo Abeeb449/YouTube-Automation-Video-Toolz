@@ -90,6 +90,22 @@ def remotion_fingerprint() -> str:
     return _remotion_fp
 
 
+def sprite_stamp(spec: dict) -> str:
+    """The 3D animal pictures a clip draws, by what is in them. A set that is rendered again (a model was fixed)
+    gives the clip a new name, so a clip made with the earlier pictures is never taken from the cache."""
+    names = set(re.findall(r'"(?:creature|key)": "([A-Za-z0-9_-]+)"', json.dumps(spec.get("props") or {})))
+    root = REPO_ROOT / "remotion" / "public" / "sprites"
+    parts = []
+    for name in sorted(names):
+        folder = root / name
+        if not folder.is_dir():
+            continue
+        for view in sorted(x for x in folder.iterdir() if x.is_dir() and not x.name.endswith(".tmp")):
+            files = sorted(view.glob("*.webp"))
+            parts.append((name, view.name, len(files), sum(f.stat().st_size for f in files)))
+    return stable_hash(parts) if parts else ""
+
+
 class ClipRenderer:
     def __init__(self, project):
         self.p = project
@@ -146,7 +162,7 @@ class ClipRenderer:
             if k in spec:
                 fingerprint = file_fingerprint(Path(spec[k]))
         if "remotion" in spec:
-            fingerprint = (fingerprint, remotion_fingerprint())
+            fingerprint = (fingerprint, remotion_fingerprint(), sprite_stamp(spec))
         elif "blender" in spec:
             fingerprint = (fingerprint, file_fingerprint(REPO_ROOT / "blender" / "render.py"))
         key = stable_hash("clip-v4", spec, fingerprint, round(duration, 3), self.W, self.H, self.fps,

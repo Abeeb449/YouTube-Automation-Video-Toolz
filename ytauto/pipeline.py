@@ -1,6 +1,7 @@
 """Render a project end-to-end: voiceover → clips → concat → mix → captions → final MP4."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -205,10 +206,18 @@ def restore_narration(project: Project) -> int:
     n = 0
     for f in sorted(src.glob("scene_*.flac")):
         wav, meta = dst / (f.stem + ".wav"), src / (f.stem + ".json")
-        if wav.exists() or not meta.exists():
+        if not meta.exists():
+            continue
+        # The recording kept with the project is the one that counts. A copy already in the cache is used only when
+        # it was made from this very file (a line recorded again keeps its name, so an older run's cache could
+        # otherwise hand back the earlier take).
+        stamp = dst / (f.stem + ".from")
+        mark = f"{f.stat().st_size}:{hashlib.sha256(f.read_bytes()).hexdigest()[:16]}"
+        if wav.exists() and stamp.exists() and stamp.read_text() == mark and (dst / meta.name).exists():
             continue
         run(["ffmpeg", "-y", "-v", "error", "-i", f, "-c:a", "pcm_s16le", wav])
         shutil.copyfile(meta, dst / meta.name)
+        stamp.write_text(mark)
         n += 1
     if n:
         log(f"   narration recorded ahead: {n} scene(s) taken from {src.name}/")

@@ -29,7 +29,7 @@ on:
         type: boolean
         default: false
       collect_only:
-        description: "Only find and check the b-roll and 3D models (about 15 minutes, no video): gives you the review sheet first"
+        description: "Only find and check the b-roll and 3D models (up to 50 minutes, no video): gives you the review sheet first"
         type: boolean
         default: false
       parallel:
@@ -54,12 +54,22 @@ on:
         type: choice
         options: [private, unlisted, public]
         default: private
+      tidy:
+        description: "ONLY tidy up, no render: delete old caches and old artifacts (the newest of each is kept)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["projects/**/script.yaml", "projects/**/script.txt"]
 
 permissions:
   contents: write
+  actions: write      # to delete this project's older caches after a new one is saved
+
+env:
+  # the image build step otherwise leaves a ".dockerbuild" artifact (kept 90 days) on every job
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
+  DOCKER_BUILD_SUMMARY: "false"
 
 concurrency:
   group: render-${{ github.ref }}-${{ inputs.project || 'push' }}
@@ -67,6 +77,7 @@ concurrency:
 
 jobs:
   plan:
+    if: ${{ !inputs.tidy }}
     runs-on: ubuntu-latest
     outputs:
       projects: ${{ steps.pick.outputs.projects }}
@@ -122,18 +133,18 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ matrix.project }}/.cache
-          key: ytauto-${{ matrix.project }}-${{ github.run_id }}
-          restore-keys: ytauto-${{ matrix.project }}-
+          key: ytauto-${{ matrix.project }}--run-${{ github.run_id }}
+          restore-keys: ytauto-${{ matrix.project }}--run-
 
       - name: Restore voice models (Qwen3-TTS / Chatterbox / Whisper / CLIP)
         id: hfcache
         uses: actions/cache/restore@v4
         with:
           path: .cache/huggingface
-          key: hf-models-v2-${{ github.run_id }}
+          key: hf-models-v3-none          # never matches: the newest "hf-models-v3-<contents>" is restored below
           restore-keys: |
+            hf-models-v3-
             hf-models-v2-
-            hf-models-v1-
 
       - name: Render
         timeout-minutes: 335
@@ -167,8 +178,8 @@ jobs:
                 # only the collection step: every 3D model, photo and clip is found, checked and listed for review
                 python -m ytauto broll "$P" --minutes 50
               else
-                # stop cleanly before the job limit so the finished parts are saved to the cache below; a video too
-                # long for one run (roughly over 11 minutes) is finished by running the workflow a second time
+                # stop cleanly before the job limit so the finished parts are saved to the cache below; a render that
+                # does not finish in one run is finished by running the workflow a second time
                 timeout -s INT 325m python -m ytauto render "$P" ${{ inputs.preview && '--preview' || '' }}
               fi
               mkdir -p "$P/build"
@@ -186,14 +197,35 @@ jobs:
           path: |
             ${{ matrix.project }}/.cache
             !${{ matrix.project }}/.cache/work
-          key: ytauto-${{ matrix.project }}-${{ github.run_id }}
+          key: ytauto-${{ matrix.project }}--run-${{ github.run_id }}
 
-      - name: Save voice models
+      - name: Name the model cache by its contents
+        id: hfname
         if: always()
+        run: |
+          mkdir -p .cache/huggingface
+          echo "key=hf-models-v3-$(find .cache/huggingface -type f -printf '%P %s\n' | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Save voice models (only when something was added)
+        if: always() && steps.hfname.outputs.key != steps.hfcache.outputs.cache-matched-key
         uses: actions/cache/save@v4
         with:
           path: .cache/huggingface
-          key: hf-models-v2-${{ github.run_id }}
+          key: ${{ steps.hfname.outputs.key }}
+
+      # Every run saves a new cache, and GitHub keeps them all until its 10 GB are full. Only the newest of this
+      # project (and of the models) is ever restored, so the older ones go as soon as the new one is in.
+      - name: Remove older caches of this project
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for prefix in "ytauto-${{ matrix.project }}--run-" "hf-models-v"; do
+            gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "$prefix" --sort created_at --order desc --limit 100 --json id,key \
+              | jq -r '.[1:][] | "\(.id) \(.key)"' | while read -r id key; do
+                  gh cache delete "$id" --repo "$GITHUB_REPOSITORY" && echo "removed older cache: $key"
+                done || true
+          done
 
       - name: Name outputs
         id: meta
@@ -251,6 +283,89 @@ jobs:
             ytauto:latest python -m ytauto upload "${{ matrix.project }}" --privacy "${{ inputs.privacy }}"
 
   # -----------------------------------------------------------------------------------------------------------
+  # TIDY UP (tick "tidy"): no render. Deletes what is never used again and only takes room:
+  #   caches     the newest of each kind stays (per project; the models); older ones and caches saved under the
+  #              old naming go
+  #   artifacts  expired ones, hand-overs between parallel machines, image build records, test videos; of
+  #              everything else the newest with each name stays, so a finished video is never removed
+  # -----------------------------------------------------------------------------------------------------------
+  tidy:
+    name: "Tidy up: old caches and artifacts"
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.tidy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Delete old caches and artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          R="$GITHUB_REPOSITORY"
+          gh api "repos/$R/actions/caches?per_page=100" --paginate --jq '.actions_caches[] | [.id, .key, .created_at, .size_in_bytes] | @tsv' > caches.tsv || true
+          gh api "repos/$R/actions/artifacts?per_page=100" --paginate --jq '.artifacts[] | [.id, .name, .created_at, .expired, .size_in_bytes] | @tsv' > artifacts.tsv || true
+          python3 - <<'PY'
+          import csv, re
+          def rows(f):
+              try:
+                  return [r for r in csv.reader(open(f), delimiter="\t") if r]
+              except FileNotFoundError:
+                  return []
+          keep, drop = [], []
+          fam = {}
+          for cid, key, made, size in rows("caches.tsv"):
+              m = re.match(r"^(ytauto-.+)--run-\d+$", key)
+              if m:
+                  f = ("new", m.group(1))
+              elif re.match(r"^ytauto-.+-\d+$", key):
+                  f = ("old", "")                       # the old naming: never restored again
+              elif key.startswith("hf-models-"):
+                  f = ("models", "")
+              else:
+                  f = None                               # the image build cache and anything else: left alone
+              if f is None:
+                  keep.append(("cache", key, size)); continue
+              fam.setdefault(f, []).append((made, cid, key, size))
+          for f, items in fam.items():
+              items.sort(reverse=True)
+              if f[0] == "old":
+                  drop += [("cache", c, k, s) for _m, c, k, s in items]
+              else:
+                  keep.append(("cache", items[0][2], items[0][3]))
+                  drop += [("cache", c, k, s) for _m, c, k, s in items[1:]]
+          names = {}
+          for aid, name, made, expired, size in rows("artifacts.tsv"):
+              if expired == "true" or name.startswith("par-") or name.endswith(".dockerbuild") or name.startswith("parallel-test"):
+                  drop.append(("artifact", aid, name, size)); continue
+              names.setdefault(name, []).append((made, aid, name, size))
+          for name, items in names.items():
+              items.sort(reverse=True)
+              keep.append(("artifact", items[0][2], items[0][3]))
+              drop += [("artifact", a, n, s) for _m, a, n, s in items[1:]]
+          with open("drop.tsv", "w") as f:
+              for kind, i, name, size in drop:
+                  f.write(f"{kind}\t{i}\t{name}\t{size}\n")
+          with open("keep.txt", "w") as f:
+              for kind, name, size in keep:
+                  f.write(f"- kept {kind}: {name} ({int(size) / 1e6:.0f} MB)\n")
+          PY
+          freed=0
+          {
+            echo "### Tidy up"
+            while IFS=$'\t' read -r kind id name size; do
+              if [ "$kind" = "cache" ]; then path="repos/$R/actions/caches/$id"; else path="repos/$R/actions/artifacts/$id"; fi
+              if gh api -X DELETE "$path" >/dev/null 2>&1; then
+                echo "- deleted $kind: $name ($((size / 1000000)) MB)"; freed=$((freed + size))
+              else
+                echo "- could NOT delete $kind: $name"
+              fi
+            done < drop.tsv
+            echo ""
+            echo "**Freed about $((freed / 1000000)) MB.**"
+            echo ""
+            cat keep.txt
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # -----------------------------------------------------------------------------------------------------------
   # PARALLEL RENDERING (optional: choose a number in the "parallel" box).
   # The video is the same as from the single job above: same plan (script.yaml), same recorded narration, same
   # approved b-roll, same music, captions and description. Only which machine renders which scene changes.
@@ -293,17 +408,18 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ inputs.project }}/.cache
-          key: ytauto-${{ inputs.project }}-${{ github.run_id }}
-          restore-keys: ytauto-${{ inputs.project }}-
+          key: ytauto-${{ inputs.project }}--run-${{ github.run_id }}
+          restore-keys: ytauto-${{ inputs.project }}--run-
 
       - name: Restore voice models (Qwen3-TTS / Chatterbox / Whisper / CLIP)
+        id: hfcache
         uses: actions/cache/restore@v4
         with:
           path: .cache/huggingface
-          key: hf-models-v2-${{ github.run_id }}
+          key: hf-models-v3-none          # never matches: the newest "hf-models-v3-<contents>" is restored below
           restore-keys: |
+            hf-models-v3-
             hf-models-v2-
-            hf-models-v1-
 
       - name: Prepare (plan, b-roll, narration, 3D pictures)
         timeout-minutes: 335
@@ -343,14 +459,35 @@ jobs:
           path: |
             ${{ inputs.project }}/.cache
             !${{ inputs.project }}/.cache/work
-          key: ytauto-${{ inputs.project }}-${{ github.run_id }}
+          key: ytauto-${{ inputs.project }}--run-${{ github.run_id }}
 
-      - name: Save voice models
+      - name: Name the model cache by its contents
+        id: hfname
         if: always()
+        run: |
+          mkdir -p .cache/huggingface
+          echo "key=hf-models-v3-$(find .cache/huggingface -type f -printf '%P %s\n' | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Save voice models (only when something was added)
+        if: always() && steps.hfname.outputs.key != steps.hfcache.outputs.cache-matched-key
         uses: actions/cache/save@v4
         with:
           path: .cache/huggingface
-          key: hf-models-v2-${{ github.run_id }}
+          key: ${{ steps.hfname.outputs.key }}
+
+      # Every run saves a new cache, and GitHub keeps them all until its 10 GB are full. Only the newest of this
+      # project (and of the models) is ever restored, so the older ones go as soon as the new one is in.
+      - name: Remove older caches of this project
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for prefix in "ytauto-${{ inputs.project }}--run-" "hf-models-v"; do
+            gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "$prefix" --sort created_at --order desc --limit 100 --json id,key \
+              | jq -r '.[1:][] | "\(.id) \(.key)"' | while read -r id key; do
+                  gh cache delete "$id" --repo "$GITHUB_REPOSITORY" && echo "removed older cache: $key"
+                done || true
+          done
 
       # Everything the other machines need, so that all of them work from the very same files. Clips rendered
       # in earlier runs are left out: each machine renders its own share.

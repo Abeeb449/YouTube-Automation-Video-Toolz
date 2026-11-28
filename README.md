@@ -50,9 +50,13 @@ Rough render times for a **15-minute 1080p video** on a GitHub runner:
    in `description.txt` automatically, and `credits.json` keeps the licence record of each one.
    | `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | auto-upload to YouTube | see [YouTube upload](#8-youtube-upload-optional) |
 3. Open **Actions → Render video → Run workflow**, enter `projects/example`, then click **Run**.
-   Tick **collect_only** to get just the review sheet first (every 3D model, photo and clip found and checked, about
-   15 minutes, no video). A video longer than about 11 minutes does not finish inside one 6-hour job: run the workflow
-   a second time and it continues from what the first run saved.
+   Tick **collect_only** to get just the review sheet first (every 3D model, photo and clip found and checked, up to
+   50 minutes, no video). A render that does not finish inside one 6-hour job stops cleanly: run the workflow a
+   second time and it continues from what the first run saved. Record the narration ahead (`ytauto narrate`, see
+   below) and a 15 minute video renders in one run.
+   Tick **tidy** (and nothing else) to delete old caches and old artifacts: the newest cache of each project and of
+   the voice models stays, and so does the newest artifact with each name, so a finished video is never removed.
+   After every render the older caches of that project are removed automatically.
 
    **Parallel rendering (optional).** Leave **parallel** on `off` and the whole video is rendered on one machine,
    as described above. Choose `2`, `3`, `4` or `6` and the same video is rendered on that many machines side by
@@ -439,13 +443,16 @@ Run `python -m ytauto doctor` to see what's installed. The Docker image includes
 ## 7. Outputs (`projects/<name>/build/`)
 
 - `<title>.mp4`: H.264 + AAC, `+faststart`, chapters embedded
-- `thumbnail.jpg`: 1280×720 with big outlined text
+- `thumbnail.jpg`: 1280×720. With `thumbnail.designs` in script.yaml: real photos cut out in black and white on a
+  black frame with two to four huge words (`remotion/src/ThumbnailNoir.tsx`); `ytauto thumbnail <project> --all`
+  draws every design to choose from. Without a design one is made from the video itself.
 - `captions.srt`: upload to YouTube for accessibility and SEO (done automatically when uploading)
 - `description.txt`: your description plus a `0:00 Intro …` chapter list
 - `manifest.json`: everything the uploader needs
 - `contact_sheet.jpg`: one frame per scene, for a quick visual check
 
 Caching: `projects/<name>/.cache/` keeps voice clips, stock downloads and rendered clips. Re-rendering after a small edit takes seconds. On GitHub Actions this cache is persisted between runs. Use `--clean` to start fresh.
+Nothing old is reused by mistake: a cached clip is named after everything that goes into it (the shot, its timing, the animation code, the 3D animal pictures it draws), so any change gives a new clip; the narration kept in `<project>/narration/` always wins over a cached copy; and a project only ever restores its own cache.
 
 ## 8. YouTube upload (optional)
 
