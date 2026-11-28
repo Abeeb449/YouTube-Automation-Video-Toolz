@@ -35,6 +35,13 @@ from .utils import YtautoError, log, stable_hash
 # without them, downloads may be refused. Set YTAUTO_CONTACT (e.g. your channel URL or an email) to comply.
 _CONTACT = os.environ.get("YTAUTO_CONTACT", "").strip()
 UA = {"User-Agent": "ytauto-documentary-tool/1.0 (open-source video tool" + (f"; {_CONTACT}" if _CONTACT else "") + ")"}
+UA_PLAIN = {"User-Agent": "ytauto-documentary-tool/1.0 (open-source video tool)"}
+
+
+def ua_for(url: str) -> dict:
+    """The contact details are for Wikimedia, whose robot policy asks for them. No other site is sent them."""
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    return UA if host.endswith(("wikimedia.org", "wikipedia.org")) else UA_PLAIN
 _lock = threading.Lock()
 _used: set[str] = set()          # avoid repeating the same stock clip inside one render
 _reused: dict[str, int] = {}     # how often a clip had to be shown again
@@ -102,7 +109,7 @@ def _credit(cid: str, provider: str, title: str, author: str, code: str, license
 
 # ------------------------------------------------------------------------------------------------ http helpers
 def _get_json(url: str, headers: dict | None = None) -> dict:
-    req = urllib.request.Request(url, headers={**UA, **(headers or {})})
+    req = urllib.request.Request(url, headers={**ua_for(url), **(headers or {})})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read())
 
@@ -144,7 +151,7 @@ def download(url: str, dst: Path, tries: int = 3, max_mb: float | None = None) -
     wikimedia = "upload.wikimedia.org" in url
     for k in range(tries):
         try:
-            req = urllib.request.Request(url, headers=UA)
+            req = urllib.request.Request(url, headers=ua_for(url))
             with (_wm_lock if wikimedia else contextlib.nullcontext()):
                 with urllib.request.urlopen(req, timeout=120) as r:
                     size = int(r.headers.get("Content-Length") or 0)

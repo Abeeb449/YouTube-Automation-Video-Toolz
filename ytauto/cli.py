@@ -304,6 +304,17 @@ def cmd_thumbnail(a) -> int:
     project = load_project(a.project, {})
     project.build_dir.mkdir(parents=True, exist_ok=True)
     clips = sorted((project.cache_dir / "clips").glob("clip_*.mp4"))[:1]
+    designs = (project.thumbnail or {}).get("designs") if isinstance(project.thumbnail, dict) else None
+    if a.all and isinstance(designs, dict):
+        # every design the project holds, to choose from: build/thumbnails/<name>.jpg
+        from .pipeline import render_thumbnail
+        folder = project.build_dir / "thumbnails"
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, design in designs.items():
+            print(render_thumbnail(project, design, clips, folder / f"{name}.jpg"))
+        return 0
+    if a.use:
+        project.thumbnail = {**(project.thumbnail or {}), "use": a.use}
     out = make_thumbnail(project, clips, project.build_dir)
     print(out or "no thumbnail made")
     return 0 if out else 1
@@ -470,6 +481,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sp.add_parser("thumbnail", help="make the thumbnail of a project (build/thumbnail.jpg) without rendering the video")
     p.add_argument("project")
+    p.add_argument("--all", action="store_true", help="draw every design the project holds (build/thumbnails/), to choose from")
+    p.add_argument("--use", help="draw this one of the project's designs")
     p.set_defaults(fn=cmd_thumbnail)
 
     p = sp.add_parser("narrate", help="record the narration ahead of the render and keep it with the project (narration/)")

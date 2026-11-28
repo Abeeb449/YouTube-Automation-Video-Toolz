@@ -621,6 +621,41 @@ def _cue_words(node, text, where):
 for i, sc in enumerate(scenes):
     _cue_words({k: v for k, v in sc.items() if k != "text"}, sc["text"], f"scene {i + 1}")
 
+# ------------------------------------------------------------------------------------------------ thumbnail
+# Real photos, cut out and turned black and white (thumbnail/), on black, with two to four huge words: the look
+# of the owner's reference thumbnails. Each layout exists in white + red and in the channel's colours (white over
+# yellow running into orange). `use` names the one that is drawn; `ytauto thumbnail <project> --all` draws them all.
+_T = "thumbnail/"
+_LAYOUTS = {
+    "shark-killers": {"headline": "SHARK|KILLERS", "accent": "KILLERS", "text": {"at": "left", "width": 0.47, "y": 0.735},
+                      "images": [{"file": _T + "orcas-two.png", "x": 0.635, "y": 0.40, "w": 0.74}],
+                      "spot": {"x": 0.62, "y": 0.4, "r": 0.45, "strength": 0.07}},
+    "only-ate-the-liver": {"headline": "ONLY ATE THE LIVER", "accent": "LIVER", "text": {"at": "top-left", "width": 0.905},
+                           "images": [{"file": _T + "orcas-two.png", "x": 0.70, "y": 0.61, "w": 0.60},
+                                      {"file": _T + "great-white.png", "x": 0.20, "y": 0.80, "w": 0.38}],
+                           "arrow": {"from": [0.10, 0.27], "to": [0.21, 0.64], "bend": 0.30}},
+    "they-hunt-great-whites": {"headline": "THEY HUNT GREAT WHITES", "accent": "GREAT WHITES", "text": {"at": "top", "width": 0.93},
+                               "images": [{"file": _T + "great-white.png", "x": 0.47, "y": 0.66, "w": 0.98}],
+                               "spot": {"x": 0.55, "y": 0.66, "r": 0.5, "strength": 0.06}},
+    "great-white-hunters": {"headline": "THE|GREAT WHITE|HUNTERS", "accent": "GREAT WHITE", "text": {"at": "right", "width": 0.50, "x": 0.965},
+                            "photo": {"file": _T + "orcas-two-photo.jpg", "side": "left", "width": 0.72},
+                            "tag": "South Africa", "dust": False},
+    "great-white-killers": {"headline": "GREAT WHITE|KILLERS", "accent": "KILLERS", "text": {"at": "left", "width": 0.44, "font": "condensed"},
+                            "images": [{"file": _T + "great-white.png", "x": 0.43, "y": 0.53, "w": 1.3, "fade": [0.34, 0.60]}],
+                            "spot": {"x": 0.75, "y": 0.5, "r": 0.45, "strength": 0.06}},
+}
+THUMBNAIL = {
+    "text": "ONLY ATE THE LIVER",
+    "use": "only-ate-the-liver-red",
+    "designs": {f"{name}-{scheme}": {"look": "noir", "scheme": scheme, **layout,
+                                     **({"stroke": True} if scheme == "brand" and name in ("shark-killers", "great-white-killers") else {})}
+                for name, layout in _LAYOUTS.items() for scheme in ("red", "brand")},
+    "credits": [
+        "Two orcas breaching: Robert Pitman, NOAA (public domain) — https://commons.wikimedia.org/wiki/File:Killerwhales_jumping.jpg",
+        "Great white shark: © brendanboyd, CC BY 4.0, cut out and shown in black and white — https://www.inaturalist.org/photos/451580189",
+    ],
+}
+
 doc = {
     "preset": "ocean",
     "title": script.title,
@@ -631,17 +666,7 @@ doc = {
     "tags": ["orca", "great white shark", "Port and Starboard", "Gansbaai", "False Bay", "Mossel Bay", "South Africa",
              "killer whale", "shark liver", "ocean documentary", "wildlife documentary", "animals"],
     "sources": script.sources,
-    # The thumbnail (remotion/src/Thumbnail.tsx): the shark with its liver showing, the two orcas, and three words.
-    "thumbnail": {"text": "ONLY THE LIVER", "design": {
-        "headline": "ONLY THE|LIVER", "accent": "LIVER", "kicker": "2 orcas did this", "side": "left", "backdrop": "sea",
-        "actors": [
-            {"creature": "orcaPort", "view": "three_quarter", "x": 0.80, "y": 0.19, "w": 0.46, "flip": True, "dim": 0.1, "blur": 1.2},
-            {"creature": "greatWhite", "view": "side", "x": 0.715, "y": 0.53, "w": 0.66},
-            {"creature": "greatWhiteLiver", "view": "side", "x": 0.715, "y": 0.53, "w": 0.66,
-             "clip": {"x": 0.525, "y": 0.585, "rx": 0.2, "ry": 0.115}},
-            {"creature": "orcaStarboard", "view": "three_quarter", "x": 0.63, "y": 0.88, "w": 0.52}],
-        "ring": {"x": 0.731, "y": 0.573, "rx": 0.134, "ry": 0.041},
-        "arrow": {"from": [0.385, 0.93], "to": [0.585, 0.66], "bend": -0.25}}},
+    "thumbnail": THUMBNAIL,
     "youtube": {"privacy": "private", "category_id": 15, "synthetic_media": True},
     # max_pause: no gap inside the voice longer than this. padding: the gap after each scene (about 0.2 s between
     # sentences with the voice trimmed tight). Both can be changed without recording anything again.

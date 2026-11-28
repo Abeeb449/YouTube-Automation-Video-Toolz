@@ -751,6 +751,9 @@ def render_project(project: Project, preview: bool = False, keep_cache: bool = T
                 "(paste it as a pinned comment).")
     if providers_used():
         desc += "\n\nStock footage and photos: " + ", ".join(providers_used())
+    thumb_credits = (project.thumbnail or {}).get("credits") if isinstance(project.thumbnail, dict) else None
+    if thumb_credits:       # the photos in the thumbnail are credited like the ones in the video
+        desc += "\n\nThumbnail photos:\n" + "\n".join(f"- {c}" for c in thumb_credits)
     # Credits: every photo/clip with author, licence and source link. YouTube allows 5000 characters, so if they
     # don't all fit, the legally required ones (CC BY / BY-SA) stay and optional ones (CC0, public domain) go.
     for lines in (credits(), credits(required_only=True)):
@@ -997,6 +1000,9 @@ def thumbnail_design(project: Project, clips: list[Path]) -> dict | None:
     Without one a design is made from the video itself: the headline from `thumbnail.text` (or the title), and
     either the animals the video uses most, big, on a bright backdrop, or a frame of the video behind the words."""
     cfg = project.thumbnail or {}
+    if isinstance(cfg.get("designs"), dict) and cfg["designs"]:      # several designs; `use` names the one in force
+        name = cfg.get("use") if cfg.get("use") in cfg["designs"] else next(iter(cfg["designs"]))
+        return dict(cfg["designs"][name])
     if isinstance(cfg.get("design"), dict):
         return dict(cfg["design"])
     headline, accent = _headline(cfg.get("text") or project.title)
@@ -1058,10 +1064,24 @@ def render_thumbnail(project: Project, design: dict, clips: list[Path], out: Pat
             clip_i = min(int(cfg.get("from_clip", 0)), len(clips) - 1)
             run(["ffmpeg", "-y", "-v", "error", "-ss", str(cfg.get("at", 1.0)), "-i", clips[clip_i], "-frames:v", "1", "-q:v", "2", staged])
         design["photo"] = f"ytauto/{staged.name}"
+    # pictures kept with the project (thumbnail/…: real photos, cut out and toned) are put where the page can load them
+    def stage(rel: str) -> str:
+        src = project.resolve(rel)
+        if not src.exists():
+            raise YtautoError(f"thumbnail picture not found: {src}")
+        dst = rdir / "public" / "ytauto" / "thumb" / f"{stable_hash(str(src.resolve()), src.stat().st_size)[:10]}{src.suffix}"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        return f"ytauto/thumb/{dst.name}"
+    design["images"] = [{**{k: v for k, v in im.items() if k != "file"}, "image": stage(im["file"])} if im.get("file") else im
+                        for im in design.get("images") or []]
+    if isinstance(design.get("photo"), dict) and design["photo"].get("file"):
+        design["photo"] = {**{k: v for k, v in design["photo"].items() if k != "file"}, "image": stage(design["photo"]["file"])}
+    comp = "ThumbnailNoir" if design.pop("look", None) == "noir" else "Thumbnail"
     props = work / "thumbnail.props.json"
     props.write_text(json.dumps(design))
     png = work / "thumbnail.png"
-    cmd = ["npx", "remotion", "still", "src/index.ts", "Thumbnail", str(png.resolve()), f"--props={props.resolve()}", "--log=error"]
+    cmd = ["npx", "remotion", "still", "src/index.ts", comp, str(png.resolve()), f"--props={props.resolve()}", "--log=error"]
     if os.environ.get("YTAUTO_CHROME"):
         cmd.append(f"--browser-executable={os.environ['YTAUTO_CHROME']}")
     run(cmd, cwd=rdir)

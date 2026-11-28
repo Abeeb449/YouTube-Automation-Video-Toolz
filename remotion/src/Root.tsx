@@ -1,5 +1,6 @@
 import React from 'react';
 import {Thumbnail} from './Thumbnail';
+import {ThumbnailNoir} from './ThumbnailNoir';
 import {CalculateMetadataFunction, Composition, Folder} from 'remotion';
 import {BaseProps} from './theme';
 import {TitleCard} from './TitleCard';
@@ -91,6 +92,8 @@ export const Root: React.FC = () => (
   <>
     <Composition id="Thumbnail" component={Thumbnail as React.FC<any>} fps={30} width={1280} height={720} durationInFrames={1}
       defaultProps={{headline: 'YOUR|HEADLINE', accent: 'HEADLINE', actors: []}} />
+    <Composition id="ThumbnailNoir" component={ThumbnailNoir as React.FC<any>} fps={30} width={1280} height={720} durationInFrames={1}
+      defaultProps={{headline: 'YOUR|HEADLINE', accent: 'HEADLINE', images: []}} />
     <Composition id="TitleCard" component={TitleCard as React.FC<any>} {...common} defaultProps={SAFE.TitleCard ?? {}} />
     <Composition id="KineticText" component={KineticText as React.FC<any>} {...common} defaultProps={SAFE.KineticText ?? {}} />
     <Composition id="BulletList" component={BulletList as React.FC<any>} {...common} defaultProps={SAFE.BulletList ?? {}} />
